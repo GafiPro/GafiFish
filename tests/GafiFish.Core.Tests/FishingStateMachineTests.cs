@@ -41,6 +41,29 @@ public sealed class FishingStateMachineTests
     }
 
     [Fact]
+    public void StateMachine_AllowsShakeFromPreparingAndReelFromWaitingForBite()
+    {
+        var machine = new FishingStateMachine();
+
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Automation armed."));
+        Assert.True(machine.TryTransition(FishingState.Shaking, "A calibrated prompt appeared."));
+        Assert.True(machine.TryTransition(FishingState.Reeling, "Both reel markers appeared."));
+        Assert.Equal(FishingState.Reeling, machine.CurrentState);
+    }
+
+    [Fact]
+    public void StateMachine_AllowsReelAfterCastWaitsForBite()
+    {
+        var machine = new FishingStateMachine();
+
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Automation armed."));
+        Assert.True(machine.TryTransition(FishingState.Casting, "Cast started."));
+        Assert.True(machine.TryTransition(FishingState.WaitingForBite, "Cast released."));
+        Assert.True(machine.TryTransition(FishingState.Reeling, "Both reel markers appeared."));
+        Assert.Equal(FishingState.Reeling, machine.CurrentState);
+    }
+
+    [Fact]
     public void StateMachine_AllowsOcrCatchNotificationToMarkCatchDetected()
     {
         var machine = new FishingStateMachine();
