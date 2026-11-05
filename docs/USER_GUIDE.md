@@ -23,7 +23,11 @@ Com o Roblox em primeiro plano e a observação F7 ativa:
 - **F9** pára o controlador e liberta imediatamente o rato e as teclas.
 - Se o Roblox perder o foco ou F7 for parado, o GafiFish também desarma e liberta os inputs.
 
-O controlador só atua quando ambos os marcadores estão presentes e acima do limiar de confiança. Se um desaparecer, o botão esquerdo é libertado. A opção **Invert hold/release mapping** permite inverter o sentido do controlo; testa-a apenas numa situação segura. O F8 não faz cast, não resolve prompts de Shake e não recasta por si só.
+O controlador só atua quando ambos os marcadores estão presentes e acima do limiar de confiança. Se um desaparecer, o botão esquerdo é libertado. A opção **Invert hold/release mapping** permite inverter o sentido do controlo; testa-a apenas numa situação segura. O F8 pode também armar duas opções desligadas por defeito:
+- **Auto-cast**: exige medidor Cast calibrado. Segura o botão esquerdo e liberta-o quando o Perfect Cast indica a janela-alvo; cancela se a leitura ficar inválida ou ultrapassar 8 segundos.
+- **Auto-shake**: exige região e cor Shake calibradas. Clica apenas num candidato acima do limiar, estável em dois frames; espera que desapareça ou se mova antes de aceitar outro clique.
+
+Equipar a cana continua a ser uma ação manual. Estas opções foram testadas em frames simulados, não numa sessão real do Fisch. A direção e o timing devem ser verificados com cuidado antes de as usares numa sessão importante.
 
 
 
@@ -70,4 +74,4 @@ O fluxo abre o inventário, espera por várias deteções estáveis do botão, e
 
 Sell Anywhere vende o que não estiver marcado como favorito. Marca como favorito tudo o que pretendes guardar antes de armares o assistente. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
 
-O Perfect Cast continua em diagnóstico: calcula o momento de libertação, mas não envia o clique. O Shake deteta candidatos visuais, mas ainda não interpreta de forma fiável a direção e a tecla de cada prompt. O GafiFish também não faz cast ou recast automaticamente. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
+O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake usa os candidatos de cor/forma na região calibrada. Nenhum deles foi ainda validado com a tua captura real. O GafiFish não equipa a cana nem faz recast depois de uma captura. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
