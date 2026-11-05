@@ -44,7 +44,7 @@ public sealed class ShakeInputCoordinatorTests
         _ = ProcessAt(coordinator, Frame(start), [Prompt(50, 50)]);
         _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(100)), [Prompt(50, 50)]);
 
-        var repeated = coordinator.ProcessFrame(
+        var repeated = ProcessAt(coordinator,
             Frame(start.AddMilliseconds(650)),
             [Prompt(51, 50)]);
 
@@ -57,10 +57,7 @@ public sealed class ShakeInputCoordinatorTests
     {
         var input = new FakeRobloxInput();
         input.Arm();
-        var coordinator = new ShakeInputCoordinator(input, new ShakeInputSettings
-        {
-            MaximumFrameAge = TimeSpan.FromSeconds(10)
-        });
+        var coordinator = new ShakeInputCoordinator(input);
         var start = DateTimeOffset.UtcNow.AddSeconds(-3);
 
         _ = ProcessAt(coordinator, Frame(start), [Prompt(20, 30)]);
