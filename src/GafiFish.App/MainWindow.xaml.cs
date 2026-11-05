@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private readonly RobloxWindowCapture _capture = new();
     private readonly FishingVisionDetector _vision = new();
     private readonly CastMeterVisionDetector _castVision = new();
+    private readonly ShakePromptVisionDetector _shakeVision = new();
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private readonly VisionProfileStore _profileStore = new();
@@ -63,7 +64,9 @@ public partial class MainWindow : Window
         SampleControlMarker,
         SelectCastRegion,
         SampleCastIndicator,
-        SampleCastTarget
+        SampleCastTarget,
+        SelectShakeRegion,
+        SampleShakePrompt
     }
 
     public MainWindow()
@@ -86,6 +89,9 @@ public partial class MainWindow : Window
         CastStatusText.Text = _profile.IsCastCalibrated
             ? "Perfect Cast: saved meter calibration loaded."
             : "Perfect Cast: awaiting meter calibration.";
+        ShakeStatusText.Text = _profile.IsShakeCalibrated
+            ? "Shake: saved prompt calibration loaded."
+            : "Shake: awaiting prompt calibration.";
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -268,6 +274,11 @@ public partial class MainWindow : Window
             var castDecision = _perfectCast.Evaluate(castObservation, DateTimeOffset.UtcNow);
             CastStatusText.Text = $"Perfect Cast: {castDecision.Kind} · position {castObservation.IndicatorPosition:P0} · velocity {castObservation.IndicatorVelocityPerSecond:+0.00;-0.00;0.00}/s · {castDecision.Reason}";
         }
+
+        var shakeResult = _shakeVision.Detect(frame, _profile);
+        ShakeStatusText.Text = shakeResult.IsCalibrated
+            ? $"Shake: {shakeResult.Status}"
+            : "Shake: select the prompt region and sample its color.";
     }
 
     private void DrawMarker(Rectangle overlay, DetectedMarker? marker)
@@ -359,6 +370,18 @@ public partial class MainWindow : Window
             "Click a clear pixel inside the green/target area of the Perfect Cast meter.");
     }
 
+    private void SelectShakeRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectShakeRegion,
+            "Drag a rectangle around the Shake prompt area on a frame where it is visible.");
+    }
+
+    private void SampleShakePrompt_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleShakePrompt,
+            "Click a clear pixel inside the visible Shake prompt.");
+    }
+
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
         if (_lastFrame is null)
@@ -383,14 +406,17 @@ public partial class MainWindow : Window
         if (_calibrationAction is CalibrationAction.SampleFishMarker
             or CalibrationAction.SampleControlMarker
             or CalibrationAction.SampleCastIndicator
-            or CalibrationAction.SampleCastTarget)
+            or CalibrationAction.SampleCastTarget
+            or CalibrationAction.SampleShakePrompt)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
             return;
         }
 
-        if (_calibrationAction is CalibrationAction.SelectRegion or CalibrationAction.SelectCastRegion)
+        if (_calibrationAction is CalibrationAction.SelectRegion
+            or CalibrationAction.SelectCastRegion
+            or CalibrationAction.SelectShakeRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -406,7 +432,9 @@ public partial class MainWindow : Window
 
     private void PreviewOverlay_MouseMove(object sender, MouseEventArgs e)
     {
-        if (_calibrationAction is not (CalibrationAction.SelectRegion or CalibrationAction.SelectCastRegion)
+        if (_calibrationAction is not (CalibrationAction.SelectRegion
+            or CalibrationAction.SelectCastRegion
+            or CalibrationAction.SelectShakeRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -423,7 +451,9 @@ public partial class MainWindow : Window
 
     private async void PreviewOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (_calibrationAction is not (CalibrationAction.SelectRegion or CalibrationAction.SelectCastRegion)
+        if (_calibrationAction is not (CalibrationAction.SelectRegion
+            or CalibrationAction.SelectCastRegion
+            or CalibrationAction.SelectShakeRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -459,25 +489,39 @@ public partial class MainWindow : Window
             width / _lastFrame.Width,
             height / _lastFrame.Height);
 
-        _profile = _calibrationAction == CalibrationAction.SelectRegion
-            ? _profile with
+        var selectedAction = _calibrationAction;
+        _profile = selectedAction switch
+        {
+            CalibrationAction.SelectRegion => _profile with
             {
                 FishingRegion = selectedRegion,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
-            }
-            : _profile with
+            },
+            CalibrationAction.SelectCastRegion => _profile with
             {
                 CastRegion = selectedRegion,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
-            };
+            },
+            CalibrationAction.SelectShakeRegion => _profile with
+            {
+                ShakeRegion = selectedRegion,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            _ => _profile
+        };
 
         _motionTracker.Reset();
         _castVision.Reset();
-        var regionMessage = _calibrationAction == CalibrationAction.SelectRegion
-            ? "Fishing search region saved."
-            : "Perfect Cast meter region saved.";
+        var regionMessage = selectedAction switch
+        {
+            CalibrationAction.SelectRegion => "Fishing search region saved.",
+            CalibrationAction.SelectCastRegion => "Perfect Cast meter region saved.",
+            CalibrationAction.SelectShakeRegion => "Shake prompt region saved.",
+            _ => "Region saved."
+        };
         await SaveProfileAsync(regionMessage);
         _calibrationAction = CalibrationAction.None;
         e.Handled = true;
@@ -514,6 +558,7 @@ public partial class MainWindow : Window
             CalibrationAction.SampleControlMarker => _profile with { ControlMarkerColor = color },
             CalibrationAction.SampleCastIndicator => _profile with { CastIndicatorColor = color },
             CalibrationAction.SampleCastTarget => _profile with { CastTargetColor = color },
+            CalibrationAction.SampleShakePrompt => _profile with { ShakePromptColor = color },
             _ => _profile
         };
 
@@ -537,6 +582,8 @@ public partial class MainWindow : Window
         _calibrationAction = CalibrationAction.None;
         await SaveProfileAsync("Calibration reset.");
         VisionStatusText.Text = "Vision: awaiting color calibration.";
+        CastStatusText.Text = "Perfect Cast: awaiting meter calibration.";
+        ShakeStatusText.Text = "Shake: awaiting prompt calibration.";
     }
 
     private async Task SaveProfileAsync(string successMessage)
