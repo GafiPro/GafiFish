@@ -111,7 +111,7 @@ Hotkeys:
 
 O coordenador `SellAnywhereCoordinator` usa `PeriodicSellSchedule` com intervalo de 10 minutos.
 
-O temporizador só transforma a venda em pendente. A venda só começa depois de uma notificação OCR de confiança elevada marcar uma captura concluída.
+O temporizador só é criado se o utilizador marcar a opção Sell Anywhere na interface, existir uma sessão OCR ativa e o botão/lista estiverem calibrados. Depois, transforma a venda em pendente. A venda só começa depois de uma notificação OCR de confiança elevada marcar uma captura concluída.
 
 Fluxo:
 1. Abrir o inventário com o Roblox em primeiro plano.
