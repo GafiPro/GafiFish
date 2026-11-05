@@ -9,6 +9,7 @@ public sealed record VisionProfile
     public int ReferenceWidth { get; init; }
     public int ReferenceHeight { get; init; }
     public NormalizedRegion FishingRegion { get; init; } = NormalizedRegion.FullFrame;
+    public NormalizedRegion CastRegion { get; init; } = NormalizedRegion.FullFrame;
     public HsvColorRange? FishMarkerColor { get; init; }
     public HsvColorRange? ControlMarkerColor { get; init; }
     public HsvColorRange? CastIndicatorColor { get; init; }
@@ -22,6 +23,7 @@ public sealed record VisionProfile
     public void Validate()
     {
         FishingRegion.Validate();
+        CastRegion.Validate();
 
         if (ReferenceWidth < 0 || ReferenceHeight < 0)
         {
