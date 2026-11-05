@@ -15,7 +15,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Reel assistido opt-in com F8/F9, controlador preditivo e libertação automática de input quando os marcadores desaparecem ou o Roblox perde o foco.
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
-- Histórico local SQLite e resumo de sessão com os 25 melhores peixes.
+- Histórico local SQLite, resumo de sessão com os 25 melhores peixes e exportação CSV/JSON.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR e persistência.
 
 ## O que ainda não está automatizado
@@ -47,6 +47,9 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 6. Pressiona **Start session + local OCR**, regressa ao Roblox e usa F7. O OCR só analisa fotogramas enquanto existir uma sessão ativa.
 7. Pressiona **End session and show Top 25** para guardar a sessão e ver o resumo.
 8. Depois de calibrares a região do minijogo e os dois marcadores, regressa ao Roblox e pressiona **F8** para armar o Reel assistido. **F9** é a paragem de emergência e liberta o input.
+9. Ao terminares a sessão, usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
+
+Sell Anywhere vende os peixes que não estejam marcados como favoritos. Marca previamente como favoritos todos os peixes que pretendes guardar. A venda só é armada por F8 quando existe uma sessão OCR e as regiões do botão/inventário estão calibradas.
 
 O parser de capturas é deliberadamente conservador: só regista uma espécie quando reconhece uma notificação compatível com o padrão inglês `You caught [species]`. Raridade, mutação, peso e valor ficam vazios quando não são reconhecidos com confiança. A notificação real do jogo poderá exigir afinação adicional.
 
