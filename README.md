@@ -2,7 +2,7 @@
 
 Aplicação Windows para observação visual, calibração e registo de sessões de pesca no Roblox Fisch.
 
-<badge>Estado: observação e registo locais</badge>
+**Estado: observação e registo locais.**
 
 ## O que já funciona
 
