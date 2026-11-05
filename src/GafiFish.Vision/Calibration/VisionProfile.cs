@@ -16,6 +16,8 @@ public sealed record VisionProfile
     public NormalizedRegion CatchNotificationRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool CatchNotificationRegionCalibrated { get; init; }
     public bool FishingRegionCalibrated { get; init; }
+    public bool CastRegionCalibrated { get; init; }
+    public bool ShakeRegionCalibrated { get; init; }
     public bool SellButtonRegionCalibrated { get; init; }
     public bool InventoryItemsRegionCalibrated { get; init; }
     public HsvColorRange? FishMarkerColor { get; init; }
@@ -30,8 +32,11 @@ public sealed record VisionProfile
     public bool IsFishingCalibrated => FishMarkerColor.HasValue
         && ControlMarkerColor.HasValue
         && FishingRegionCalibrated;
-    public bool IsCastCalibrated => CastIndicatorColor.HasValue && CastTargetColor.HasValue;
-    public bool IsShakeCalibrated => ShakePromptColor.HasValue;
+    public bool IsCastCalibrated => CastIndicatorColor.HasValue
+        && CastTargetColor.HasValue
+        && CastRegionCalibrated;
+    public bool IsShakeCalibrated => ShakePromptColor.HasValue
+        && ShakeRegionCalibrated;
     public bool IsSellButtonCalibrated => SellButtonColor.HasValue && SellButtonRegionCalibrated;
     public bool IsInventoryVerificationCalibrated => InventoryItemsRegionCalibrated;
     public bool IsCatchNotificationCalibrated => CatchNotificationRegionCalibrated;
