@@ -32,3 +32,4 @@ jobs:
           dotnet run --project tests/GafiFish.Core.Tests/GafiFish.Core.Tests.csproj --configuration Release --no-build --no-restore
           dotnet run --project tests/GafiFish.Vision.Tests/GafiFish.Vision.Tests.csproj --configuration Release --no-build --no-restore
           dotnet run --project tests/GafiFish.Data.Tests/GafiFish.Data.Tests.csproj --configuration Release --no-build --no-restore
+          dotnet run --project tests/GafiFish.App.Tests/GafiFish.App.Tests.csproj --configuration Release --no-build --no-restore
