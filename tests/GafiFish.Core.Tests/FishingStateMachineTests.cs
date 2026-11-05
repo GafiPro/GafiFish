@@ -31,6 +31,26 @@ public sealed class FishingStateMachineTests
     }
 
     [Fact]
+    public void StateMachine_AllowsVisualMarkersToEnterReelingFromPreparing()
+    {
+        var machine = new FishingStateMachine();
+
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Automation armed."));
+        Assert.True(machine.TryTransition(FishingState.Reeling, "Both calibrated reel markers are visible."));
+        Assert.Equal(FishingState.Reeling, machine.CurrentState);
+    }
+
+    [Fact]
+    public void StateMachine_AllowsOcrCatchNotificationToMarkCatchDetected()
+    {
+        var machine = new FishingStateMachine();
+
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Automation armed."));
+        Assert.True(machine.TryTransition(FishingState.CatchDetected, "OCR confirmed a catch."));
+        Assert.Equal(FishingState.CatchDetected, machine.CurrentState);
+    }
+
+    [Fact]
     public void StateMachine_RequiresSaleVerificationBeforeReturningToFishing()
     {
         var machine = new FishingStateMachine();
