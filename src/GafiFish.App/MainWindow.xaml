@@ -80,6 +80,9 @@
                         <TextBlock x:Name="SellStatusText"
                                    Text="Sell Anywhere: awaiting button calibration."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        <TextBlock x:Name="OcrStatusText"
+                                   Text="Local OCR: not initialised."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,6,0,0" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -137,11 +140,30 @@
                         <Button Content="Select inventory items area" Click="SelectInventoryItemsRegion_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Select catch notification region" Click="SelectCatchNotificationRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button Content="Reset calibration" Click="ResetCalibration_Click"
                                 Height="34" Background="#4A3037" Foreground="White" BorderThickness="0" />
                         <TextBlock x:Name="CalibrationModeText"
                                    Text="Capture a frame first, then choose a calibration action."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#19232E" CornerRadius="16" Padding="18" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="Session history" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <Button x:Name="StartSessionButton" Content="Start session + local OCR" Click="StartSession_Click"
+                                Height="36" Margin="0,0,0,7"
+                                Background="#285B50" Foreground="White" BorderThickness="0" />
+                        <Button x:Name="EndSessionButton" Content="End session and show Top 25" Click="EndSession_Click"
+                                Height="36" Background="#4A3037" Foreground="White" BorderThickness="0"
+                                IsEnabled="False" />
+                        <TextBlock x:Name="SessionStatusText" Text="No session running."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
+                        <TextBlock Text="OCR runs locally on the selected notification region. The first session downloads the English language model once."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
 
