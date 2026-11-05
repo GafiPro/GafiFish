@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using GafiFish.Vision.Calibration;
 using GafiFish.Vision.Detection;
+using GafiFish.Core.Casting;
 using GafiFish.Vision.Tracking;
 using GafiFish.Windows.Capture;
 
@@ -25,6 +26,8 @@ public partial class MainWindow : Window
 
     private readonly RobloxWindowCapture _capture = new();
     private readonly FishingVisionDetector _vision = new();
+    private readonly CastMeterVisionDetector _castVision = new();
+    private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private readonly VisionProfileStore _profileStore = new();
     private readonly Rectangle _fishMarkerOverlay = new()
@@ -57,7 +60,10 @@ public partial class MainWindow : Window
         None,
         SelectRegion,
         SampleFishMarker,
-        SampleControlMarker
+        SampleControlMarker,
+        SelectCastRegion,
+        SampleCastIndicator,
+        SampleCastTarget
     }
 
     public MainWindow()
@@ -77,6 +83,9 @@ public partial class MainWindow : Window
         VisionStatusText.Text = _profile.IsFishingCalibrated
             ? "Vision: saved calibration loaded."
             : "Vision: awaiting color calibration.";
+        CastStatusText.Text = _profile.IsCastCalibrated
+            ? "Perfect Cast: saved meter calibration loaded."
+            : "Perfect Cast: awaiting meter calibration.";
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -246,6 +255,19 @@ public partial class MainWindow : Window
         VisionStatusText.Text = motion is not null && visionResult.FishMarker is not null
             ? $"Vision: {visionResult.Status} Fish X={motion.PositionX:F0}px · {motion.VelocityPixelsPerSecond:+0.0;-0.0;0} px/s · confidence {motion.Confidence:P0}"
             : $"Vision: {visionResult.Status}";
+
+        var castObservation = _castVision.Detect(frame, _profile);
+        if (castObservation is null)
+        {
+            CastStatusText.Text = _profile.IsCastCalibrated
+                ? "Perfect Cast: meter markers not detected."
+                : "Perfect Cast: select the meter region and sample both colors.";
+        }
+        else
+        {
+            var castDecision = _perfectCast.Evaluate(castObservation, DateTimeOffset.UtcNow);
+            CastStatusText.Text = $"Perfect Cast: {castDecision.Kind} · position {castObservation.IndicatorPosition:P0} · velocity {castObservation.IndicatorVelocityPerSecond:+0.00;-0.00;0.00}/s · {castDecision.Reason}";
+        }
     }
 
     private void DrawMarker(Rectangle overlay, DetectedMarker? marker)
@@ -319,6 +341,24 @@ public partial class MainWindow : Window
             "Click a clear pixel inside your control marker on the captured frame.");
     }
 
+    private void SelectCastRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectCastRegion,
+            "Drag a rectangle around the Perfect Cast meter on a frame where it is visible.");
+    }
+
+    private void SampleCastIndicator_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleCastIndicator,
+            "Click a clear pixel inside the moving Perfect Cast indicator.");
+    }
+
+    private void SampleCastTarget_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleCastTarget,
+            "Click a clear pixel inside the green/target area of the Perfect Cast meter.");
+    }
+
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
         if (_lastFrame is null)
@@ -340,14 +380,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_calibrationAction is CalibrationAction.SampleFishMarker or CalibrationAction.SampleControlMarker)
+        if (_calibrationAction is CalibrationAction.SampleFishMarker
+            or CalibrationAction.SampleControlMarker
+            or CalibrationAction.SampleCastIndicator
+            or CalibrationAction.SampleCastTarget)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
             return;
         }
 
-        if (_calibrationAction == CalibrationAction.SelectRegion)
+        if (_calibrationAction is CalibrationAction.SelectRegion or CalibrationAction.SelectCastRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -380,7 +423,7 @@ public partial class MainWindow : Window
 
     private async void PreviewOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (_calibrationAction != CalibrationAction.SelectRegion
+        if (_calibrationAction is not (CalibrationAction.SelectRegion or CalibrationAction.SelectCastRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -410,19 +453,32 @@ public partial class MainWindow : Window
             return;
         }
 
-        _profile = _profile with
-        {
-            ReferenceWidth = _lastFrame.Width,
-            ReferenceHeight = _lastFrame.Height,
-            FishingRegion = new NormalizedRegion(
-                left / _lastFrame.Width,
-                top / _lastFrame.Height,
-                width / _lastFrame.Width,
-                height / _lastFrame.Height)
-        };
+        var selectedRegion = new NormalizedRegion(
+            left / _lastFrame.Width,
+            top / _lastFrame.Height,
+            width / _lastFrame.Width,
+            height / _lastFrame.Height);
+
+        _profile = _calibrationAction == CalibrationAction.SelectRegion
+            ? _profile with
+            {
+                FishingRegion = selectedRegion,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            }
+            : _profile with
+            {
+                CastRegion = selectedRegion,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            };
 
         _motionTracker.Reset();
-        await SaveProfileAsync("Fishing search region saved.");
+        _castVision.Reset();
+        var regionMessage = _calibrationAction == CalibrationAction.SelectRegion
+            ? "Fishing search region saved."
+            : "Perfect Cast meter region saved.";
+        await SaveProfileAsync(regionMessage);
         _calibrationAction = CalibrationAction.None;
         e.Handled = true;
     }
@@ -452,9 +508,14 @@ public partial class MainWindow : Window
             _lastFrame.BgraPixels[index + 1],
             _lastFrame.BgraPixels[index + 2]);
 
-        _profile = _calibrationAction == CalibrationAction.SampleFishMarker
-            ? _profile with { FishMarkerColor = color }
-            : _profile with { ControlMarkerColor = color };
+        _profile = _calibrationAction switch
+        {
+            CalibrationAction.SampleFishMarker => _profile with { FishMarkerColor = color },
+            CalibrationAction.SampleControlMarker => _profile with { ControlMarkerColor = color },
+            CalibrationAction.SampleCastIndicator => _profile with { CastIndicatorColor = color },
+            CalibrationAction.SampleCastTarget => _profile with { CastTargetColor = color },
+            _ => _profile
+        };
 
         _profile = _profile with
         {
@@ -488,6 +549,10 @@ public partial class MainWindow : Window
             {
                 var result = _vision.Detect(_lastFrame, _profile);
                 VisionStatusText.Text = $"Vision: {result.Status}";
+                var cast = _castVision.Detect(_lastFrame, _profile);
+                CastStatusText.Text = cast is null
+                    ? "Perfect Cast: meter not detected or not calibrated."
+                    : $"Perfect Cast: { _perfectCast.Evaluate(cast, DateTimeOffset.UtcNow).Kind }.";
             }
         }
         catch (Exception exception) when (
