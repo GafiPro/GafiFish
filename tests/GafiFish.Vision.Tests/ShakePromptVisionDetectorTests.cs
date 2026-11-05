@@ -14,6 +14,7 @@ public sealed class ShakePromptVisionDetectorTests
         var profile = new VisionProfile
         {
             ShakeRegion = new NormalizedRegion(0.10, 0.10, 0.80, 0.80),
+            ShakeRegionCalibrated = true,
             ShakePromptColor = HsvColorSampler.FromBgra(255, 255, 255),
             MinimumBlobArea = 5
         };
@@ -24,6 +25,20 @@ public sealed class ShakePromptVisionDetectorTests
         Assert.Single(result.Prompts);
         Assert.InRange(result.Prompts[0].CenterX, 37, 43);
         Assert.InRange(result.Prompts[0].CenterY, 27, 33);
+    }
+
+    [Fact]
+    public void Detect_RequiresExplicitShakeRegionSelection()
+    {
+        var profile = new VisionProfile
+        {
+            ShakePromptColor = HsvColorSampler.FromBgra(255, 255, 255)
+        };
+
+        var result = new ShakePromptVisionDetector().Detect(CreateFrame(), profile);
+
+        Assert.False(result.IsCalibrated);
+        Assert.Empty(result.Prompts);
     }
 
     [Fact]
