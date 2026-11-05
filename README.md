@@ -2,7 +2,7 @@
 
 Aplicação Windows para observação visual, calibração, Reel assistido e registo de sessões de pesca no Roblox Fisch.
 
-**Estado: captura, diagnóstico visual, Reel assistido e histórico local; lançamento e Shake automáticos ainda pendentes.**
+**Estado: Reel assistido, Auto-cast e Auto-shake opcionais, Sell Anywhere temporizado e histórico local; validação prática no Fisch ainda pendente.**
 
 ## O que já funciona
 
@@ -19,9 +19,9 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Histórico local SQLite, resumo de sessão com os 25 melhores peixes e exportação CSV/JSON.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR e persistência.
 
-## O que ainda não está automatizado
+## O que falta validar no jogo real
 
-- Auto-cast e Auto-shake estão desligados por defeito e foram testados com frames simulados; ainda precisam de validação prática na tua interface do Fisch e com a tua cana/resolução.
+- Auto-cast e Auto-shake estão disponíveis, mas desligados por defeito. Foram testados com frames simulados; ainda precisam de validação prática na tua interface do Fisch e com a tua cana/resolução.
 - O Reel assistido não faz recast nem inicia uma sessão de pesca sozinho; só controla o hold/release quando o minijogo e ambos os marcadores calibrados são detetados.
 - A venda real depende de calibração feita no teu ecrã, da gamepass Sell Anywhere e de uma notificação OCR de confiança elevada. O fluxo foi testado com frames simulados, mas ainda precisa de validação numa sessão real do Fisch.
 
@@ -45,9 +45,10 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 4. Em **Visual calibration**, seleciona a região do minijogo, do medidor de Perfect Cast, do prompt Shake e do botão/inventário Sell Anywhere. Para os detetores por cor, amostra um pixel limpo de cada marcador.
 5. Seleciona também a região da notificação de captura. Esta região é usada pelo OCR.
 6. Pressiona **Start session + local OCR**, regressa ao Roblox e usa F7. O OCR só analisa fotogramas enquanto existir uma sessão ativa.
-7. Depois de calibrares a região do minijogo e os dois marcadores, regressa ao Roblox e pressiona **F8** para armar o Reel assistido. Se as regiões do Sell Anywhere também estiverem calibradas, o temporizador de venda fica ativo. **F9** é a paragem de emergência e liberta o input.
-8. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
-9. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
+7. Para Auto-cast, calibra a região do medidor e as cores do indicador e da zona-alvo; para Auto-shake, calibra a região e a cor dos prompts. Marca as respetivas caixas na interface antes de ativar o assistente. Ambas estão desligadas por defeito.
+8. Regressa ao Roblox e pressiona **F8** para armar o Reel assistido e as opções que escolheste. Se a sessão OCR e as regiões Sell Anywhere estiverem calibradas, o temporizador de venda fica ativo. **F9** é a paragem de emergência e liberta o input.
+9. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
+10. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
 
 Sell Anywhere vende os peixes que não estejam marcados como favoritos. Marca previamente como favoritos todos os peixes que pretendes guardar. A venda só é armada por F8 quando existe uma sessão OCR e as regiões do botão/inventário estão calibradas.
 
