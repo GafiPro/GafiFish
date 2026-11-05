@@ -1,4 +1,5 @@
 using System.IO;
+using Microsoft.Win32;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,6 +15,7 @@ using GafiFish.Vision.Tracking;
 using GafiFish.Windows.Capture;
 using GafiFish.Core.Models;
 using GafiFish.Data.Storage;
+using GafiFish.Data.Export;
 using GafiFish.Ocr.Engine;
 using GafiFish.Ocr.Installation;
 using GafiFish.Ocr.Parsing;
@@ -101,6 +103,7 @@ public partial class MainWindow : Window
     private bool _automationEnabled;
     private LocalTesseractOcr? _ocr;
     private Guid? _activeSessionId;
+    private Guid? _lastCompletedSessionId;
     private bool _ocrInProgress;
     private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
@@ -1094,6 +1097,9 @@ public partial class MainWindow : Window
             var sessionId = await _sessionStore.StartSessionAsync(DateTimeOffset.UtcNow);
 
             _activeSessionId = sessionId;
+            _lastCompletedSessionId = null;
+            ExportCsvButton.IsEnabled = false;
+            ExportJsonButton.IsEnabled = false;
             _lastCatchFingerprint = null;
             _lastCatchAt = DateTimeOffset.MinValue;
             _lastOcrAt = DateTimeOffset.MinValue;
@@ -1125,6 +1131,9 @@ public partial class MainWindow : Window
         {
             await _sessionStore.FinishSessionAsync(sessionId, DateTimeOffset.UtcNow);
             _activeSessionId = null;
+            _lastCompletedSessionId = sessionId;
+            ExportCsvButton.IsEnabled = true;
+            ExportJsonButton.IsEnabled = true;
 
             var summary = await _sessionStore.GetSessionSummaryAsync(sessionId);
             if (summary is null)
@@ -1157,6 +1166,67 @@ public partial class MainWindow : Window
         {
             SessionStatusText.Text = $"Could not finish the session cleanly: {exception.Message}";
             StartSessionButton.IsEnabled = true;
+        }
+    }
+
+    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        await ExportCompletedSessionAsync(exportJson: false);
+    }
+
+    private async void ExportJson_Click(object sender, RoutedEventArgs e)
+    {
+        await ExportCompletedSessionAsync(exportJson: true);
+    }
+
+    private async Task ExportCompletedSessionAsync(bool exportJson)
+    {
+        if (_lastCompletedSessionId is not Guid sessionId)
+        {
+            SessionStatusText.Text = "End a session before exporting its catch history.";
+            return;
+        }
+
+        var extension = exportJson ? "json" : "csv";
+        var dialog = new SaveFileDialog
+        {
+            Title = exportJson ? "Export GafiFish session as JSON" : "Export GafiFish session as CSV",
+            Filter = exportJson ? "JSON files (*.json)|*.json" : "CSV files (*.csv)|*.csv",
+            DefaultExt = extension,
+            AddExtension = true,
+            FileName = $"GafiFish-session-{DateTime.Now:yyyyMMdd-HHmmss}.{extension}",
+            OverwritePrompt = true
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        ExportCsvButton.IsEnabled = false;
+        ExportJsonButton.IsEnabled = false;
+        try
+        {
+            var catches = await _sessionStore.GetCatchesAsync(sessionId);
+            if (exportJson)
+            {
+                await SessionExportService.ExportJsonAsync(catches, dialog.FileName);
+            }
+            else
+            {
+                await SessionExportService.ExportCsvAsync(catches, dialog.FileName);
+            }
+
+            SessionStatusText.Text = $"Exported {catches.Count} catches to {Path.GetFileName(dialog.FileName)}.";
+        }
+        catch (Exception exception)
+        {
+            SessionStatusText.Text = $"Export failed: {exception.Message}";
+        }
+        finally
+        {
+            ExportCsvButton.IsEnabled = true;
+            ExportJsonButton.IsEnabled = true;
         }
     }
 
