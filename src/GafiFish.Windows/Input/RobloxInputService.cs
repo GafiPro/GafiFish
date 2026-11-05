@@ -14,8 +14,11 @@ public sealed class RobloxInputService : IDisposable
 {
     private const uint InputMouse = 0;
     private const uint InputKeyboard = 1;
+    private const uint MouseMove = 0x0001;
     private const uint MouseLeftDown = 0x0002;
     private const uint MouseLeftUp = 0x0004;
+    private const uint MouseAbsolute = 0x8000;
+    private const uint MouseVirtualDesk = 0x4000;
     private const uint KeyUp = 0x0002;
 
     private readonly RobloxWindowCapture _windowCapture;
@@ -61,6 +64,39 @@ public sealed class RobloxInputService : IDisposable
 
         SendMouse(MouseLeftDown);
         _leftButtonDown = true;
+    }
+
+    /// <summary>
+    /// Clicks a point measured in captured Roblox client pixels. The frame must
+    /// be recent and the same Roblox window must still be in the foreground.
+    /// </summary>
+    public void ClickClient(int clientX, int clientY, ScreenCaptureFrame frame)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(frame);
+        EnsureArmedAndForeground();
+
+        var frameAge = DateTimeOffset.UtcNow - frame.CapturedAt;
+        if (frameAge < TimeSpan.Zero || frameAge > TimeSpan.FromMilliseconds(250))
+        {
+            throw new InvalidOperationException("The screen frame is stale; capture a fresh Roblox frame before clicking.");
+        }
+
+        if (frame.ProcessId <= 0
+            || clientX < 0 || clientX >= frame.Width
+            || clientY < 0 || clientY >= frame.Height)
+        {
+            throw new ArgumentOutOfRangeException(nameof(clientX), "Click coordinates must be inside the captured client area.");
+        }
+
+        if (_leftButtonDown)
+        {
+            throw new InvalidOperationException("Cannot issue a point click while the left mouse button is held.");
+        }
+
+        var screenX = frame.ClientScreenX + clientX;
+        var screenY = frame.ClientScreenY + clientY;
+        SendMouseClickAtScreen(screenX, screenY);
     }
 
     public void SetKey(ushort virtualKey, bool isDown)
@@ -188,6 +224,65 @@ public sealed class RobloxInputService : IDisposable
         Send(input);
     }
 
+    private static void SendMouseClickAtScreen(int screenX, int screenY)
+    {
+        var virtualLeft = Native.GetSystemMetrics(76);
+        var virtualTop = Native.GetSystemMetrics(77);
+        var virtualWidth = Native.GetSystemMetrics(78);
+        var virtualHeight = Native.GetSystemMetrics(79);
+
+        if (virtualWidth <= 1 || virtualHeight <= 1)
+        {
+            throw new InvalidOperationException("Could not determine the virtual desktop bounds.");
+        }
+
+        var absoluteX = Math.Clamp(
+            (int)Math.Round((screenX - virtualLeft) * 65535d / (virtualWidth - 1)),
+            0, 65535);
+        var absoluteY = Math.Clamp(
+            (int)Math.Round((screenY - virtualTop) * 65535d / (virtualHeight - 1)),
+            0, 65535);
+
+        Native.Input[] inputs =
+        [
+            new()
+            {
+                Type = InputMouse,
+                Data = new Native.InputUnion
+                {
+                    Mouse = new Native.MouseInput
+                    {
+                        Dx = absoluteX,
+                        Dy = absoluteY,
+                        Flags = MouseMove | MouseAbsolute | MouseVirtualDesk
+                    }
+                }
+            },
+            new()
+            {
+                Type = InputMouse,
+                Data = new Native.InputUnion
+                {
+                    Mouse = new Native.MouseInput { Flags = MouseLeftDown }
+                }
+            },
+            new()
+            {
+                Type = InputMouse,
+                Data = new Native.InputUnion
+                {
+                    Mouse = new Native.MouseInput { Flags = MouseLeftUp }
+                }
+            }
+        ];
+
+        var sent = Native.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Native.Input>());
+        if (sent != inputs.Length)
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows rejected the point-click event.");
+        }
+    }
+
     private static void SendKeyboard(ushort virtualKey, uint flags)
     {
         var input = new Native.Input
@@ -261,5 +356,8 @@ public sealed class RobloxInputService : IDisposable
 
         [DllImport("user32.dll", SetLastError = true)]
         internal static extern uint SendInput(uint inputCount, [In] Input[] inputs, int size);
+
+        [DllImport("user32.dll")]
+        internal static extern int GetSystemMetrics(int index);
     }
 }
