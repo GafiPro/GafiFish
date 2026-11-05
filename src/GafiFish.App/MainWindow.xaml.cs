@@ -360,13 +360,15 @@ public partial class MainWindow : Window
 
     private void StopAutomation(string reason)
     {
+        var releaseFailed = false;
+
         try
         {
             _sellCoordinator?.Stop();
         }
         catch
         {
-            // Continue to release the shared input adapter.
+            releaseFailed = true;
         }
 
         try
@@ -377,24 +379,36 @@ public partial class MainWindow : Window
         }
         catch
         {
-            // Continue to release the shared input adapter.
+            releaseFailed = true;
+        }
+
+        // Attempt both paths independently. Dispose performs a second
+        // best-effort release if Disarm encountered a rejected Win32 event.
+        try
+        {
+            _automationInput?.Disarm();
+        }
+        catch
+        {
+            releaseFailed = true;
         }
 
         try
         {
-            _automationInput?.Disarm();
             _automationInput?.Dispose();
         }
         catch
         {
-            // Continue shutdown and report the requested stop reason.
+            releaseFailed = true;
         }
 
         if (_runtimeStateMachine is not null
             && _runtimeStateMachine.CurrentState != FishingState.Stopped)
         {
             _ = _runtimeStateMachine.TryTransition(FishingState.Stopping, reason);
-            _ = _runtimeStateMachine.TryTransition(FishingState.Stopped, "All inputs released.");
+            _ = _runtimeStateMachine.TryTransition(
+                FishingState.Stopped,
+                releaseFailed ? "Stop completed with an input-release warning." : "All inputs released.");
         }
 
         _automationEnabled = false;
@@ -410,7 +424,10 @@ public partial class MainWindow : Window
         InvertReelDirectionCheckBox.IsEnabled = true;
         AutoCastCheckBox.IsEnabled = true;
         AutoShakeCheckBox.IsEnabled = true;
-        AutomationStatusText.Text = reason;
+
+        AutomationStatusText.Text = releaseFailed
+            ? $"{reason} Warning: Windows rejected an input-release event; check the mouse/keyboard state."
+            : reason;
     }
 
     private void ProcessAutomationFrame(
