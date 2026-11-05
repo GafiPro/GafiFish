@@ -68,10 +68,10 @@ Ao terminar a sessão, o GafiFish guarda a hora de fim e mostra o total, a taxa 
 
 ## 5. Sell Anywhere e limites da versão atual
 
-O agendamento Sell Anywhere só é criado quando, no momento em que pressionas F8, existe uma sessão OCR ativa e estão calibradas a região/cor do botão e a área da lista de itens. A primeira venda só é tentada depois de 10 minutos e de uma notificação de captura OCR com confiança elevada durante o estado Reel.
+O agendamento Sell Anywhere só é criado quando, antes de pressionares F8, marcas a caixa **Enable Sell Anywhere every 10 minutes**, existe uma sessão OCR ativa e estão calibradas a região/cor do botão e a área da lista de itens. A primeira venda só é tentada depois de 10 minutos e de uma notificação de captura OCR com confiança elevada durante o estado Reel.
 
 O fluxo abre o inventário, espera por várias deteções estáveis do botão, envia um único clique e exige uma alteração da lista em dois fotogramas consecutivos antes de fechar o inventário. Se o botão não for encontrado ou a lista não mudar de forma estável, o GafiFish pára e liberta os inputs; não repete o clique às cegas.
 
-Sell Anywhere vende o que não estiver marcado como favorito. Marca como favorito tudo o que pretendes guardar antes de armares o assistente. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
+Sell Anywhere vende o que não estiver marcado como favorito. A opção está desligada por defeito e exige confirmação explícita na caixa da interface. Marca como favorito tudo o que pretendes guardar antes de a ativares. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
 
 O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake usa os candidatos de cor/forma na região calibrada. Ambos são opções na interface, desligadas por defeito, e ainda precisam de ser validados com uma captura real. O GafiFish não equipa a cana nem faz recast depois de uma captura. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
