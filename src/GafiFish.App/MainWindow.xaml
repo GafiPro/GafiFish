@@ -50,12 +50,20 @@
                     <Border Grid.Row="1" Background="#0B1016" CornerRadius="10" BorderBrush="#33414F"
                             BorderThickness="1" Padding="4">
                         <Grid>
-                            <Image x:Name="PreviewImage" Stretch="Uniform" />
-                            <TextBlock x:Name="PreviewPlaceholder"
+                            <Image x:Name="PreviewImage" Stretch="Uniform" IsHitTestVisible="False" />
+                            <TextBlock x:Name="PreviewPlaceholder" IsHitTestVisible="False"
                                        Text="Press F6 while Roblox is focused to capture a frame.&#10;Press F7 to toggle continuous observation."
                                        Foreground="#718395" TextAlignment="Center"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        FontSize="15" TextWrapping="Wrap" />
+                            <Canvas x:Name="PreviewOverlay" Background="Transparent"
+                                    MouseLeftButtonDown="PreviewOverlay_MouseLeftButtonDown"
+                                    MouseMove="PreviewOverlay_MouseMove"
+                                    MouseLeftButtonUp="PreviewOverlay_MouseLeftButtonUp">
+                                <Rectangle x:Name="SelectionRectangle" Stroke="#67D5B5"
+                                           StrokeThickness="2" Fill="#3367D5B5"
+                                           Visibility="Collapsed" IsHitTestVisible="False" />
+                            </Canvas>
                         </Grid>
                     </Border>
 
@@ -77,6 +85,26 @@
                         <TextBlock Text="F6 captures one frame. F7 starts or stops live observation. Use the keys while Roblox is the foreground window; Alt+Tab back here to inspect the latest frame."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,12,0,0" />
                         <TextBlock x:Name="HotkeyStatusText" Text="Global hotkeys: registering…"
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#19232E" CornerRadius="16" Padding="18" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="Visual calibration" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <Button Content="Select search region" Click="SelectRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample fish marker" Click="SampleFishMarker_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample control marker" Click="SampleControlMarker_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Reset calibration" Click="ResetCalibration_Click"
+                                Height="34" Background="#4A3037" Foreground="White" BorderThickness="0" />
+                        <TextBlock x:Name="CalibrationModeText"
+                                   Text="Capture a frame first, then choose a calibration action."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
                     </StackPanel>
                 </Border>
