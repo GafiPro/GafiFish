@@ -25,6 +25,7 @@ public sealed class SellAnywhereCoordinator
     private ScreenCaptureFrame? _beforeSaleFrame;
     private DetectedMarker? _lastButton;
     private int _stableButtonFrames;
+    private int _verifiedChangeFrames;
     private string _lastStatus = "Sell Anywhere is stopped.";
     private bool _started;
 
@@ -128,6 +129,7 @@ public sealed class SellAnywhereCoordinator
         _beforeSaleFrame = null;
         _lastButton = null;
         _stableButtonFrames = 0;
+        _verifiedChangeFrames = 0;
         _lastStatus = "Sell Anywhere stopped; all inputs released.";
     }
 
@@ -159,6 +161,7 @@ public sealed class SellAnywhereCoordinator
         ToggleInventory();
         _phaseStartedAt = now;
         ResetButtonStability();
+        _verifiedChangeFrames = 0;
         _lastStatus = "Waiting for the calibrated inventory and Sell Anywhere button.";
     }
 
@@ -254,6 +257,15 @@ public sealed class SellAnywhereCoordinator
 
         if (changedRatio >= _settings.MinimumInventoryChangeRatio)
         {
+            _verifiedChangeFrames++;
+        }
+        else
+        {
+            _verifiedChangeFrames = 0;
+        }
+
+        if (_verifiedChangeFrames >= _settings.RequiredVerificationFrames)
+        {
             ToggleInventory();
 
             if (!_stateMachine.TryTransition(
@@ -277,12 +289,15 @@ public sealed class SellAnywhereCoordinator
             }
 
             _beforeSaleFrame = null;
-            _lastStatus = $"Sale visually verified ({changedRatio:P1} inventory change). Next sale due in 10 minutes.";
+            _verifiedChangeFrames = 0;
+            _lastStatus = $"Sale visually verified across {_settings.RequiredVerificationFrames} frames ({changedRatio:P1} inventory change). Next sale due in 10 minutes.";
             return;
         }
 
-        CheckTimeout(frame.CapturedAt,
-            $"No sufficient inventory change was detected (observed {changedRatio:P1}); sale was not confirmed.");
+        _lastStatus = changedRatio >= _settings.MinimumInventoryChangeRatio
+            ? $"Inventory change detected ({changedRatio:P1}); waiting for a second stable frame ({_verifiedChangeFrames}/{_settings.RequiredVerificationFrames})."
+            : $"No sufficient inventory change was detected (observed {changedRatio:P1}).";
+        CheckTimeout(frame.CapturedAt, _lastStatus);
     }
 
     private void UpdateStableButton(DetectedMarker marker)
@@ -335,6 +350,7 @@ public sealed class SellAnywhereCoordinator
         _started = false;
         _beforeSaleFrame = null;
         ResetButtonStability();
+        _verifiedChangeFrames = 0;
 
         if (_stateMachine.CurrentState != FishingState.Error)
         {
