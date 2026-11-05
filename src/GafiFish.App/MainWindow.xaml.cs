@@ -12,6 +12,11 @@ using GafiFish.Vision.Detection;
 using GafiFish.Core.Casting;
 using GafiFish.Vision.Tracking;
 using GafiFish.Windows.Capture;
+using GafiFish.Core.Models;
+using GafiFish.Data.Storage;
+using GafiFish.Ocr.Engine;
+using GafiFish.Ocr.Installation;
+using GafiFish.Ocr.Parsing;
 
 namespace GafiFish.App;
 
@@ -32,6 +37,8 @@ public partial class MainWindow : Window
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private readonly VisionProfileStore _profileStore = new();
+    private readonly FishSessionStore _sessionStore = new();
+    private readonly FishCatchTextParser _catchParser = new();
     private readonly Rectangle _fishMarkerOverlay = new()
     {
         Stroke = Brushes.Lime,
@@ -53,6 +60,12 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _previewCancellation;
     private bool _captureHotkeyRegistered;
     private bool _previewHotkeyRegistered;
+    private LocalTesseractOcr? _ocr;
+    private Guid? _activeSessionId;
+    private bool _ocrInProgress;
+    private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
+    private string? _lastCatchFingerprint;
     private CalibrationAction _calibrationAction;
     private Point? _selectionStartPixel;
     private Point? _selectionStartOverlay;
@@ -70,7 +83,8 @@ public partial class MainWindow : Window
         SampleShakePrompt,
         SelectSellButtonRegion,
         SampleSellButton,
-        SelectInventoryItemsRegion
+        SelectInventoryItemsRegion,
+        SelectCatchNotificationRegion
     }
 
     public MainWindow()
@@ -84,6 +98,15 @@ public partial class MainWindow : Window
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         _profile = await _profileStore.LoadOrDefaultAsync();
+        try
+        {
+            await _sessionStore.InitializeAsync();
+        }
+        catch (Exception exception)
+        {
+            SessionStatusText.Text = $"Session database unavailable: {exception.Message}";
+        }
+
         CalibrationModeText.Text = _profile.IsFishingCalibrated
             ? "Saved calibration loaded. Capture a fresh frame to inspect the markers."
             : "No saved marker colors. Select the search region and sample both markers.";
@@ -99,6 +122,9 @@ public partial class MainWindow : Window
         SellStatusText.Text = _profile.IsSellButtonCalibrated
             ? "Sell Anywhere: saved button calibration loaded."
             : "Sell Anywhere: awaiting button calibration.";
+        OcrStatusText.Text = _profile.IsCatchNotificationCalibrated
+            ? "Local OCR: catch notification region loaded; start a session to initialise the engine."
+            : "Local OCR: select the catch notification region before starting a session.";
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -291,6 +317,8 @@ public partial class MainWindow : Window
         SellStatusText.Text = sellResult.IsCalibrated
             ? $"Sell Anywhere: {sellResult.Status}"
             : "Sell Anywhere: select the button region and sample its color.";
+
+        TryStartCatchRecognition(frame);
     }
 
     private void DrawMarker(Rectangle overlay, DetectedMarker? marker)
@@ -412,6 +440,12 @@ public partial class MainWindow : Window
             "Drag a rectangle around the inventory item list. This area is used to verify that the list changes after selling.");
     }
 
+    private void SelectCatchNotificationRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectCatchNotificationRegion,
+            "Drag a rectangle around the fish-caught notification. Keep the rectangle tight around the notification text.");
+    }
+
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
         if (_lastFrame is null)
@@ -449,7 +483,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCastRegion
             or CalibrationAction.SelectShakeRegion
             or CalibrationAction.SelectSellButtonRegion
-            or CalibrationAction.SelectInventoryItemsRegion)
+            or CalibrationAction.SelectInventoryItemsRegion
+            or CalibrationAction.SelectCatchNotificationRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -469,7 +504,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCastRegion
             or CalibrationAction.SelectShakeRegion
             or CalibrationAction.SelectSellButtonRegion
-            or CalibrationAction.SelectInventoryItemsRegion)
+            or CalibrationAction.SelectInventoryItemsRegion
+            or CalibrationAction.SelectCatchNotificationRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -490,7 +526,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCastRegion
             or CalibrationAction.SelectShakeRegion
             or CalibrationAction.SelectSellButtonRegion
-            or CalibrationAction.SelectInventoryItemsRegion)
+            or CalibrationAction.SelectInventoryItemsRegion
+            or CalibrationAction.SelectCatchNotificationRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -561,6 +598,13 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectCatchNotificationRegion => _profile with
+            {
+                CatchNotificationRegion = selectedRegion,
+                CatchNotificationRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             _ => _profile
         };
 
@@ -573,6 +617,7 @@ public partial class MainWindow : Window
             CalibrationAction.SelectShakeRegion => "Shake prompt region saved.",
             CalibrationAction.SelectSellButtonRegion => "Sell Anywhere button region saved.",
             CalibrationAction.SelectInventoryItemsRegion => "Inventory item-list region saved.",
+            CalibrationAction.SelectCatchNotificationRegion => "Catch notification OCR region saved.",
             _ => "Region saved."
         };
         await SaveProfileAsync(regionMessage);
@@ -639,6 +684,7 @@ public partial class MainWindow : Window
         CastStatusText.Text = "Perfect Cast: awaiting meter calibration.";
         ShakeStatusText.Text = "Shake: awaiting prompt calibration.";
         SellStatusText.Text = "Sell Anywhere: awaiting button calibration.";
+        OcrStatusText.Text = "Local OCR: select the catch notification region before starting a session.";
     }
 
     private async Task SaveProfileAsync(string successMessage)
@@ -664,9 +710,205 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Window_Closed(object? sender, EventArgs e)
+    private async void StartSession_Click(object sender, RoutedEventArgs e)
+    {
+        if (_activeSessionId.HasValue)
+        {
+            return;
+        }
+
+        if (!_profile.IsCatchNotificationCalibrated)
+        {
+            SessionStatusText.Text = "Select the catch notification region in Visual calibration first.";
+            return;
+        }
+
+        StartSessionButton.IsEnabled = false;
+        SessionStatusText.Text = "Preparing local OCR and session database…";
+        OcrStatusText.Text = "Checking the English OCR model…";
+
+        try
+        {
+            await _sessionStore.InitializeAsync();
+            var tessdataDirectory = await TesseractModelInstaller.EnsureEnglishModelAsync();
+
+            _ocr ??= await Task.Run(() => new LocalTesseractOcr(tessdataDirectory));
+            var sessionId = await _sessionStore.StartSessionAsync(DateTimeOffset.UtcNow);
+
+            _activeSessionId = sessionId;
+            _lastCatchFingerprint = null;
+            _lastCatchAt = DateTimeOffset.MinValue;
+            _lastOcrAt = DateTimeOffset.MinValue;
+
+            EndSessionButton.IsEnabled = true;
+            OcrStatusText.Text = "Local OCR ready. Images stay on this computer.";
+            SessionStatusText.Text = "Session running. Start F7 observation to detect catch notifications.";
+            SessionSummaryText.Text = string.Empty;
+        }
+        catch (Exception exception)
+        {
+            OcrStatusText.Text = $"Local OCR could not start: {exception.Message}";
+            SessionStatusText.Text = "No session started. Check the network connection and the Microsoft Visual C++ 2022 runtime.";
+            StartSessionButton.IsEnabled = true;
+        }
+    }
+
+    private async void EndSession_Click(object sender, RoutedEventArgs e)
+    {
+        if (_activeSessionId is not Guid sessionId)
+        {
+            return;
+        }
+
+        EndSessionButton.IsEnabled = false;
+        SessionStatusText.Text = "Saving session…";
+
+        try
+        {
+            await _sessionStore.FinishSessionAsync(sessionId, DateTimeOffset.UtcNow);
+            _activeSessionId = null;
+
+            var summary = await _sessionStore.GetSessionSummaryAsync(sessionId);
+            if (summary is null)
+            {
+                SessionStatusText.Text = "Session ended, but its summary could not be loaded.";
+                return;
+            }
+
+            var topLines = summary.TopCatches
+                .Select((fish, index) =>
+                {
+                    var rarity = fish.Rarity?.ToString() ?? "Unknown rarity";
+                    var weight = fish.WeightKg.HasValue ? $" · {fish.WeightKg.Value:F2} kg" : string.Empty;
+                    var mutation = !string.IsNullOrWhiteSpace(fish.Mutation) ? $" · {fish.Mutation}" : string.Empty;
+                    return $"{index + 1}. {fish.Species ?? "Unidentified fish"} · {rarity}{mutation}{weight}";
+                });
+
+            SessionSummaryText.Text =
+                $"TOP {summary.TopCatches.Count} FISH{Environment.NewLine}" +
+                (summary.TopCatches.Count == 0 ? "No catches were identified." : string.Join(Environment.NewLine, topLines));
+
+            SessionStatusText.Text =
+                $"Session ended · {summary.TotalCatches} catches · {summary.IdentifiedCatches} identified · " +
+                $"{summary.Duration.TotalMinutes:F1} min · {summary.CatchesPerHour:F1} catches/hour.";
+
+            OcrStatusText.Text = "Local OCR remains ready for the next session.";
+            StartSessionButton.IsEnabled = true;
+        }
+        catch (Exception exception)
+        {
+            SessionStatusText.Text = $"Could not finish the session cleanly: {exception.Message}";
+            StartSessionButton.IsEnabled = true;
+        }
+    }
+
+    private void TryStartCatchRecognition(ScreenCaptureFrame frame)
+    {
+        if (_activeSessionId is not Guid sessionId
+            || _ocr is null
+            || !_profile.IsCatchNotificationCalibrated
+            || _ocrInProgress
+            || frame.CapturedAt - _lastOcrAt < TimeSpan.FromMilliseconds(900))
+        {
+            return;
+        }
+
+        _lastOcrAt = frame.CapturedAt;
+        _ocrInProgress = true;
+
+        _ = ProcessCatchRecognitionAsync(
+            frame,
+            sessionId,
+            _ocr,
+            _profile.CatchNotificationRegion);
+    }
+
+    private async Task ProcessCatchRecognitionAsync(
+        ScreenCaptureFrame frame,
+        Guid sessionId,
+        LocalTesseractOcr ocr,
+        NormalizedRegion region)
+    {
+        try
+        {
+            var result = await Task.Run(() => ocr.Recognize(frame, region));
+
+            if (_activeSessionId != sessionId)
+            {
+                return;
+            }
+
+            var displayText = string.Join(
+                " ",
+                result.Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+            OcrStatusText.Text = result.HasText
+                ? $"OCR {result.Confidence:P0}: {displayText[..Math.Min(displayText.Length, 110)]}"
+                : "OCR: no text found in the selected notification region.";
+
+            if (!_catchParser.TryParse(result, out var fishCatch, out var parseStatus)
+                || fishCatch is null)
+            {
+                if (!string.IsNullOrWhiteSpace(parseStatus)
+                    && parseStatus.StartsWith("A catch notification", StringComparison.OrdinalIgnoreCase))
+                {
+                    SessionStatusText.Text = parseStatus;
+                }
+
+                return;
+            }
+
+            var fingerprint = string.Join(
+                "|",
+                fishCatch.Species,
+                fishCatch.Rarity?.ToString() ?? string.Empty,
+                fishCatch.Mutation ?? string.Empty,
+                fishCatch.WeightKg?.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty);
+
+            if (string.Equals(fingerprint, _lastCatchFingerprint, StringComparison.OrdinalIgnoreCase)
+                && frame.CapturedAt - _lastCatchAt < TimeSpan.FromSeconds(6))
+            {
+                return;
+            }
+
+            await _sessionStore.SaveCatchAsync(sessionId, fishCatch);
+            _lastCatchFingerprint = fingerprint;
+            _lastCatchAt = frame.CapturedAt;
+
+            SessionStatusText.Text =
+                $"Catch saved: {fishCatch.Species}" +
+                (fishCatch.Rarity.HasValue ? $" · {fishCatch.Rarity.Value}" : string.Empty) +
+                (fishCatch.WeightKg.HasValue ? $" · {fishCatch.WeightKg.Value:F2} kg" : string.Empty);
+        }
+        catch (Exception exception)
+        {
+            OcrStatusText.Text = $"OCR paused: {exception.Message}";
+        }
+        finally
+        {
+            _ocrInProgress = false;
+        }
+    }
+
+    private async void Window_Closed(object? sender, EventArgs e)
     {
         StopPreviewLoop();
+
+        if (_activeSessionId is Guid sessionId)
+        {
+            try
+            {
+                await _sessionStore.FinishSessionAsync(sessionId, DateTimeOffset.UtcNow);
+                _activeSessionId = null;
+            }
+            catch
+            {
+                // Preserve the existing session record if finalisation fails.
+            }
+        }
+
+        _ocr?.Dispose();
+        _ocr = null;
 
         var handle = new WindowInteropHelper(this).Handle;
         if (_captureHotkeyRegistered)
