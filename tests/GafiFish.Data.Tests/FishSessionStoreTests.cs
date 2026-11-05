@@ -1,5 +1,6 @@
 using GafiFish.Core.Models;
 using GafiFish.Data.Storage;
+using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace GafiFish.Data.Tests;
@@ -93,6 +94,8 @@ public sealed class FishSessionStoreTests
 
     private static void DeleteDatabaseFiles(string path)
     {
+        SqliteConnection.ClearAllPools();
+
         foreach (var candidate in new[] { path, path + "-shm", path + "-wal" })
         {
             if (File.Exists(candidate))
