@@ -66,7 +66,7 @@ public sealed class FishingVisionDetector
             fish, control, true, status);
     }
 
-    private static DetectedMarker? FindLargestMarker(
+    internal static DetectedMarker? FindLargestMarker(
         Mat hsvRegion,
         int offsetX,
         int offsetY,
