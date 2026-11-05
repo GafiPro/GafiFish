@@ -43,8 +43,8 @@
                             <TextBlock Text="0" FontSize="28" FontWeight="SemiBold" />
                         </StackPanel>
                         <StackPanel>
-                            <TextBlock Text="Next Sell Anywhere" Foreground="#9BAAB8" />
-                            <TextBlock Text="10:00" FontSize="28" FontWeight="SemiBold" />
+                            <TextBlock Text="Sell interval (default)" Foreground="#9BAAB8" />
+                            <TextBlock Text="10 min" FontSize="28" FontWeight="SemiBold" />
                         </StackPanel>
                     </UniformGrid>
                 </StackPanel>
