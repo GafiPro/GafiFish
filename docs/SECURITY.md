@@ -19,6 +19,14 @@ A automação pode estar sujeita às regras do Roblox e às regras próprias de 
 
 Referência: https://about.roblox.com/community-standards
 
+## Controlos de jogo opcionais
+
+O Reel assistido, Auto-cast e Auto-shake estão desligados até o utilizador armar o assistente com F8 e ativar as opções pretendidas. Auto-cast e Auto-shake exigem calibração própria; as opções são bloqueadas enquanto a automação está armada.
+
+- Auto-cast mantém o botão esquerdo premido por um máximo de 8 segundos e liberta-o apenas quando o medidor calibrado indica a zona-alvo. Se o medidor desaparecer, ficar desatualizado ou a previsão for inválida, o cast é cancelado e o input é libertado.
+- Auto-shake exige deteção acima do limiar e estabilidade em dois frames. Depois de um clique, não volta a clicar até o prompt desaparecer em vários frames ou se mover uma distância mínima.
+- Os testes destes controlos usam inputs simulados e frames sintéticos; ainda é necessária validação no Fisch real. Não se deve armar estas opções numa sessão importante sem confirmar a calibração e a direção do Reel.
+
 ## Venda com Sell Anywhere
 
 A gamepass vende itens não favoritos. Para evitar perdas:
@@ -35,7 +43,9 @@ A gamepass vende itens não favoritos. Para evitar perdas:
 |---|---|
 | Input enviado para a janela errada | Confirmar processo e janela ativa antes de cada ação; parar se perder foco |
 | Botão fica premido após erro | Libertar todos os inputs em finally, cancelamento e encerramento |
-| Deteção visual errada | Limite de confiança, confirmação em vários frames e estado neutro |
+| Deteção visual errada | Limite de confiança, confirmação em vários frames e estado neutro; Auto-shake exige estabilidade e mudança do prompt |
+| Botão de cast fica premido | Limite máximo de 8 segundos e libertação em Cancel/Timeout/F9 |
+| Clique repetido no mesmo Shake prompt | Requer desaparecimento ou deslocamento do candidato após cada clique |
 | Frame congelado/desatualizado | Timestamp por frame e timeout rigoroso |
 | Mudança de resolução/UI | Invalidar calibração e pedir nova calibração |
 | Falso positivo no fim da pesca | Confirmar mais do que um sinal visual antes de gravar uma captura |
@@ -51,6 +61,8 @@ O motor de input deve libertar o rato e o teclado e parar quando:
 - deixa de ser possível identificar a janela correta;
 - a captura falha ou excede a idade máxima permitida;
 - o detetor não encontra um alvo com confiança suficiente;
+- o medidor de Cast fica invisível ou desatualizado durante o carregamento;
+- o Auto-shake excede o limite de espera de 20 segundos;
 - ocorre uma exceção não recuperável;
 - o utilizador fecha a aplicação.
 
