@@ -41,6 +41,21 @@ public sealed class CastMeterVisionDetectorTests
     }
 
     [Fact]
+    public void Detect_ReturnsNullWhenColorsWereSampledButRegionWasNotSelected()
+    {
+        var frame = CreateFrame(DateTimeOffset.UtcNow, indicatorLeft: 20);
+        var profile = new VisionProfile
+        {
+            CastIndicatorColor = HsvColorSampler.FromBgra(255, 255, 255),
+            CastTargetColor = HsvColorSampler.FromBgra(0, 255, 0)
+        };
+
+        var observation = new CastMeterVisionDetector().Detect(frame, profile);
+
+        Assert.Null(observation);
+    }
+
+    [Fact]
     public void Detect_ReturnsNullUntilBothCastColorsAreCalibrated()
     {
         var frame = CreateFrame(DateTimeOffset.UtcNow, indicatorLeft: 20);
@@ -53,6 +68,7 @@ public sealed class CastMeterVisionDetectorTests
     private static VisionProfile CreateProfile() => new()
     {
         CastRegion = NormalizedRegion.FullFrame,
+        CastRegionCalibrated = true,
         CastIndicatorColor = HsvColorSampler.FromBgra(255, 255, 255),
         CastTargetColor = HsvColorSampler.FromBgra(0, 255, 0),
         MinimumBlobArea = 4,
