@@ -14,13 +14,10 @@ public sealed class ShakeInputCoordinatorTests
     {
         var input = new FakeRobloxInput();
         input.Arm();
-        var coordinator = new ShakeInputCoordinator(input, new ShakeInputSettings
-        {
-            MaximumFrameAge = TimeSpan.FromSeconds(10)
-        });
+        var coordinator = new ShakeInputCoordinator(input);
         var start = DateTimeOffset.UtcNow.AddSeconds(-2);
 
-        var first = coordinator.ProcessFrame(
+        var first = ProcessAt(coordinator,
             Frame(start),
             [Prompt(50, 50)]);
 
@@ -131,6 +128,12 @@ public sealed class ShakeInputCoordinatorTests
         Assert.Equal(ShakeInputResultKind.StaleFrame, result.Kind);
         Assert.Equal(0, input.Clicks);
     }
+
+    private static ShakeInputResult ProcessAt(
+        ShakeInputCoordinator coordinator,
+        ScreenCaptureFrame frame,
+        IReadOnlyList<DetectedMarker> prompts) =>
+        coordinator.ProcessFrame(frame, prompts, frame.CapturedAt);
 
     private static DetectedMarker Prompt(double x, double y) =>
         new(x, y, new Rect((int)x - 5, (int)y - 5, 10, 10), 60, 0.95);
