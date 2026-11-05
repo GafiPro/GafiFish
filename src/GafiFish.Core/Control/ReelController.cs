@@ -44,7 +44,11 @@ public sealed class ReelController
 
         if (Math.Abs(signal) <= _settings.Deadband)
         {
-            return Neutral(error, signal, "Target is inside the controller deadband.");
+            return new ReelControlDecision(
+                ReelCommand.Maintain,
+                error,
+                signal,
+                "Target is inside the controller deadband; keep the previous input state.");
         }
 
         var positive = signal > 0;
