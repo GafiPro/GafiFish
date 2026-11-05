@@ -14,6 +14,7 @@ public sealed class SellAnywhereVisionDetectorTests
         var profile = new VisionProfile
         {
             SellButtonRegion = new NormalizedRegion(0.50, 0.10, 0.40, 0.80),
+            SellButtonRegionCalibrated = true,
             SellButtonColor = HsvColorSampler.FromBgra(0, 0, 255),
             MinimumBlobArea = 5
         };
