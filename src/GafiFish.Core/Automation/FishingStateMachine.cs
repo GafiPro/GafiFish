@@ -58,14 +58,23 @@ public sealed class FishingStateMachine
             FishingState.Stopped => current is FishingState.Stopping or FishingState.Error,
             FishingState.Error => current is not (FishingState.Idle or FishingState.Stopped or FishingState.Error),
             FishingState.Preparing => current is FishingState.Idle
+                or FishingState.Reeling
                 or FishingState.CatchDetected
                 or FishingState.ClosingInventory
                 or FishingState.Recovering,
             FishingState.Casting => current is FishingState.Preparing,
             FishingState.WaitingForBite => current is FishingState.Casting,
             FishingState.Shaking => current is FishingState.WaitingForBite,
-            FishingState.Reeling => current is FishingState.Shaking,
-            FishingState.CatchDetected => current is FishingState.Reeling,
+            // The visible fish/control markers can confirm that the reel
+            // minigame is already active, even if earlier UI states were not seen.
+            FishingState.Reeling => current is FishingState.Preparing or FishingState.Shaking,
+            // A high-confidence OCR notification is a reliable catch boundary
+            // even when the intermediate minigame states were not observed.
+            FishingState.CatchDetected => current is FishingState.Preparing
+                or FishingState.Casting
+                or FishingState.WaitingForBite
+                or FishingState.Shaking
+                or FishingState.Reeling,
             FishingState.SellPending => current is FishingState.CatchDetected,
             FishingState.OpeningInventory => current is FishingState.SellPending,
             FishingState.SellingInventory => current is FishingState.OpeningInventory,
