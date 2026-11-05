@@ -9,7 +9,25 @@ O GafiFish captura apenas o cliente Roblox visível e em primeiro plano.
 
 As teclas são globais. Podes deixar o Roblox em primeiro plano, usar F6/F7 e voltar ao GafiFish com Alt+Tab para inspecionar a última imagem.
 
-## 2. Calibração
+## 2. Reel assistido e paragem de emergência
+
+O Reel assistido é opcional e só deve ser armado depois de calibrares:
+
+1. A **Fishing search region**.
+2. A cor do marcador do peixe.
+3. A cor da barra de controlo.
+
+Com o Roblox em primeiro plano e a observação F7 ativa:
+
+- **F8** arma o controlador preditivo hold/release.
+- **F9** pára o controlador e liberta imediatamente o rato e as teclas.
+- Se o Roblox perder o foco ou F7 for parado, o GafiFish também desarma e liberta os inputs.
+
+O controlador só atua quando ambos os marcadores estão presentes e acima do limiar de confiança. Se um desaparecer, o botão esquerdo é libertado. A opção **Invert hold/release mapping** permite inverter o sentido do controlo; testa-a apenas numa situação segura. O F8 não faz cast, não resolve prompts de Shake e não recasta por si só.
+
+
+
+## 3. Calibração
 
 A calibração é guardada em `%LOCALAPPDATA%\GafiFish\vision-profile.json`.
 
@@ -27,7 +45,7 @@ Regiões disponíveis:
 
 Não uses uma captura de outro tamanho de janela/resolução sem voltar a confirmar a calibração. O perfil guarda a resolução de referência, mas a região normalizada é reaplicada proporcionalmente.
 
-## 3. OCR e sessões
+## 4. OCR e sessões
 
 Antes de iniciares uma sessão, calibra **Catch notification region**.
 
@@ -44,12 +62,12 @@ O parser atual reconhece uma notificação inglesa que contenha `You caught [spe
 
 Ao terminar a sessão, o GafiFish guarda a hora de fim e mostra o total, a taxa de capturas por hora e até 25 peixes ordenados pela raridade, mutação, peso e valor reconhecidos.
 
-## 4. Limites da versão atual
+## 5. Sell Anywhere e limites da versão atual
 
-A versão atual é de observação e registo:
+O agendamento Sell Anywhere só é criado quando, no momento em que pressionas F8, existe uma sessão OCR ativa e estão calibradas a região/cor do botão e a área da lista de itens. A primeira venda só é tentada depois de 10 minutos e de uma notificação de captura OCR com confiança elevada durante o estado Reel.
 
-- O Reel e o Perfect Cast produzem medições/decisões diagnósticas, mas não enviam inputs.
-- O Shake deteta candidatos visuais, mas não interpreta ainda a direção dos prompts nem carrega em teclas.
-- O coordenador Sell Anywhere foi testado com frames simulados, mas não está ligado à interface nem efetua vendas reais.
+O fluxo abre o inventário, espera por várias deteções estáveis do botão, envia um único clique e exige uma alteração da lista em dois fotogramas consecutivos antes de fechar o inventário. Se o botão não for encontrado ou a lista não mudar de forma estável, o GafiFish pára e liberta os inputs; não repete o clique às cegas.
 
-Antes de ativar qualquer controlo automático será necessário validar a imagem real do jogo e os estados/teclas usados pela versão atual do Fisch. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
+Sell Anywhere vende o que não estiver marcado como favorito. Marca como favorito tudo o que pretendes guardar antes de armares o assistente. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
+
+O Perfect Cast continua em diagnóstico: calcula o momento de libertação, mas não envia o clique. O Shake deteta candidatos visuais, mas ainda não interpreta de forma fiável a direção e a tecla de cada prompt. O GafiFish também não faz cast ou recast automaticamente. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
