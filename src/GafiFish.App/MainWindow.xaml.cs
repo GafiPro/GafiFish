@@ -456,6 +456,8 @@ public partial class MainWindow : Window
                     frame.CapturedAt);
             }
 
+            var castStartedThisFrame = false;
+
             // A detected fish/bar pair takes priority over Shake candidates.
             var reelMarkersVisible =
                 fishMarker is not null
@@ -464,8 +466,8 @@ public partial class MainWindow : Window
                 && controlMarker.Confidence >= 0.70;
 
             if (reelMarkersVisible
-                && _runtimeStateMachine.CurrentState is
-                    FishingState.Preparing or FishingState.WaitingForBite or FishingState.Shaking)
+                && (_runtimeStateMachine.CurrentState is
+                    FishingState.Preparing or FishingState.WaitingForBite or FishingState.Shaking))
             {
                 _shakeCoordinator?.Reset();
                 _ = _runtimeStateMachine.TryTransition(
@@ -491,11 +493,13 @@ public partial class MainWindow : Window
                 }
 
                 _castCoordinator.BeginCast(frame.CapturedAt);
+                castStartedThisFrame = true;
                 AutomationStatusText.Text =
                     "Auto-cast: holding left mouse; waiting for the calibrated Perfect Cast window.";
             }
 
-            if (_runtimeStateMachine.CurrentState == FishingState.Casting
+            if (!castStartedThisFrame
+                && _runtimeStateMachine.CurrentState == FishingState.Casting
                 && _castCoordinator is not null
                 && _castCoordinator.IsHolding)
             {
@@ -527,8 +531,8 @@ public partial class MainWindow : Window
             if (_autoShakeEnabled && _shakeCoordinator is not null)
             {
                 if (shakePrompts.Count > 0
-                    && _runtimeStateMachine.CurrentState is
-                        FishingState.Preparing or FishingState.WaitingForBite)
+                    && (_runtimeStateMachine.CurrentState is
+                        FishingState.Preparing or FishingState.WaitingForBite))
                 {
                     _ = _runtimeStateMachine.TryTransition(
                         FishingState.Shaking,
