@@ -80,13 +80,13 @@ O Reel não faz cast nem recast. A direção, a velocidade e os limiares precisa
 
 O medidor é calibrado por região, indicador e zona-alvo. O detetor calcula a posição normalizada e a velocidade com sinal. O controlador estima a posição no momento esperado do input, considerando a latência configurada, e produz `Wait`, `Release` ou `Cancel`.
 
-Nesta versão a decisão é diagnóstica: o programa desenha o indicador e a zona-alvo, mas ainda não executa o clique de libertação.
+O `CastInputCoordinator` pode ser armado pela opção **Auto-cast**, desligada por defeito. Segura o botão esquerdo e liberta quando o controlador indica `Release`; cancela em leitura inválida ou após 8 segundos. A cana deve ser equipada manualmente. O fluxo tem testes sintéticos, mas ainda precisa de validação em jogo real.
 
 ## 6. Shake
 
 O detetor procura blobs compactos dentro da região e da cor calibradas. Os candidatos são desenhados no overlay e apresentados com o respetivo número.
 
-Ainda não classifica de forma fiável a direção de cada prompt nem escolhe a tecla de resposta. Por isso, não envia inputs para Shake nesta versão.
+A opção **Auto-shake**, desligada por defeito, envia um clique normal na posição de um candidato calibrado apenas depois de dois frames estáveis. Aguarda que o prompt desapareça ou se mova antes de permitir outro clique. Exige timeout global e paragem F9; ainda precisa de validação com a UI real.
 
 ## 7. Máquina de estados e inputs
 
