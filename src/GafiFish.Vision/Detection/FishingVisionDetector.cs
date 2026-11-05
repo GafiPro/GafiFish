@@ -35,8 +35,11 @@ public sealed class FishingVisionDetector
         using var bgra = new Mat(frame.Height, frame.Width, MatType.CV_8UC4);
         Marshal.Copy(frame.BgraPixels, 0, bgra.Data, frame.BgraPixels.Length);
 
+        using var bgr = new Mat();
+        Cv2.CvtColor(bgra, bgr, ColorConversionCodes.BGRA2BGR);
+
         using var hsv = new Mat();
-        Cv2.CvtColor(bgra, hsv, ColorConversionCodes.BGRA2HSV);
+        Cv2.CvtColor(bgr, hsv, ColorConversionCodes.BGR2HSV);
 
         var region = profile.FishingRegion.ToPixelRect(frame.Width, frame.Height);
         using var roi = new Mat(hsv, region);
