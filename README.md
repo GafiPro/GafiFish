@@ -46,11 +46,11 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 5. Seleciona também a região da notificação de captura. Esta região é usada pelo OCR.
 6. Pressiona **Start session + local OCR**, regressa ao Roblox e usa F7. O OCR só analisa fotogramas enquanto existir uma sessão ativa.
 7. Para Auto-cast, calibra a região do medidor e as cores do indicador e da zona-alvo; para Auto-shake, calibra a região e a cor dos prompts. Marca as respetivas caixas na interface antes de ativar o assistente. Ambas estão desligadas por defeito.
-8. Regressa ao Roblox e pressiona **F8** para armar o Reel assistido e as opções que escolheste. Se a sessão OCR e as regiões Sell Anywhere estiverem calibradas, o temporizador de venda fica ativo. **F9** é a paragem de emergência e liberta o input.
+8. Se pretenderes vender automaticamente, marca também **Enable Sell Anywhere every 10 minutes** — a gamepass vende todos os itens não favoritos. Regressa ao Roblox e pressiona **F8** para armar o Reel assistido e as opções escolhidas. A venda só fica ativa com essa caixa marcada, sessão OCR ativa e regiões do botão/inventário calibradas. **F9** é a paragem de emergência e liberta o input.
 9. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
 10. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
 
-Sell Anywhere vende os peixes que não estejam marcados como favoritos. Marca previamente como favoritos todos os peixes que pretendes guardar. A venda só é armada por F8 quando existe uma sessão OCR e as regiões do botão/inventário estão calibradas.
+Sell Anywhere vende os peixes que não estejam marcados como favoritos. Marca previamente como favoritos todos os peixes que pretendes guardar. A venda só é armada por F8 quando a caixa Sell Anywhere está marcada, existe uma sessão OCR e as regiões do botão/inventário estão calibradas.
 
 O parser de capturas é deliberadamente conservador: só regista uma espécie quando reconhece uma notificação compatível com o padrão inglês `You caught [species]`. Raridade, mutação, peso e valor ficam vazios quando não são reconhecidos com confiança. A notificação real do jogo poderá exigir afinação adicional.
 
