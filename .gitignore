@@ -1,0 +1,19 @@
+# .NET build output
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+*.cache
+
+# Local app data / diagnostics
+*.db
+*.db-shm
+*.db-wal
+*.log
+captures/
+diagnostics/
+
+# IDE
+.idea/
+.vscode/
