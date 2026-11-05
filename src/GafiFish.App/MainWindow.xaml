@@ -1,0 +1,86 @@
+<Window x:Class="GafiFish.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GafiFish" Height="640" Width="920"
+        MinHeight="560" MinWidth="780"
+        WindowStartupLocation="CenterScreen"
+        Background="#10151D" Foreground="#EAF0F5">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,22">
+            <StackPanel>
+                <TextBlock Text="GafiFish" FontSize="30" FontWeight="SemiBold" />
+                <TextBlock Text="Visual fishing assistant" Foreground="#9BAAB8" Margin="0,4,0,0" />
+            </StackPanel>
+            <Border DockPanel.Dock="Right" Background="#202C37" CornerRadius="12" Padding="12,7" VerticalAlignment="Center">
+                <TextBlock Text="DEVELOPMENT BUILD" Foreground="#67D5B5" FontWeight="SemiBold" />
+            </Border>
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="#19232E" CornerRadius="16" Padding="22">
+                <StackPanel>
+                    <TextBlock Text="Session" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock x:Name="StatusText" Text="Not connected" Foreground="#9BAAB8" Margin="0,8,0,18" />
+                    <TextBlock Text="The visual engine is not connected yet." FontSize="15" TextWrapping="Wrap" />
+                    <TextBlock Text="Next milestone: Roblox window capture, region calibration and live detection overlay."
+                               Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
+                    <Separator Margin="0,22,0,18" Background="#33414F" />
+                    <UniformGrid Columns="2">
+                        <StackPanel>
+                            <TextBlock Text="Catches" Foreground="#9BAAB8" />
+                            <TextBlock Text="0" FontSize="28" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Next Sell Anywhere" Foreground="#9BAAB8" />
+                            <TextBlock Text="10:00" FontSize="28" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Column="2">
+                <Border Background="#19232E" CornerRadius="16" Padding="18" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="Core features" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <TextBlock Text="• Smart fish tracking" Margin="0,3" />
+                        <TextBlock Text="• Perfect Cast (included)" Margin="0,3" />
+                        <TextBlock Text="• Auto-shake and auto-reel" Margin="0,3" />
+                        <TextBlock Text="• Sell Anywhere every 10 min" Margin="0,3" />
+                        <TextBlock Text="• Session summary — Top 25" Margin="0,3" />
+                    </StackPanel>
+                </Border>
+                <Border Background="#19232E" CornerRadius="16" Padding="18">
+                    <StackPanel>
+                        <TextBlock Text="Safety" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <TextBlock Text="No process-memory access or code injection."
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="Automatic input must stop when the game window loses focus or visual detection becomes unreliable."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="2" Background="#19232E" CornerRadius="14" Padding="16" Margin="0,20,0,0">
+            <DockPanel>
+                <TextBlock x:Name="BuildStatusText" Text=".NET 10 · Core foundation in progress"
+                           Foreground="#9BAAB8" VerticalAlignment="Center" />
+                <Button DockPanel.Dock="Right" Content="Close" Width="110" Height="36"
+                        Background="#2D3D4B" Foreground="White" BorderThickness="0"
+                        Click="CloseButton_Click" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
