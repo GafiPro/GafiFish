@@ -14,7 +14,10 @@ public sealed class ShakeInputCoordinatorTests
     {
         var input = new FakeRobloxInput();
         input.Arm();
-        var coordinator = new ShakeInputCoordinator(input);
+        var coordinator = new ShakeInputCoordinator(input, new ShakeInputSettings
+        {
+            MaximumFrameAge = TimeSpan.FromSeconds(10)
+        });
         var start = DateTimeOffset.UtcNow.AddSeconds(-2);
 
         var first = coordinator.ProcessFrame(
