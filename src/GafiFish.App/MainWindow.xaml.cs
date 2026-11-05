@@ -1132,17 +1132,14 @@ public partial class MainWindow : Window
             _lastCatchFingerprint = fingerprint;
             _lastCatchAt = frame.CapturedAt;
 
-            if (_automationEnabled && _runtimeStateMachine is not null
-                && _runtimeStateMachine.CurrentState is not (
-                    FishingState.CatchDetected
-                    or FishingState.OpeningInventory
-                    or FishingState.SellingInventory
-                    or FishingState.VerifyingSale
-                    or FishingState.ClosingInventory))
+            if (_automationEnabled
+                && _runtimeStateMachine is not null
+                && result.Confidence >= 0.90
+                && _runtimeStateMachine.CurrentState == FishingState.Reeling)
             {
                 _ = _runtimeStateMachine.TryTransition(
                     FishingState.CatchDetected,
-                    "A high-confidence OCR fish-catch notification was saved.",
+                    "A high-confidence OCR fish-catch notification was saved while Reel was active.",
                     frame.CapturedAt);
             }
 
