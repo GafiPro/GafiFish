@@ -152,14 +152,14 @@ public partial class MainWindow : Window
 
         _captureHotkeyRegistered = Native.RegisterHotKey(handle, CaptureHotkeyId, ModNoRepeat, VkF6);
         _previewHotkeyRegistered = Native.RegisterHotKey(handle, PreviewHotkeyId, ModNoRepeat, VkF7);
+        _reelArmHotkeyRegistered = Native.RegisterHotKey(handle, ReelArmHotkeyId, ModNoRepeat, VkF8);
+        _emergencyStopHotkeyRegistered = Native.RegisterHotKey(handle, EmergencyStopHotkeyId, ModNoRepeat, VkF9);
 
-        HotkeyStatusText.Text = (_captureHotkeyRegistered, _previewHotkeyRegistered) switch
-        {
-            (true, true) => "Global hotkeys ready: F6 capture · F7 observation toggle.",
-            (true, false) => "F6 ready. F7 is already in use by another application.",
-            (false, true) => "F7 ready. F6 is already in use by another application.",
-            _ => "Global hotkeys unavailable. The buttons work while this window is active."
-        };
+        HotkeyStatusText.Text =
+            $"Global hotkeys — F6 capture: {Registered(_captureHotkeyRegistered)} · " +
+            $"F7 observe: {Registered(_previewHotkeyRegistered)} · " +
+            $"F8 arm Reel: {Registered(_reelArmHotkeyRegistered)} · " +
+            $"F9 emergency stop: {Registered(_emergencyStopHotkeyRegistered)}";
     }
 
     private IntPtr WindowMessageHook(
@@ -185,9 +185,21 @@ public partial class MainWindow : Window
             TogglePreviewLoop();
             handled = true;
         }
+        else if (id == ReelArmHotkeyId)
+        {
+            StartAutomation();
+            handled = true;
+        }
+        else if (id == EmergencyStopHotkeyId)
+        {
+            StopAutomation("Emergency stop (F9): all game inputs released.");
+            handled = true;
+        }
 
         return IntPtr.Zero;
     }
+
+    private static string Registered(bool registered) => registered ? "ready" : "in use";
 
     private async void CaptureOnce_Click(object sender, RoutedEventArgs e)
     {
