@@ -127,7 +127,7 @@ public sealed class RobloxWindowCapture
             var title = GetWindowTitle(hwnd);
             return new ScreenCaptureFrame(
                 width, height, width * 4, pixels,
-                DateTimeOffset.UtcNow, title, (int)processId);
+                DateTimeOffset.UtcNow, title, (int)processId, topLeft.X, topLeft.Y);
         }
         finally
         {
