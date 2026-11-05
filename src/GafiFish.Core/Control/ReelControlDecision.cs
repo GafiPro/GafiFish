@@ -3,6 +3,7 @@ namespace GafiFish.Core.Control;
 public enum ReelCommand
 {
     Neutral,
+    Maintain,
     Hold,
     Release
 }
