@@ -1,69 +1,91 @@
 # GafiFish
 
-Aplicação Windows para análise visual e automatização do ciclo de pesca no Roblox Fisch.
+Aplicação Windows para observação visual, calibração e registo de sessões de pesca no Roblox Fisch.
 
-> **Estado atual:** pesquisa e planeamento publicados; o motor executável ainda está em desenvolvimento.
+<badge>Estado: observação e registo locais</badge>
 
-## Objetivos principais
+## O que já funciona
 
-- Pesca automática: cast, shake, reel e recast.
-- Perfect Cast integrado desde a primeira versão funcional, com calibração da câmara e do medidor.
-- Tracking visual do peixe, com estimativa de direção, velocidade e antecipação.
-- Venda automática a cada **10 minutos**, usando a gamepass **Sell Anywhere** do utilizador.
-- Registo de capturas e resumo ao parar.
-- Apresentar no máximo os **25 melhores peixes**, mesmo que a sessão tenha mais capturas.
-- Histórico completo local e exportação CSV/JSON.
+- Captura da área visível do cliente Roblox através de F6 e observação contínua com F7.
+- Calibração visual por região e amostragem HSV dos marcadores.
+- Deteção dos marcadores do peixe e da barra, com estimativa curta de movimento.
+- Deteção do indicador e da zona-alvo do Perfect Cast, com decisão diagnóstica considerando a latência.
+- Deteção de candidatos a prompts de Shake.
+- Deteção visual do botão Sell Anywhere e medição de alterações na lista do inventário.
+- OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
+- Histórico local SQLite e resumo de sessão com os 25 melhores peixes.
+- Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR e persistência.
 
-## Stack proposta
+## O que ainda não está ativado
 
-- **C# / .NET 10 LTS** — aplicação principal.
-- **WPF** — interface Windows.
-- **OpenCvSharp / OpenCV** — visão computacional.
-- **Windows Graphics Capture / DXGI** — captura de imagem.
-- **Win32 SendInput** — inputs normais do rato e teclado.
-- **SQLite + JSON** — histórico e configuração local.
-- **xUnit** — testes automatizados.
+A interface atual está em **OBSERVATION MODE**. Não envia cliques nem teclas para o jogo.
 
-O processamento visual será local. O GafiFish não depende de Python em execução nem de serviços de IA na cloud.
+O adaptador de input Win32, o controlador do Reel e o coordenador de Sell Anywhere existem como módulos separados, mas ainda não estão ligados a um fluxo automático de pesca na interface. O Shake deteta candidatos, mas ainda não interpreta a direção/tecla de cada prompt. Estas partes dependem de validar a disposição real dos prompts e dos controlos com capturas do jogo; não se devem assumir coordenadas ou cores fixas.
 
-## Funcionalidades da primeira versão
+O coordenador de venda foi testado com cenários simulados, incluindo confirmação visual e falha segura, mas não executa vendas na versão de observação.
 
-### Pesca e controlo
-1. Captura e calibração do minijogo.
-2. Deteção da barra, do peixe e do estado da pesca.
-3. Tracking da direção e velocidade do peixe.
-4. Auto-shake, auto-reel e auto-cast.
-5. **Perfect Cast incluído desde o início**, com calibração e ajuste de timing.
-6. Perfis de calibração por cana.
+## Instalação
 
-### Venda automática
-1. Intervalo predefinido de **10 minutos**.
-2. Não interromper uma captura: a venda fica pendente até o ciclo atual terminar.
-3. Abrir o inventário.
-4. Usar o botão da gamepass **Sell Anywhere**.
-5. Confirmar visualmente a venda, fechar o inventário e retomar a pesca.
-6. Parar e pedir intervenção se a interface não corresponder ao esperado.
+1. Abre **Actions** no repositório e entra na execução mais recente com sucesso.
+2. Transfere o artefacto `GafiFish-win-x64` e extrai o ZIP.
+3. Executa `GafiFish.exe`.
 
-**Importante:** Sell Anywhere vende itens não favoritos. Marcar como favorito tudo o que pretendes guardar. A aplicação nunca tentará remover favoritos nem usar APIs internas do jogo.
+A publicação Windows inclui o runtime .NET. O motor Tesseract usa bibliotecas nativas e pode exigir o **Microsoft Visual C++ Redistributable 2015–2022 (x64)**: https://aka.ms/vs/17/release/vc_redist.x64.exe
 
-### Registo e estatísticas
-1. Leitura local da notificação de captura.
-2. Histórico de espécies, raridade, mutações e peso quando os dados forem reconhecidos com confiança.
-3. Resumo apresentado ao parar.
-4. Top 25 capturas, com ordenação configurável.
-5. Exportação CSV/JSON.
+Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.traineddata` (cerca de 4 MB) do repositório oficial `tesseract-ocr/tessdata_fast`. O ficheiro é guardado localmente e a integridade é verificada antes de ser usado. Depois disso, o modelo fica disponível sem novo download.
+
+## Utilização
+
+1. Abre o Fisch e deixa a janela Roblox visível.
+2. Pressiona **F6** para capturar um fotograma ou **F7** para iniciar/parar a observação contínua.
+3. Volta à janela GafiFish com Alt+Tab. A última captura mantém-se no painel de pré-visualização.
+4. Em **Visual calibration**, seleciona a região do minijogo, do medidor de Perfect Cast, do prompt Shake e do botão/inventário Sell Anywhere. Para os detetores por cor, amostra um pixel limpo de cada marcador.
+5. Seleciona também a região da notificação de captura. Esta região é usada pelo OCR.
+6. Pressiona **Start session + local OCR**, regressa ao Roblox e usa F7. O OCR só analisa fotogramas enquanto existir uma sessão ativa.
+7. Pressiona **End session and show Top 25** para guardar a sessão e ver o resumo.
+
+O parser de capturas é deliberadamente conservador: só regista uma espécie quando reconhece uma notificação compatível com o padrão inglês `You caught [species]`. Raridade, mutação, peso e valor ficam vazios quando não são reconhecidos com confiança. A notificação real do jogo poderá exigir afinação adicional.
+
+## Dados locais
+
+- Perfil visual: `%LOCALAPPDATA%\\GafiFish\\vision-profile.json`
+- Histórico: `%LOCALAPPDATA%\\GafiFish\\sessions.db`
+- Modelo OCR: `%LOCALAPPDATA%\\GafiFish\\tessdata\\eng.traineddata`
+
+As capturas e o texto OCR são processados localmente. O GafiFish não envia imagens para serviços externos.
+
+## Desenvolvimento
+
+Requisitos: Windows, .NET 10 SDK e Visual Studio Build Tools para WPF.
+
+```powershell
+dotnet restore GafiFish.sln
+dotnet build GafiFish.sln --configuration Release
+```
+
+Testes:
+
+```powershell
+dotnet run --project tests/GafiFish.Core.Tests/GafiFish.Core.Tests.csproj --configuration Release
+dotnet run --project tests/GafiFish.Vision.Tests/GafiFish.Vision.Tests.csproj --configuration Release
+dotnet run --project tests/GafiFish.Data.Tests/GafiFish.Data.Tests.csproj --configuration Release
+dotnet run --project tests/GafiFish.App.Tests/GafiFish.App.Tests.csproj --configuration Release
+dotnet run --project tests/GafiFish.Ocr.Tests/GafiFish.Ocr.Tests.csproj --configuration Release
+```
+
+A CI Windows compila a solução, executa as cinco suites de testes e publica um ZIP `win-x64`.
 
 ## Princípios de segurança
 
-- Não ler nem alterar a memória do Roblox.
-- Não injetar código, DLLs, scripts ou executores no jogo.
-- Não alterar ficheiros do Roblox nem tráfego de rede.
-- Não pedir nem guardar credenciais, cookies ou tokens da conta.
-- Não exigir privilégios de administrador.
-- Parar e libertar todos os botões quando a janela do Roblox perde o foco, a deteção falha ou o utilizador aciona a tecla de emergência.
-- Não enviar capturas de ecrã para serviços externos.
+- Não lê nem altera a memória do Roblox.
+- Não injeta código, DLLs, scripts ou executores no jogo.
+- Não altera ficheiros do Roblox nem tráfego de rede.
+- Não pede nem guarda credenciais, cookies ou tokens.
+- Não exige privilégios de administrador.
+- O adaptador de input liberta os botões e desarma quando perde o foco ou é parado.
+- A aplicação atual não envia inputs para o jogo.
 
-A utilização de automação pode estar sujeita às regras do Roblox e do Fisch e pode implicar penalizações da conta. O GafiFish não tentará contornar sistemas anti-cheat.
+A utilização de automação pode estar sujeita às regras do Roblox e do Fisch e pode implicar penalizações da conta. O GafiFish não tenta contornar sistemas anti-cheat.
 
 ## Documentação
 
@@ -71,7 +93,5 @@ A utilização de automação pode estar sujeita às regras do Roblox e do Fisch
 - [Arquitetura técnica](docs/ARCHITECTURE.md)
 - [Plano de desenvolvimento](docs/ROADMAP.md)
 - [Segurança e tolerância a falhas](docs/SECURITY.md)
-
-## Aviso
 
 Projeto independente, sem afiliação ao Roblox ou aos criadores de Fisch.
