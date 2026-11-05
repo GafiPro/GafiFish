@@ -62,6 +62,28 @@ public partial class MainWindow : Window
         IsHitTestVisible = false,
         Visibility = Visibility.Collapsed
     };
+    private readonly Rectangle _castIndicatorOverlay = new()
+    {
+        Stroke = Brushes.Gold,
+        StrokeThickness = 2,
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed
+    };
+    private readonly Rectangle _castTargetOverlay = new()
+    {
+        Stroke = Brushes.Orange,
+        StrokeThickness = 2,
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed
+    };
+    private readonly Rectangle _sellButtonOverlay = new()
+    {
+        Stroke = Brushes.OrangeRed,
+        StrokeThickness = 2,
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed
+    };
+    private readonly List<Rectangle> _shakePromptOverlays = [];
 
     private VisionProfile _profile = new();
     private ScreenCaptureFrame? _lastFrame;
@@ -109,6 +131,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         PreviewOverlay.Children.Add(_fishMarkerOverlay);
         PreviewOverlay.Children.Add(_controlMarkerOverlay);
+        PreviewOverlay.Children.Add(_castTargetOverlay);
+        PreviewOverlay.Children.Add(_castIndicatorOverlay);
+        PreviewOverlay.Children.Add(_sellButtonOverlay);
         Loaded += Window_Loaded;
     }
 
@@ -556,17 +581,37 @@ public partial class MainWindow : Window
         {
             var castDecision = _perfectCast.Evaluate(castObservation, DateTimeOffset.UtcNow);
             CastStatusText.Text = $"Perfect Cast: {castDecision.Kind} · position {castObservation.IndicatorPosition:P0} · velocity {castObservation.IndicatorVelocityPerSecond:+0.00;-0.00;0.00}/s · {castDecision.Reason}";
+
+            var castRegion = _profile.CastRegion.ToPixelRect(frame.Width, frame.Height);
+            var targetLeft = castRegion.X + (int)Math.Floor(castObservation.TargetStart * castRegion.Width);
+            var targetRight = castRegion.X + (int)Math.Ceiling(castObservation.TargetEnd * castRegion.Width);
+            DrawPixelRectOverlay(
+                _castTargetOverlay,
+                new OpenCvSharp.Rect(targetLeft, castRegion.Y, Math.Max(1, targetRight - targetLeft), castRegion.Height));
+
+            var indicatorX = castRegion.X + (int)Math.Round(castObservation.IndicatorPosition * castRegion.Width);
+            DrawPixelRectOverlay(
+                _castIndicatorOverlay,
+                new OpenCvSharp.Rect(indicatorX - 1, castRegion.Y, 3, castRegion.Height));
+        }
+
+        if (castObservation is null)
+        {
+            _castIndicatorOverlay.Visibility = Visibility.Collapsed;
+            _castTargetOverlay.Visibility = Visibility.Collapsed;
         }
 
         var shakeResult = _shakeVision.Detect(frame, _profile);
         ShakeStatusText.Text = shakeResult.IsCalibrated
             ? $"Shake: {shakeResult.Status}"
             : "Shake: select the prompt region and sample its color.";
+        DrawDetectedMarkers(_shakePromptOverlays, shakeResult.Prompts, Brushes.Orange, maxMarkers: 8);
 
         var sellResult = _sellVision.DetectButton(frame, _profile);
         SellStatusText.Text = sellResult.IsCalibrated
             ? $"Sell Anywhere: {sellResult.Status}"
             : "Sell Anywhere: select the button region and sample its color.";
+        DrawMarker(_sellButtonOverlay, sellResult.SellButton);
 
         ProcessAutomationFrame(
             frame,
@@ -575,6 +620,62 @@ public partial class MainWindow : Window
             motion);
 
         TryStartCatchRecognition(frame);
+    }
+
+    private void DrawDetectedMarkers(
+        List<Rectangle> overlays,
+        IReadOnlyList<DetectedMarker> markers,
+        Brush stroke,
+        int maxMarkers)
+    {
+        var visibleCount = Math.Min(markers.Count, maxMarkers);
+        while (overlays.Count < visibleCount)
+        {
+            var overlay = new Rectangle
+            {
+                Stroke = stroke,
+                StrokeThickness = 2,
+                IsHitTestVisible = false,
+                Visibility = Visibility.Collapsed
+            };
+            overlays.Add(overlay);
+            PreviewOverlay.Children.Add(overlay);
+        }
+
+        for (var i = 0; i < overlays.Count; i++)
+        {
+            if (i >= visibleCount)
+            {
+                overlays[i].Visibility = Visibility.Collapsed;
+                continue;
+            }
+
+            overlays[i].Stroke = stroke;
+            DrawMarker(overlays[i], markers[i]);
+        }
+    }
+
+    private void DrawPixelRectOverlay(Rectangle overlay, OpenCvSharp.Rect pixelBounds)
+    {
+        if (PreviewImage.Source is not BitmapSource bitmap
+            || pixelBounds.Width <= 0
+            || pixelBounds.Height <= 0)
+        {
+            overlay.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var scale = GetImageScale(
+            bitmap.PixelWidth,
+            bitmap.PixelHeight,
+            out var offsetX,
+            out var offsetY);
+
+        Canvas.SetLeft(overlay, offsetX + pixelBounds.X * scale);
+        Canvas.SetTop(overlay, offsetY + pixelBounds.Y * scale);
+        overlay.Width = Math.Max(2, pixelBounds.Width * scale);
+        overlay.Height = Math.Max(2, pixelBounds.Height * scale);
+        overlay.Visibility = Visibility.Visible;
     }
 
     private void DrawMarker(Rectangle overlay, DetectedMarker? marker)
