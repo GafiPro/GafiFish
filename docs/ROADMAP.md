@@ -1,79 +1,86 @@
-# Plano de desenvolvimento
+# Plano de desenvolvimento e estado atual
 
 ## Fase 0 — Pesquisa e desenho
 
+<badge>Concluída</badge>
+
 - [x] Identificar macros relevantes para Fisch e referências de Perfect Cast.
-- [x] Encontrar o Bloomfisching correto e verificar estado, conteúdo e licença.
-- [x] Rever licenças dos projetos que disponibilizam código.
-- [x] Escolher arquitetura sem leitura da memória nem injeção.
-- [x] Integrar os novos requisitos: Perfect Cast no MVP e Sell Anywhere de 10 em 10 minutos.
-- [x] Documentar a arquitetura e os riscos.
+- [x] Verificar o Bloomfisching, conteúdo e licença.
+- [x] Rever licenças e dependências.
+- [x] Definir arquitetura sem leitura de memória nem injeção.
+- [x] Definir Perfect Cast no MVP e Sell Anywhere de 10 em 10 minutos.
+- [x] Documentar arquitetura, privacidade e riscos.
 
 ## Fase 1 — Fundação e visão
 
-Objetivo: provar que o GafiFish reconhece os elementos visuais antes de controlar inputs.
+<badge>Implementada; falta validação com frames reais</badge>
 
-Entregáveis:
-1. Solução .NET 10 e projetos App/Core/Windows/Vision/Tests.
-2. Janela WPF inicial.
-3. Deteção da janela Roblox e captura da região selecionada.
-4. Assistente de calibração para a barra, marcadores e medidor de cast.
-5. Overlay que desenha deteções, direção e confiança.
-6. Modo de reprodução de imagens/gravações para testar sem abrir o jogo.
+- [x] Solução .NET 10 e projetos App/Core/Windows/Vision/Data/Ocr.
+- [x] Janela WPF e captura do cliente Roblox visível.
+- [x] Hotkeys F6/F7 e calibração por região/cor.
+- [x] Overlay de peixe/barra, Perfect Cast, Shake e Sell Anywhere.
+- [x] Tracking horizontal com confiança e expiração de deteções antigas.
+- [x] Testes com frames sintéticos.
+- [ ] Modo de reprodução de imagens/gravações para testar sem abrir o jogo.
+- [ ] Validar a calibração com capturas reais do Fisch em diferentes resoluções.
 
-Critério de saída: os detetores acompanham elementos relevantes e identificam frames perdidos sem inventar posições.
+## Fase 2 — Pesca e Perfect Cast
 
-## Fase 2 — Pesca completa e Perfect Cast
+<badge>Parcial</badge>
 
-Entregáveis:
-1. Máquina de estados com timeouts.
-2. Auto-shake e deteção da mordida.
-3. Tracking da direção e velocidade do peixe.
-4. Controlador PD/PWM com deadband e limites.
-5. **Perfect Cast incluído no MVP**, com calibração de câmara/medidor e ajuste do timing.
-6. Auto-reel e auto-cast.
-7. Hotkeys configuráveis e paragem de emergência.
-8. Libertação garantida de inputs ao parar ou perante erro.
+- [x] Máquina de estados e decisões com timeouts no fluxo de venda.
+- [x] Tracking da direção/velocidade do peixe.
+- [x] Controlador PD com deadband e antecipação curta.
+- [x] Reel assistido opt-in com F8 e paragem F9.
+- [x] Libertar o input ao perder foco, parar F7, falhar captura ou ocorrer erro.
+- [x] Deteção visual do indicador e zona-alvo de Perfect Cast; cálculo diagnóstico de timing e latência.
+- [ ] Validar e ativar a libertação automática de Perfect Cast em jogo real.
+- [ ] Interpretar a direção/tecla dos prompts Shake e implementar o respetivo input.
+- [ ] Automatizar cast e recast.
+- [ ] Perfis por cana com calibração real.
 
-Critério de saída: o controlador funciona com confiança em gravações e o Perfect Cast mede, calibra e valida o resultado; nenhum estado pode deixar um botão premido após timeout.
+Critério de saída: o Reel e o Perfect Cast têm de funcionar com confiança em capturas/gravações reais; nenhum estado pode deixar um botão premido após timeout.
 
 ## Fase 3 — Sell Anywhere a cada 10 minutos
 
-Entregáveis:
-1. Temporizador de 10 minutos configurável.
-2. Pedido de venda fica pendente até a captura atual terminar.
-3. Abrir inventário com a janela Roblox em foco.
-4. Reconhecer o botão da gamepass Sell Anywhere.
-5. Acionar uma vez e verificar visualmente o resultado.
-6. Fechar o inventário e retomar a pesca.
-7. Erro seguro se a UI não corresponder ao esperado.
+<badge>Implementada em simulação; por validar no Fisch real</badge>
 
-Critério de saída: testes com frames gravados demonstram que o ciclo não vende no meio de uma captura, não faz cliques repetidos cegos e não prossegue perante uma confirmação incerta.
+- [x] Temporizador de 10 minutos.
+- [x] Venda pendente até existir uma captura OCR de confiança elevada e o ciclo chegar a um estado seguro.
+- [x] Abrir/fechar o inventário com a janela Roblox em primeiro plano.
+- [x] Reconhecer um botão calibrado e estável.
+- [x] Enviar um único clique por tentativa.
+- [x] Confirmar uma alteração de inventário em dois fotogramas consecutivos.
+- [x] Parar e libertar inputs perante botão ausente, confirmação incerta ou timeout.
+- [ ] Testar com a gamepass ativa e a interface real do Fisch.
 
-Nota: a gamepass vende itens não favoritos. O utilizador é responsável por marcar como favoritos os peixes que pretende guardar.
+Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como favoritos os peixes que pretende guardar. Não se usam APIs internas do jogo.
 
 ## Fase 4 — Capturas e resumo
 
-Entregáveis:
-1. Deteção do resultado de uma pesca.
-2. OCR local da notificação.
-3. Registo de espécie, raridade, mutação e peso quando reconhecíveis.
-4. Histórico local por sessão em SQLite.
-5. Resumo automático quando o utilizador parar.
-6. Top 25 no máximo, ordenado pela pontuação configurada.
-7. Exportação CSV/JSON e cópia do resumo.
+<badge>Implementada</badge>
 
-Critério de saída: os totais são coerentes e a interface nunca apresenta mais de 25 peixes no resumo.
+- [x] OCR local da notificação de captura.
+- [x] Parser conservador de espécie, raridade, mutação, peso e valor quando reconhecidos.
+- [x] Deduplicação temporal de notificações.
+- [x] Histórico de sessões e capturas em SQLite.
+- [x] Resumo com até 25 melhores peixes.
+- [x] Exportação CSV/JSON.
+- [ ] Afinação do parser com notificações reais do Fisch e nomes especiais.
+- [ ] Cópia direta do resumo para a área de transferência.
 
 ## Fase 5 — Robustez e melhorias
 
-- Perfis por cana e resolução.
-- Ajuste adaptativo à taxa de frames.
-- Deteção de ciclos bloqueados e recuperação segura.
-- Estatísticas por hora, taxa de sucesso e vendas.
-- Relatórios de diagnóstico.
-- Alertas para capturas prioritárias e preferências de mutação/espécie.
-- Melhorias do Perfect Cast com dados medidos em sessões de teste.
+- [ ] Ajuste adaptativo à taxa de frames.
+- [ ] Deteção de ciclos bloqueados e recuperação segura em todos os estados.
+- [ ] Estatísticas de vendas e rendimento por hora.
+- [ ] Relatórios de diagnóstico exportáveis.
+- [ ] Alertas para capturas prioritárias e preferências de espécie/mutação.
+- [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
+
+## Próximo bloqueio técnico
+
+O Shake e o Perfect Cast já têm deteção visual e overlay, mas não devem enviar inputs com base apenas em cores/contornos genéricos. Para fechar essas etapas, precisamos de frames reais do medidor e dos prompts do jogo e de confirmar o que cada prompt pede. Até lá, ficam em modo diagnóstico.
 
 ## Funcionalidades que não fazem parte do plano
 
