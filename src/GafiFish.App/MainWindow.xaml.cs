@@ -406,7 +406,7 @@ public partial class MainWindow : Window
 
     private void PreviewOverlay_MouseMove(object sender, MouseEventArgs e)
     {
-        if (_calibrationAction != CalibrationAction.SelectRegion
+        if (_calibrationAction is not (CalibrationAction.SelectRegion or CalibrationAction.SelectCastRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
