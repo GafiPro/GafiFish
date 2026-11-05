@@ -190,10 +190,13 @@ Separadores:
 - **Session:** histórico e Top 25.
 - **Diagnostics:** overlay, FPS, confiança e motivo de cada input.
 
-Hotkeys sugeridas:
-- F8: iniciar/pausar.
-- F9: parar e gerar resumo.
-- F12: paragem de emergência imediata.
+Hotkeys implementadas:
+- F6: captura de um fotograma.
+- F7: iniciar/parar observação contínua.
+- F8: armar o Reel assistido; também arma Sell Anywhere se a sessão OCR e as regiões do inventário estiverem calibradas.
+- F9: paragem de emergência, com libertação de todos os inputs.
+
+A implementação atual mantém o Perfect Cast em diagnóstico e o Shake em deteção de candidatos. O Reel é opt-in e usa a máquina de estados/calibração. A venda é iniciada apenas depois de uma notificação OCR de confiança elevada e confirmada com duas imagens consecutivas da lista do inventário.
 
 ## 10. Testabilidade
 
