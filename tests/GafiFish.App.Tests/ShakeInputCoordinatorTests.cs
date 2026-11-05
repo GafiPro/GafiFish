@@ -41,7 +41,10 @@ public sealed class ShakeInputCoordinatorTests
     {
         var input = new FakeRobloxInput();
         input.Arm();
-        var coordinator = new ShakeInputCoordinator(input);
+        var coordinator = new ShakeInputCoordinator(input, new ShakeInputSettings
+        {
+            MaximumFrameAge = TimeSpan.FromSeconds(10)
+        });
         var start = DateTimeOffset.UtcNow.AddSeconds(-2);
 
         _ = coordinator.ProcessFrame(Frame(start), [Prompt(50, 50)]);
@@ -60,7 +63,10 @@ public sealed class ShakeInputCoordinatorTests
     {
         var input = new FakeRobloxInput();
         input.Arm();
-        var coordinator = new ShakeInputCoordinator(input);
+        var coordinator = new ShakeInputCoordinator(input, new ShakeInputSettings
+        {
+            MaximumFrameAge = TimeSpan.FromSeconds(10)
+        });
         var start = DateTimeOffset.UtcNow.AddSeconds(-3);
 
         _ = coordinator.ProcessFrame(Frame(start), [Prompt(20, 30)]);
@@ -86,7 +92,10 @@ public sealed class ShakeInputCoordinatorTests
     {
         var input = new FakeRobloxInput();
         input.Arm();
-        var coordinator = new ShakeInputCoordinator(input);
+        var coordinator = new ShakeInputCoordinator(input, new ShakeInputSettings
+        {
+            MaximumFrameAge = TimeSpan.FromSeconds(10)
+        });
         var start = DateTimeOffset.UtcNow.AddSeconds(-3);
 
         _ = coordinator.ProcessFrame(Frame(start), [Prompt(30, 30)]);
