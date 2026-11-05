@@ -48,12 +48,13 @@ public sealed class ShakeInputCoordinator
 
     public ShakeInputResult ProcessFrame(
         ScreenCaptureFrame frame,
-        IReadOnlyList<DetectedMarker> prompts)
+        IReadOnlyList<DetectedMarker> prompts,
+        DateTimeOffset? now = null)
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(prompts);
 
-        var age = DateTimeOffset.UtcNow - frame.CapturedAt;
+        var age = (now ?? DateTimeOffset.UtcNow) - frame.CapturedAt;
         if (age < TimeSpan.Zero || age > _settings.MaximumFrameAge)
         {
             return new ShakeInputResult(
