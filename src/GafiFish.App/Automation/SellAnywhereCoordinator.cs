@@ -26,6 +26,7 @@ public sealed class SellAnywhereCoordinator
     private DetectedMarker? _lastButton;
     private int _stableButtonFrames;
     private int _verifiedChangeFrames;
+    private bool _inventoryOpenedByCoordinator;
     private string _lastStatus = "Sell Anywhere is stopped.";
     private bool _started;
 
@@ -86,7 +87,7 @@ public sealed class SellAnywhereCoordinator
                 _ = _schedule.Poll(frame.CapturedAt);
                 if (_schedule.SalePending && isFishingCycleSafe)
                 {
-                    BeginPendingSale(profile, frame.CapturedAt);
+                    BeginPendingSale(profile, frame);
                 }
             }
 
@@ -130,10 +131,11 @@ public sealed class SellAnywhereCoordinator
         _lastButton = null;
         _stableButtonFrames = 0;
         _verifiedChangeFrames = 0;
+        _inventoryOpenedByCoordinator = false;
         _lastStatus = "Sell Anywhere stopped; all inputs released.";
     }
 
-    private void BeginPendingSale(VisionProfile profile, DateTimeOffset now)
+    private void BeginPendingSale(VisionProfile profile, ScreenCaptureFrame frame)
     {
         if (!profile.IsSellButtonCalibrated || !profile.IsInventoryVerificationCalibrated)
         {
@@ -146,23 +148,41 @@ public sealed class SellAnywhereCoordinator
             return;
         }
 
+        var now = frame.CapturedAt;
+        var preflight = _detector.DetectButton(frame, profile);
+        var inventoryAlreadyOpen =
+            preflight.IsCalibrated
+            && preflight.SellButton is not null
+            && preflight.SellButton.Confidence >= _settings.MinimumButtonConfidence;
+
         if (!_stateMachine.TryTransition(FishingState.SellPending, "Ten-minute Sell Anywhere interval reached.", now))
         {
             Fail("The fishing state machine rejected the pending sale.");
             return;
         }
 
-        if (!_stateMachine.TryTransition(FishingState.OpeningInventory, "Fishing cycle finished; opening inventory.", now))
+        if (!_stateMachine.TryTransition(FishingState.OpeningInventory,
+                inventoryAlreadyOpen
+                    ? "Sell Anywhere button already visible; preserving the open inventory."
+                    : "Fishing cycle finished; opening inventory.",
+                now))
         {
             Fail("The fishing state machine rejected the inventory-opening transition.");
             return;
         }
 
-        ToggleInventory();
+        _inventoryOpenedByCoordinator = !inventoryAlreadyOpen;
+        if (_inventoryOpenedByCoordinator)
+        {
+            ToggleInventory();
+        }
+
         _phaseStartedAt = now;
         ResetButtonStability();
         _verifiedChangeFrames = 0;
-        _lastStatus = "Waiting for the calibrated inventory and Sell Anywhere button.";
+        _lastStatus = inventoryAlreadyOpen
+            ? "Inventory is already open; waiting for the calibrated Sell Anywhere button to stabilise."
+            : "Inventory opened; waiting for the calibrated Sell Anywhere button.";
     }
 
     private void ObserveInventoryOpening(ScreenCaptureFrame frame, VisionProfile profile)
@@ -266,7 +286,10 @@ public sealed class SellAnywhereCoordinator
 
         if (_verifiedChangeFrames >= _settings.RequiredVerificationFrames)
         {
-            ToggleInventory();
+            if (_inventoryOpenedByCoordinator)
+            {
+                ToggleInventory();
+            }
 
             if (!_stateMachine.TryTransition(
                     FishingState.ClosingInventory,
@@ -290,6 +313,7 @@ public sealed class SellAnywhereCoordinator
 
             _beforeSaleFrame = null;
             _verifiedChangeFrames = 0;
+            _inventoryOpenedByCoordinator = false;
             _lastStatus = $"Sale visually verified across {_settings.RequiredVerificationFrames} frames ({changedRatio:P1} inventory change). Next sale due in 10 minutes.";
             return;
         }
@@ -351,6 +375,7 @@ public sealed class SellAnywhereCoordinator
         _beforeSaleFrame = null;
         ResetButtonStability();
         _verifiedChangeFrames = 0;
+        _inventoryOpenedByCoordinator = false;
 
         if (_stateMachine.CurrentState != FishingState.Error)
         {
