@@ -19,6 +19,16 @@ A automação pode estar sujeita às regras do Roblox e às regras próprias de 
 
 Referência: https://about.roblox.com/community-standards
 
+## Venda com Sell Anywhere
+
+A gamepass vende itens não favoritos. Para evitar perdas:
+- O GafiFish não altera o estado de favorito de qualquer peixe.
+- A venda só pode começar depois do fim do ciclo de pesca e com o inventário visualmente reconhecido.
+- O botão tem de ser identificado na região calibrada; não usar coordenadas fixas cegas.
+- A ação é executada uma vez e o resultado tem de ser confirmado visualmente.
+- Se aparecer um diálogo inesperado, o botão não for reconhecido ou não houver confirmação, a automação pára e pede intervenção.
+- O utilizador deve favoritar previamente todos os peixes/itens que pretende guardar.
+
 ## Modelo de ameaças
 
 | Risco | Mitigação |
