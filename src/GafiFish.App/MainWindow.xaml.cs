@@ -1236,7 +1236,7 @@ public partial class MainWindow : Window
                 await SessionExportService.ExportCsvAsync(catches, dialog.FileName);
             }
 
-            SessionStatusText.Text = $"Exported {catches.Count} catches to {Path.GetFileName(dialog.FileName)}.";
+            SessionStatusText.Text = $"Exported {catches.Count} catches to {System.IO.Path.GetFileName(dialog.FileName)}.";
         }
         catch (Exception exception)
         {
