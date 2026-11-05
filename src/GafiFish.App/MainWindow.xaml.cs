@@ -305,7 +305,8 @@ public partial class MainWindow : Window
             SellAnywhereCoordinator? sellCoordinator = null;
             PeriodicSellSchedule? sellSchedule = null;
             var canScheduleSales =
-                _activeSessionId.HasValue
+                SellAnywhereCheckBox.IsChecked == true
+                && _activeSessionId.HasValue
                 && _profile.IsSellButtonCalibrated
                 && _profile.IsInventoryVerificationCalibrated;
 
@@ -333,11 +334,14 @@ public partial class MainWindow : Window
             InvertReelDirectionCheckBox.IsEnabled = false;
             AutoCastCheckBox.IsEnabled = false;
             AutoShakeCheckBox.IsEnabled = false;
+            SellAnywhereCheckBox.IsEnabled = false;
 
             var enabledModes = new List<string> { "Reel assist" };
             if (autoCastEnabled) enabledModes.Add("Auto-cast");
             if (autoShakeEnabled) enabledModes.Add("Auto-shake");
             if (sellCoordinator is not null) enabledModes.Add("Sell Anywhere / 10 min");
+            else if (SellAnywhereCheckBox.IsChecked == true)
+                enabledModes.Add("Sell Anywhere unavailable (session/calibration missing)");
 
             AutomationStatusText.Text =
                 $"Armed: {string.Join(" + ", enabledModes)}. Equip the rod manually; F9 stops and releases all inputs.";
@@ -424,6 +428,7 @@ public partial class MainWindow : Window
         InvertReelDirectionCheckBox.IsEnabled = true;
         AutoCastCheckBox.IsEnabled = true;
         AutoShakeCheckBox.IsEnabled = true;
+        SellAnywhereCheckBox.IsEnabled = true;
 
         AutomationStatusText.Text = releaseFailed
             ? $"{reason} Warning: Windows rejected an input-release event; check the mouse/keyboard state."
