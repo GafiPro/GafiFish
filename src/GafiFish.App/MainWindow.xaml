@@ -162,6 +162,8 @@
                                 IsEnabled="False" />
                         <TextBlock x:Name="SessionStatusText" Text="No session running."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
+                        <TextBlock x:Name="SessionSummaryText" Text=""
+                                   Foreground="#EAF0F5" TextWrapping="Wrap" Margin="0,10,0,0" />
                         <TextBlock Text="OCR runs locally on the selected notification region. The first session downloads the English language model once."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
                     </StackPanel>
