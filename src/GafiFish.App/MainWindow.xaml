@@ -80,6 +80,9 @@
                         <TextBlock x:Name="SellStatusText"
                                    Text="Sell Anywhere: awaiting button calibration."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        <TextBlock x:Name="AutomationStatusText"
+                                   Text="Reel control: disarmed."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,6,0,0" />
                         <TextBlock x:Name="OcrStatusText"
                                    Text="Local OCR: not initialised."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,6,0,0" />
@@ -99,6 +102,14 @@
                                 Height="38" Background="#285B50" Foreground="White" BorderThickness="0" />
                         <TextBlock Text="F6 captures one frame. F7 starts or stops live observation. Use the keys while Roblox is the foreground window; Alt+Tab back here to inspect the latest frame."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,12,0,0" />
+                        <Divider />
+                        <TextBlock Text="Reel assist: F8 arms the calibrated hold/release controller; F9 immediately stops it and releases input. It requires the Roblox window in the foreground."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,8" />
+                        <CheckBox x:Name="InvertReelDirectionCheckBox"
+                                  Content="Invert hold/release mapping (test with a safe catch)"
+                                  Foreground="#EAF0F5" IsChecked="False" />
+                        <TextBlock Text="Sell Anywhere is scheduled only when its button and item-list regions are calibrated and an OCR session is active."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
                         <TextBlock x:Name="HotkeyStatusText" Text="Global hotkeys: registering…"
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
                     </StackPanel>
@@ -183,7 +194,7 @@
                 <Border Background="#19232E" CornerRadius="16" Padding="18">
                     <StackPanel>
                         <TextBlock Text="Safety" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <TextBlock Text="Observation only. No game inputs are sent in this build."
+                        <TextBlock Text="Reel assist is opt-in and only sends a guarded left-mouse hold/release while both calibrated markers are visible."
                                    TextWrapping="Wrap" />
                         <TextBlock Text="Capture only works while the visible Roblox window is in the foreground. No memory reading, code injection, or remote image upload."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
