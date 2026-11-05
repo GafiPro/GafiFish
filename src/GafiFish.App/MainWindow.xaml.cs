@@ -17,6 +17,11 @@ using GafiFish.Data.Storage;
 using GafiFish.Ocr.Engine;
 using GafiFish.Ocr.Installation;
 using GafiFish.Ocr.Parsing;
+using GafiFish.Core.Automation;
+using GafiFish.Core.Control;
+using GafiFish.Core.Scheduling;
+using GafiFish.App.Automation;
+using GafiFish.Windows.Input;
 
 namespace GafiFish.App;
 
@@ -25,9 +30,13 @@ public partial class MainWindow : Window
     private const int WmHotkey = 0x0312;
     private const int CaptureHotkeyId = 0x4711;
     private const int PreviewHotkeyId = 0x4712;
+    private const int ReelArmHotkeyId = 0x4713;
+    private const int EmergencyStopHotkeyId = 0x4714;
     private const uint ModNoRepeat = 0x4000;
     private const uint VkF6 = 0x75;
     private const uint VkF7 = 0x76;
+    private const uint VkF8 = 0x77;
+    private const uint VkF9 = 0x78;
 
     private readonly RobloxWindowCapture _capture = new();
     private readonly FishingVisionDetector _vision = new();
@@ -60,6 +69,14 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _previewCancellation;
     private bool _captureHotkeyRegistered;
     private bool _previewHotkeyRegistered;
+    private bool _reelArmHotkeyRegistered;
+    private bool _emergencyStopHotkeyRegistered;
+    private RobloxInputService? _automationInput;
+    private ReelInputCoordinator? _reelCoordinator;
+    private FishingStateMachine? _runtimeStateMachine;
+    private PeriodicSellSchedule? _sellSchedule;
+    private SellAnywhereCoordinator? _sellCoordinator;
+    private bool _automationEnabled;
     private LocalTesseractOcr? _ocr;
     private Guid? _activeSessionId;
     private bool _ocrInProgress;
