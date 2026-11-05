@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>GafiFish.Vision</RootNamespace>
+    <AssemblyName>GafiFish.Vision</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4.Windows" Version="4.13.0.20260627" />
+    <ProjectReference Include="..\GafiFish.Windows\GafiFish.Windows.csproj" />
+    <ProjectReference Include="..\GafiFish.Core\GafiFish.Core.csproj" />
+  </ItemGroup>
+</Project>
