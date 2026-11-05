@@ -52,6 +52,43 @@ public sealed class SellAnywhereCoordinatorTests
         Assert.False(input.IsArmed);
     }
 
+
+    [Fact]
+    public void ProcessFrame_PreservesInventoryThatWasAlreadyOpen()
+    {
+        var start = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+        var input = new FakeRobloxInput();
+        var schedule = new PeriodicSellSchedule();
+        var machine = CreateCatchDetectedMachine(start);
+        var coordinator = new SellAnywhereCoordinator(
+            input,
+            new SellAnywhereVisionDetector(),
+            schedule,
+            machine);
+
+        var profile = CreateProfile();
+        coordinator.Start(start);
+
+        // The Sell Anywhere button is already visible on the first due frame.
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(120), fillItems: false), profile, true);
+        Assert.Equal(FishingState.SellingInventory, machine.CurrentState);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(240), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(360), fillItems: false), profile, true);
+        Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
+        Assert.Equal(1, input.ClientClicks);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1100), fillItems: true), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1220), fillItems: true), profile, true);
+
+        Assert.Equal(FishingState.Preparing, machine.CurrentState);
+        Assert.Equal(0, input.InventoryTogglePresses);
+        Assert.Equal(1, input.ClientClicks);
+        Assert.False(schedule.SalePending);
+        Assert.Contains("visually verified", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void ProcessFrame_FailsClosedWhenInventoryDoesNotChange()
     {
@@ -74,10 +111,11 @@ public sealed class SellAnywhereCoordinatorTests
         var profile = CreateProfile();
         coordinator.Start(start);
 
-        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10), fillItems: false, showSellButton: false), profile, true);
         coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(120), fillItems: false), profile, true);
         coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(240), fillItems: false), profile, true);
         coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(360), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(480), fillItems: false), profile, true);
 
         Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
 
@@ -204,14 +242,20 @@ public sealed class SellAnywhereCoordinatorTests
         return machine;
     }
 
-    private static ScreenCaptureFrame CreateFrame(DateTimeOffset timestamp, bool fillItems)
+    private static ScreenCaptureFrame CreateFrame(
+        DateTimeOffset timestamp,
+        bool fillItems,
+        bool showSellButton = true)
     {
         const int width = 100;
         const int height = 80;
         var pixels = new byte[width * height * 4];
 
-        // The sell button is bright red and sits in the calibrated right region.
-        FillRectangle(pixels, width, 60, 20, 12, 12, 0, 0, 255);
+        // The sell button is bright red and appears only while the inventory is open.
+        if (showSellButton)
+        {
+            FillRectangle(pixels, width, 60, 20, 12, 12, 0, 0, 255);
+        }
 
         // The inventory item area is left of the sell button. It changes after a sale.
         if (fillItems)
