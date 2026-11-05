@@ -1,213 +1,143 @@
-# Arquitetura técnica proposta
+# Arquitetura técnica atual
 
-## 1. Decisão tecnológica
+## 1. Stack
 
-**C# / .NET 10 LTS / WPF / Windows x64.**
+**C# / .NET 10 / WPF / Windows x64.**
 
-Motivos:
-- Integração madura com Windows para janelas, hotkeys globais, captura de ecrã e inputs.
-- WPF fornece uma interface nativa e extensível.
-- OpenCvSharp permite usar o motor nativo OpenCV.
-- O processamento será local e os pacotes serão fixados e revistos por segurança.
+- WPF: interface, calibração, pré-visualização e overlays.
+- OpenCvSharp: conversão de cor, contornos e deteção visual.
+- P/Invoke Win32: captura GDI, hotkeys globais e eventos de input.
+- TesseractOCR: OCR inglês, executado localmente.
+- Microsoft.Data.Sqlite: histórico de sessões e capturas.
+- xUnit v3: testes automatizados.
 
-Bibliotecas propostas:
-- OpenCvSharp para processamento de imagem.
-- Vortice.Windows ou integração WinRT controlada para captura DXGI/Windows Graphics Capture.
-- P/Invoke para SendInput, RegisterHotKey e validação da janela ativa.
-- SQLite para sessões e capturas.
-- Serilog para registos.
-- xUnit para testes.
+O GafiFish é uma aplicação externa. Não lê memória do Roblox, não injeta código e não altera tráfego de rede.
 
-## 2. Estrutura prevista
+## 2. Estrutura do repositório
 
 ```
 GafiFish/
   src/
-    GafiFish.App/             # WPF: interface, overlay e calibração
-    GafiFish.Core/            # modelos, estados e controlo
-    GafiFish.Windows/         # captura, foco e inputs Win32
-    GafiFish.Vision/          # OpenCV, deteção e tracking
-    GafiFish.Data/            # SQLite, JSON e resumo
+    GafiFish.App/       # WPF, preview, overlay e coordenação
+    GafiFish.Core/      # modelos, estados e controladores
+    GafiFish.Windows/   # captura visível, foco e input Win32
+    GafiFish.Vision/    # calibração, OpenCV e tracking
+    GafiFish.Ocr/       # Tesseract local e parser de notificações
+    GafiFish.Data/      # SQLite e exportação CSV/JSON
   tests/
     GafiFish.Core.Tests/
     GafiFish.Vision.Tests/
+    GafiFish.Data.Tests/
+    GafiFish.App.Tests/
+    GafiFish.Ocr.Tests/
   docs/
 ```
 
-## 3. Pipeline visual e controlo
+## 3. Pipeline visual
 
 ```
-Janela do Roblox
+Janela Roblox em primeiro plano
       |
       v
-Captura de frames
+Captura GDI da área de cliente
+      |
+      v
+Regiões normalizadas / calibração HSV
       |
       v
 Detetores OpenCV
-  - medidor Perfect Cast
-  - barra de pesca
-  - peixe / marcador-alvo
-  - prompts de shake
+  - peixe e barra de Reel
+  - indicador e zona-alvo de Perfect Cast
+  - candidatos Shake
   - botão Sell Anywhere
       |
       v
 Tracker temporal / estimador de confiança
       |
       v
-Máquina de estados
-      |
-      v
-Controladores de Cast / Reel / Inventory
-      |
-      v
-Input Win32 (SendInput)
+Pré-visualização, overlay e diagnóstico
 ```
 
-O motor visual não deve depender de um único pixel. A ordem de deteção será configurável e poderá combinar:
-1. Correspondência de cor na região calibrada.
-2. Deteção de contornos/limites.
-3. Marcadores de cor ou forma específicos da cana.
-4. Template matching como fallback.
-5. Predição curta da última posição válida, sempre limitada no tempo.
+Cada frame tem timestamp, resolução, origem no ecrã e buffer BGRA. A calibração é guardada em `%LOCALAPPDATA%\GafiFish\vision-profile.json`.
 
-A confiança cai com a idade da última deteção. O controlador entra em estado neutro quando a informação fica desatualizada.
+Os detetores trabalham na região calibrada. Quando não há deteção válida, não inventam uma posição: a confiança decai e o controlador liberta o rato se os marcadores de Reel deixarem de estar disponíveis.
 
-## 4. Tracking e controlo do reel
+## 4. Reel assistido
 
-Cada frame válido fornece uma posição do alvo e uma timestamp monotónica. O tracker calcula posição suavizada, velocidade horizontal, direção, aceleração aproximada e confiança.
+O Reel usa um controlador PD com look-ahead curto e deadband:
 
-O controlador terá:
-- componente proporcional para corrigir o erro;
-- componente derivativa para reduzir oscilações;
-- look-ahead curto para antecipar o movimento;
-- deadband para evitar inputs desnecessários;
-- PWM para converter o valor de controlo em intervalos de botão premido/libertado;
-- limites de slew e modo de recuperação para mudanças bruscas.
+- erro entre a posição prevista do peixe e o centro da barra;
+- termo proporcional para corrigir a diferença;
+- termo derivativo para considerar a velocidade;
+- deadband para manter o último estado quando o erro é pequeno;
+- limiar de confiança e deteções recentes.
 
-Os valores serão calibráveis por cana. Não serão copiados valores de outros macros como se fossem universais.
+A coordenação está em `ReelInputCoordinator`. Só atua no estado `Reeling` e precisa de ambos os marcadores calibrados. F8 arma o input; F9 pára e liberta todos os inputs. A opção de inversão do mapeamento hold/release existe porque a direção correta deve ser confirmada no minijogo real.
 
-## 5. Perfect Cast — incluído no MVP
+O Reel não faz cast nem recast. A direção, a velocidade e os limiares precisam de validação com a interface real do Fisch.
 
-O Perfect Cast faz parte da primeira versão funcional e estará disponível na interface de Cast.
+## 5. Perfect Cast
 
-Pipeline:
-1. Calibrar a região do medidor e a posição de referência da câmara.
-2. Preparar a câmara de forma repetível com ações normais de zoom e movimento.
-3. Iniciar a carga do lançamento.
-4. Detetar visualmente o indicador de progresso e a zona-alvo.
-5. Estimar a proximidade/tempo até à zona ideal.
-6. Libertar no momento calculado e validar o resultado visual.
-7. Registar o timing e permitir ajuste por resolução, sensibilidade e cana.
+O medidor é calibrado por região, indicador e zona-alvo. O detetor calcula a posição normalizada e a velocidade com sinal. O controlador estima a posição no momento esperado do input, considerando a latência configurada, e produz `Wait`, `Release` ou `Cancel`.
 
-O timing não será um valor fixo copiado. A calibração é específica da configuração e um Perfect Cast não pode ser garantido em todos os lançamentos. Se o medidor desaparecer ou a deteção perder confiança, o sistema deve cancelar de forma segura, em vez de manter um botão premido indefinidamente.
+Nesta versão a decisão é diagnóstica: o programa desenha o indicador e a zona-alvo, mas ainda não executa o clique de libertação.
 
-## 6. Máquina de estados
+## 6. Shake
 
-Estados:
-- Idle
-- Preparing
-- Casting
-- WaitingForBite
-- Shaking
-- Reeling
+O detetor procura blobs compactos dentro da região e da cor calibradas. Os candidatos são desenhados no overlay e apresentados com o respetivo número.
+
+Ainda não classifica de forma fiável a direção de cada prompt nem escolhe a tecla de resposta. Por isso, não envia inputs para Shake nesta versão.
+
+## 7. Máquina de estados e inputs
+
+Estados usados pelo fluxo:
+- Idle / Preparing
+- Casting / WaitingForBite
+- Shaking / Reeling
 - CatchDetected
-- SellPending
-- OpeningInventory
-- SellingInventory
-- VerifyingSale
-- ClosingInventory
-- Recovering
-- Stopping
-- Stopped
-- Error
+- SellPending / OpeningInventory / SellingInventory
+- VerifyingSale / ClosingInventory
+- Recovering / Stopping / Stopped / Error
 
-Regras:
-- Só um estado pode controlar os inputs de cada vez.
-- Cada estado tem timeout e condições de saída explícitas.
-- A venda nunca interrompe uma captura; fica pendente até o ciclo terminar.
-- Perda de foco, falha de captura, deteção incerta ou exceção têm prioridade sobre qualquer ação.
-- A finalização liberta todos os inputs antes de guardar o resumo.
+O adaptador `RobloxInputService` exige `Arm()`, confirma que o processo Roblox está em primeiro plano e liberta o rato/teclas ao desarmar. A observação F7 monitoriza o foco; se o Roblox deixa de estar em primeiro plano, a automação pára.
 
-## 7. Venda periódica — Sell Anywhere
+Hotkeys:
+- F6: capturar um fotograma.
+- F7: iniciar/parar observação contínua.
+- F8: armar Reel assistido e, se a sessão OCR e calibração do inventário estiverem ativas, iniciar Sell Anywhere.
+- F9: paragem de emergência.
 
-A gamepass **Sell Anywhere** permite vender os itens não favoritos através de um botão no inventário. O intervalo predefinido será de 10 minutos.
+## 8. Sell Anywhere
+
+O coordenador `SellAnywhereCoordinator` usa `PeriodicSellSchedule` com intervalo de 10 minutos.
+
+O temporizador só transforma a venda em pendente. A venda só começa depois de uma notificação OCR de confiança elevada marcar uma captura concluída.
 
 Fluxo:
-1. Iniciar um temporizador monotónico de 10 minutos.
-2. Quando expirar, marcar a venda como pendente.
-3. Esperar pelo fim da captura/reel atual.
-4. Confirmar que a janela Roblox está ativa e a interface está num estado reconhecido.
-5. Abrir o inventário através do input/controlo visual calibrado.
-6. Detetar e acionar o botão Sell Inventory/Sell Anywhere.
-7. Confirmar visualmente que a operação terminou.
-8. Fechar o inventário e reiniciar o temporizador.
-9. Se o botão, o inventário ou a confirmação não forem reconhecidos, não repetir cliques às cegas: parar a automação e avisar o utilizador.
+1. Abrir o inventário com o Roblox em primeiro plano.
+2. Aguardar várias deteções estáveis do botão calibrado.
+3. Enviar um único clique por tentativa.
+4. Comparar a região dos itens antes/depois.
+5. Exigir alteração suficiente em dois fotogramas consecutivos.
+6. Fechar o inventário e retomar a preparação.
 
-A venda aplica-se a itens que não estejam favoritos. O GafiFish não altera favoritos; o utilizador deve marcar previamente o que pretende guardar. Não será usada qualquer API interna do jogo.
+Se o botão não aparecer, a captura falhar ou a alteração não for confirmada antes do timeout, o coordenador pára e liberta os inputs. Não há repetição cega do clique. O teste automatizado usa frames sintéticos; a validação na interface real continua pendente.
 
-## 8. Capturas e resumo Top 25
+A gamepass vende itens não favoritos. O GafiFish não altera favoritos.
 
-Quando a pesca termina:
-1. Detetar o sinal visual de captura.
-2. Capturar apenas a região da notificação.
-3. Aplicar OCR local.
-4. Extrair nome, raridade, mutação, peso e valor quando visíveis.
-5. Associar confiança a cada campo.
-6. Guardar os dados; leituras incertas ficam desconhecidas, nunca inventadas.
+## 9. OCR, histórico e exportação
 
-Modelo:
+O modelo inglês Tesseract é descarregado de uma versão fixa de `tessdata_fast`, validado por tamanho e Git blob SHA-1 e guardado em AppData. As imagens são convertidas em memória e não são enviadas para serviços externos.
 
-```text
-FishCatch
-  Id
-  SessionId
-  Timestamp
-  Species
-  Rarity
-  Mutation
-  Weight
-  EstimatedValue
-  RecognitionConfidence
-```
+O parser é conservador: só regista uma captura quando encontra uma notificação que corresponda ao padrão inglês `You caught [species]`. Raridade, mutação, peso e valor ficam nulos quando não são reconhecidos.
 
-Ao parar:
-- mostrar total de capturas;
-- duração e capturas por hora;
-- mostrar no máximo 25 peixes;
-- indicar quando a lista foi truncada;
-- manter o histórico completo em SQLite e permitir CSV/JSON.
+O `FishSessionStore` guarda sessões e capturas em SQLite. No fim da sessão, o resumo apresenta no máximo 25 peixes. O histórico completo pode ser exportado em CSV ou JSON.
 
-A ordenação será configurável. A proposta inicial pondera raridade, mutação, peso e valor quando este for reconhecido com confiança.
+## 10. Testes e limites
 
-## 9. Interface
+A CI Windows:
+- restaura e compila a solução;
+- executa as cinco suites de testes;
+- publica um ZIP Windows x64 self-contained.
 
-Separadores:
-- **Dashboard:** estado, iniciar/parar, duração e capturas/hora.
-- **Fishing:** Shake, Reel, Cast e Perfect Cast.
-- **Sell Anywhere:** intervalo, estado do temporizador e verificação visual.
-- **Calibration:** janela, regiões e amostragem de cores.
-- **Rod Profiles:** calibração por cana.
-- **Session:** histórico e Top 25.
-- **Diagnostics:** overlay, FPS, confiança e motivo de cada input.
-
-Hotkeys implementadas:
-- F6: captura de um fotograma.
-- F7: iniciar/parar observação contínua.
-- F8: armar o Reel assistido; também arma Sell Anywhere se a sessão OCR e as regiões do inventário estiverem calibradas.
-- F9: paragem de emergência, com libertação de todos os inputs.
-
-A implementação atual mantém o Perfect Cast em diagnóstico e o Shake em deteção de candidatos. O Reel é opt-in e usa a máquina de estados/calibração. A venda é iniciada apenas depois de uma notificação OCR de confiança elevada e confirmada com duas imagens consecutivas da lista do inventário.
-
-## 10. Testabilidade
-
-O motor visual aceitará imagens gravadas como entrada. Testar:
-- posições e tamanhos detetados;
-- mudança de direção;
-- medidor de Perfect Cast;
-- falsos positivos e frames perdidos;
-- temporizador de venda e adiamento para estado seguro;
-- reconhecimento do botão e confirmação visual;
-- transições de estado;
-- ordenação e limite de 25 capturas.
-
-Os testes do controlador não enviam inputs reais.
+Os testes do controlador usam inputs simulados. Os testes de visão usam frames sintéticos. Ainda falta testar a deteção e o controlo com capturas reais do jogo, especialmente Perfect Cast e Shake.
