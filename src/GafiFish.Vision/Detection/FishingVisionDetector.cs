@@ -84,52 +84,42 @@ public sealed class FishingVisionDetector
             RetrievalModes.External,
             ContourApproximationModes.ApproxSimple);
 
-        try
+        var bestArea = 0d;
+        Rect bestBounds = default;
+
+        foreach (var contour in contours)
         {
-            var bestArea = 0d;
-            Rect bestBounds = default;
-
-            foreach (var contour in contours)
+            var area = Cv2.ContourArea(contour);
+            if (area < minimumArea || area <= bestArea)
             {
-                var area = Cv2.ContourArea(contour);
-                if (area < minimumArea || area <= bestArea)
-                {
-                    continue;
-                }
-
-                bestArea = area;
-                bestBounds = Cv2.BoundingRect(contour);
+                continue;
             }
 
-            if (bestArea < minimumArea)
-            {
-                return null;
-            }
-
-            var bounds = new Rect(
-                bestBounds.X + offsetX,
-                bestBounds.Y + offsetY,
-                bestBounds.Width,
-                bestBounds.Height);
-
-            var boxArea = Math.Max(1, bounds.Width * bounds.Height);
-            var fillRatio = Math.Clamp(bestArea / boxArea, 0, 1);
-            var areaScore = Math.Clamp(bestArea / (minimumArea * 8), 0, 1);
-            var confidence = Math.Clamp(0.55 + 0.25 * areaScore + 0.20 * fillRatio, 0, 1);
-
-            return new DetectedMarker(
-                bounds.X + bounds.Width / 2d,
-                bounds.Y + bounds.Height / 2d,
-                bounds,
-                bestArea,
-                confidence);
+            bestArea = area;
+            bestBounds = Cv2.BoundingRect(contour);
         }
-        finally
+
+        if (bestArea < minimumArea)
         {
-            foreach (var contour in contours)
-            {
-                Cv2.ImEncode(".png", contour, out _);
-            }
+            return null;
         }
+
+        var bounds = new Rect(
+            bestBounds.X + offsetX,
+            bestBounds.Y + offsetY,
+            bestBounds.Width,
+            bestBounds.Height);
+
+        var boxArea = Math.Max(1, bounds.Width * bounds.Height);
+        var fillRatio = Math.Clamp(bestArea / boxArea, 0, 1);
+        var areaScore = Math.Clamp(bestArea / (minimumArea * 8), 0, 1);
+        var confidence = Math.Clamp(0.55 + 0.25 * areaScore + 0.20 * fillRatio, 0, 1);
+
+        return new DetectedMarker(
+            bounds.X + bounds.Width / 2d,
+            bounds.Y + bounds.Height / 2d,
+            bounds,
+            bestArea,
+            confidence);
     }
 }
