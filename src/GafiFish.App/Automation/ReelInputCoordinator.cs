@@ -14,11 +14,11 @@ namespace GafiFish.App.Automation;
 /// </summary>
 public sealed class ReelInputCoordinator
 {
-    private readonly RobloxInputService _input;
+    private readonly IRobloxInput _input;
     private readonly ReelController _controller;
 
     public ReelInputCoordinator(
-        RobloxInputService input,
+        IRobloxInput input,
         ReelController? controller = null)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input));
