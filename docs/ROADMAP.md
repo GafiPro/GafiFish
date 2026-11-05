@@ -47,7 +47,7 @@ Critério de saída: o Reel e o Perfect Cast têm de funcionar com confiança em
 
 **Estado: implementada em simulação; por validar no Fisch real**
 
-- [x] Temporizador de 10 minutos.
+- [x] Temporizador de 10 minutos, protegido por opção explícita desligada por defeito.
 - [x] Venda pendente até existir uma captura OCR de confiança elevada e o ciclo chegar a um estado seguro.
 - [x] Abrir/fechar o inventário com a janela Roblox em primeiro plano.
 - [x] Reconhecer um botão calibrado e estável.
