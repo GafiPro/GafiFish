@@ -11,6 +11,7 @@ public sealed record SellAnywhereSettings
     public TimeSpan PhaseTimeout { get; init; } = TimeSpan.FromSeconds(8);
     public TimeSpan VerificationDelay { get; init; } = TimeSpan.FromMilliseconds(650);
     public int RequiredStableButtonFrames { get; init; } = 2;
+    public int RequiredVerificationFrames { get; init; } = 2;
 
     public void Validate()
     {
@@ -26,5 +27,7 @@ public sealed record SellAnywhereSettings
             throw new ArgumentOutOfRangeException(nameof(PhaseTimeout));
         if (RequiredStableButtonFrames is < 2 or > 10)
             throw new ArgumentOutOfRangeException(nameof(RequiredStableButtonFrames));
+        if (RequiredVerificationFrames is < 2 or > 5)
+            throw new ArgumentOutOfRangeException(nameof(RequiredVerificationFrames));
     }
 }
