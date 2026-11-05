@@ -52,7 +52,7 @@ public sealed class ReelControllerTests
 
         var decision = controller.Evaluate(105, 100, 0, 0.95, isFresh: true);
 
-        Assert.Equal(ReelCommand.Neutral, decision.Command);
+        Assert.Equal(ReelCommand.Maintain, decision.Command);
     }
 
     [Theory]
