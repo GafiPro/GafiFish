@@ -136,11 +136,34 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
 
     public void ReleaseAll()
     {
-        ReleaseLeftButton();
+        List<Exception>? failures = null;
+
+        try
+        {
+            ReleaseLeftButton();
+        }
+        catch (Exception exception)
+        {
+            (failures ??= []).Add(exception);
+        }
 
         foreach (var key in _pressedKeys.ToArray())
         {
-            ReleaseKey(key);
+            try
+            {
+                ReleaseKey(key);
+            }
+            catch (Exception exception)
+            {
+                (failures ??= []).Add(exception);
+            }
+        }
+
+        if (failures is { Count: > 0 })
+        {
+            throw new AggregateException(
+                "Windows rejected one or more input-release events; unresolved input states remain tracked.",
+                failures);
         }
     }
 
@@ -184,14 +207,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             return;
         }
 
-        try
-        {
-            SendMouse(MouseLeftUp);
-        }
-        finally
-        {
-            _leftButtonDown = false;
-        }
+        SendMouse(MouseLeftUp);
+        _leftButtonDown = false;
     }
 
     private void ReleaseKey(ushort virtualKey)
@@ -201,14 +218,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             return;
         }
 
-        try
-        {
-            SendKeyboard(virtualKey, KeyUp);
-        }
-        finally
-        {
-            _pressedKeys.Remove(virtualKey);
-        }
+        SendKeyboard(virtualKey, KeyUp);
+        _pressedKeys.Remove(virtualKey);
     }
 
     private static void SendMouse(uint flags)
