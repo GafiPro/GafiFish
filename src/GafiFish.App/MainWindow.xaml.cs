@@ -100,6 +100,10 @@ public partial class MainWindow : Window
     private FishingStateMachine? _runtimeStateMachine;
     private PeriodicSellSchedule? _sellSchedule;
     private SellAnywhereCoordinator? _sellCoordinator;
+    private CastInputCoordinator? _castCoordinator;
+    private ShakeInputCoordinator? _shakeCoordinator;
+    private bool _autoCastEnabled;
+    private bool _autoShakeEnabled;
     private bool _automationEnabled;
     private LocalTesseractOcr? _ocr;
     private Guid? _activeSessionId;
@@ -255,6 +259,21 @@ public partial class MainWindow : Window
             return;
         }
 
+        var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
+        var autoShakeEnabled = AutoShakeCheckBox.IsChecked == true;
+
+        if (autoCastEnabled && !_profile.IsCastCalibrated)
+        {
+            AutomationStatusText.Text = "Auto-cast requires a calibrated Cast region, indicator color and target color.";
+            return;
+        }
+
+        if (autoShakeEnabled && !_profile.IsShakeCalibrated)
+        {
+            AutomationStatusText.Text = "Auto-shake requires a calibrated Shake region and prompt color.";
+            return;
+        }
+
         RobloxInputService? input = null;
         try
         {
@@ -275,6 +294,13 @@ public partial class MainWindow : Window
             });
             var reelCoordinator = new ReelInputCoordinator(input, controller);
             reelCoordinator.Arm();
+
+            var castCoordinator = autoCastEnabled
+                ? new CastInputCoordinator(input, _perfectCast)
+                : null;
+            var shakeCoordinator = autoShakeEnabled
+                ? new ShakeInputCoordinator(input)
+                : null;
 
             SellAnywhereCoordinator? sellCoordinator = null;
             PeriodicSellSchedule? sellSchedule = null;
@@ -299,11 +325,19 @@ public partial class MainWindow : Window
             _reelCoordinator = reelCoordinator;
             _sellCoordinator = sellCoordinator;
             _sellSchedule = sellSchedule;
+            _castCoordinator = castCoordinator;
+            _shakeCoordinator = shakeCoordinator;
+            _autoCastEnabled = autoCastEnabled;
+            _autoShakeEnabled = autoShakeEnabled;
             _automationEnabled = true;
 
-            AutomationStatusText.Text = sellCoordinator is not null
-                ? "Reel assist armed. Sell Anywhere is scheduled for every 10 minutes after a confirmed catch."
-                : "Reel assist armed. Sell Anywhere is off (requires an active OCR session and calibrated inventory).";
+            var enabledModes = new List<string> { "Reel assist" };
+            if (autoCastEnabled) enabledModes.Add("Auto-cast");
+            if (autoShakeEnabled) enabledModes.Add("Auto-shake");
+            if (sellCoordinator is not null) enabledModes.Add("Sell Anywhere / 10 min");
+
+            AutomationStatusText.Text =
+                $"Armed: {string.Join(" + ", enabledModes)}. Equip the rod manually; F9 stops and releases all inputs.";
         }
         catch (Exception exception)
         {
@@ -334,6 +368,8 @@ public partial class MainWindow : Window
 
         try
         {
+            _castCoordinator?.Stop();
+            _shakeCoordinator?.Reset();
             _reelCoordinator?.Stop();
         }
         catch
@@ -364,6 +400,10 @@ public partial class MainWindow : Window
         _runtimeStateMachine = null;
         _sellCoordinator = null;
         _sellSchedule = null;
+        _castCoordinator = null;
+        _shakeCoordinator = null;
+        _autoCastEnabled = false;
+        _autoShakeEnabled = false;
         AutomationStatusText.Text = reason;
     }
 
@@ -371,7 +411,9 @@ public partial class MainWindow : Window
         ScreenCaptureFrame frame,
         DetectedMarker? fishMarker,
         DetectedMarker? controlMarker,
-        FishMotionEstimate? motion)
+        FishMotionEstimate? motion,
+        CastMeterObservation? castObservation,
+        IReadOnlyList<DetectedMarker> shakePrompts)
     {
         if (!_automationEnabled
             || _reelCoordinator is null
@@ -414,30 +456,117 @@ public partial class MainWindow : Window
                     frame.CapturedAt);
             }
 
-            if (_runtimeStateMachine.CurrentState == FishingState.Preparing
-                && fishMarker is not null
+            // Priority: once the fish/bar markers are visible, leave Shake and
+            // hand over to the Reel controller rather than clicking a stale prompt.
+            var reelMarkersVisible =
+                fishMarker is not null
                 && controlMarker is not null
                 && fishMarker.Confidence >= 0.70
-                && controlMarker.Confidence >= 0.70)
+                && controlMarker.Confidence >= 0.70;
+
+            if (reelMarkersVisible
+                && _runtimeStateMachine.CurrentState is
+                    FishingState.Preparing or FishingState.WaitingForBite or FishingState.Shaking)
             {
+                _shakeCoordinator?.Reset();
                 _ = _runtimeStateMachine.TryTransition(
                     FishingState.Reeling,
                     "Both calibrated reel markers are visible with sufficient confidence.",
                     frame.CapturedAt);
             }
 
-            var decision = _reelCoordinator.Apply(
-                _runtimeStateMachine.CurrentState,
-                fishMarker,
-                controlMarker,
-                motion);
+            // Optional automatic cast. The rod must already be equipped by the user.
+            if (_autoCastEnabled
+                && _castCoordinator is not null
+                && _runtimeStateMachine.CurrentState == FishingState.Preparing
+                && !_castCoordinator.IsHolding)
+            {
+                _castVision.Reset();
 
-            AutomationStatusText.Text =
-                $"Reel assist: {_runtimeStateMachine.CurrentState} · {decision.Command} · {decision.Reason}";
+                if (!_runtimeStateMachine.TryTransition(
+                        FishingState.Casting,
+                        "Auto-cast started by the explicitly enabled option.",
+                        frame.CapturedAt))
+                {
+                    throw new InvalidOperationException("Could not enter the Casting state.");
+                }
+
+                _castCoordinator.BeginCast(frame.CapturedAt);
+                AutomationStatusText.Text = "Auto-cast: holding left mouse; waiting for the calibrated Perfect Cast window.";
+            }
+
+            if (_runtimeStateMachine.CurrentState == FishingState.Casting
+                && _castCoordinator is not null
+                && _castCoordinator.IsHolding)
+            {
+                var castResult = _castCoordinator.ProcessObservation(castObservation, frame.CapturedAt);
+                AutomationStatusText.Text = $"Auto-cast: {castResult.Kind} · {castResult.Reason}";
+
+                if (castResult.Kind == CastInputResultKind.Released)
+                {
+                    if (!_runtimeStateMachine.TryTransition(
+                            FishingState.WaitingForBite,
+                            "Perfect Cast controller released the mouse inside the calibrated target window.",
+                            frame.CapturedAt))
+                    {
+                        throw new InvalidOperationException("Could not enter WaitingForBite after cast.");
+                    }
+                }
+                else if (castResult.Kind is CastInputResultKind.Cancelled or CastInputResultKind.TimedOut)
+                {
+                    StopAutomation($"Auto-cast stopped safely: {castResult.Reason}");
+                    return;
+                }
+            }
+
+            // Optional automatic Shake. A click is accepted only after a stable
+            // candidate is seen; another click requires the previous prompt to
+            // move or disappear for multiple frames.
+            if (_autoShakeEnabled && _shakeCoordinator is not null)
+            {
+                if (shakePrompts.Count > 0
+                    && _runtimeStateMachine.CurrentState is FishingState.Preparing or FishingState.WaitingForBite)
+                {
+                    _ = _runtimeStateMachine.TryTransition(
+                        FishingState.Shaking,
+                        "A calibrated Shake prompt candidate appeared.",
+                        frame.CapturedAt);
+                }
+
+                if (_runtimeStateMachine.CurrentState == FishingState.Shaking)
+                {
+                    if (_runtimeStateMachine.HasTimedOut(TimeSpan.FromSeconds(20), frame.CapturedAt))
+                    {
+                        StopAutomation("Auto-shake timed out; all inputs released.");
+                        return;
+                    }
+
+                    var shakeResult = _shakeCoordinator.ProcessFrame(frame, shakePrompts);
+                    AutomationStatusText.Text = $"Auto-shake: {shakeResult.Kind} · {shakeResult.Reason}";
+                }
+            }
+
+            // The cast coordinator owns the left mouse button during Casting.
+            // Calling ReelInputCoordinator outside Reeling would release it.
+            if (!(_runtimeStateMachine.CurrentState == FishingState.Casting
+                && _castCoordinator?.IsHolding == true))
+            {
+                var decision = _reelCoordinator.Apply(
+                    _runtimeStateMachine.CurrentState,
+                    fishMarker,
+                    controlMarker,
+                    motion);
+
+                if (_runtimeStateMachine.CurrentState == FishingState.Reeling)
+                {
+                    AutomationStatusText.Text =
+                        $"Reel assist: {_runtimeStateMachine.CurrentState} · {decision.Command} · {decision.Reason}";
+                }
+            }
         }
         catch (Exception exception)
         {
-            StopAutomation($"Reel assist stopped safely: {exception.Message}");
+            StopAutomation($"Fishing automation stopped safely: {exception.Message}");
         }
     }
 
@@ -624,7 +753,9 @@ public partial class MainWindow : Window
             frame,
             visionResult.FishMarker,
             visionResult.ControlMarker,
-            motion);
+            motion,
+            castObservation,
+            shakeResult.Prompts);
 
         TryStartCatchRecognition(frame);
     }
