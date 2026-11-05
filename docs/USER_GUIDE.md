@@ -70,7 +70,7 @@ Ao terminar a sessão, o GafiFish guarda a hora de fim e mostra o total, a taxa 
 
 O agendamento Sell Anywhere só é criado quando, antes de pressionares F8, marcas a caixa **Enable Sell Anywhere every 10 minutes**, existe uma sessão OCR ativa e estão calibradas a região/cor do botão e a área da lista de itens. A primeira venda só é tentada depois de 10 minutos e de uma notificação de captura OCR com confiança elevada durante o estado Reel.
 
-O fluxo abre o inventário, espera por várias deteções estáveis do botão, envia um único clique e exige uma alteração da lista em dois fotogramas consecutivos antes de fechar o inventário. Se o botão não for encontrado ou a lista não mudar de forma estável, o GafiFish pára e liberta os inputs; não repete o clique às cegas.
+O fluxo verifica primeiro se o botão já está visível. Se o inventário estiver fechado, abre-o; se já estiver aberto, preserva-o. Depois espera por várias deteções estáveis do botão, envia um único clique e exige uma alteração da lista em dois fotogramas consecutivos. Só fecha o inventário quando foi o próprio GafiFish a abri-lo. Se o botão não for encontrado ou a lista não mudar de forma estável, o GafiFish pára e liberta os inputs; não repete o clique às cegas.
 
 Sell Anywhere vende o que não estiver marcado como favorito. A opção está desligada por defeito e exige confirmação explícita na caixa da interface. Marca como favorito tudo o que pretendes guardar antes de a ativares. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
 
