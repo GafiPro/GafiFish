@@ -296,7 +296,7 @@ public sealed class SellAnywhereCoordinator
 
         _lastStatus = changedRatio >= _settings.MinimumInventoryChangeRatio
             ? $"Inventory change detected ({changedRatio:P1}); waiting for a second stable frame ({_verifiedChangeFrames}/{_settings.RequiredVerificationFrames})."
-            : $"No sufficient inventory change was detected (observed {changedRatio:P1}).";
+            : $"No sufficient inventory change was detected (observed {changedRatio:P1}); sale not confirmed.";
         CheckTimeout(frame.CapturedAt, _lastStatus);
     }
 
