@@ -114,12 +114,12 @@ O coordenador `SellAnywhereCoordinator` usa `PeriodicSellSchedule` com intervalo
 O temporizador só é criado se o utilizador marcar a opção Sell Anywhere na interface, existir uma sessão OCR ativa e o botão/lista estiverem calibrados. Depois, transforma a venda em pendente. A venda só começa depois de uma notificação OCR de confiança elevada marcar uma captura concluída.
 
 Fluxo:
-1. Abrir o inventário com o Roblox em primeiro plano.
+1. Detetar primeiro se o botão Sell Anywhere já está visível; se não estiver, abrir o inventário com o Roblox em primeiro plano.
 2. Aguardar várias deteções estáveis do botão calibrado.
 3. Enviar um único clique por tentativa.
 4. Comparar a região dos itens antes/depois.
 5. Exigir alteração suficiente em dois fotogramas consecutivos.
-6. Fechar o inventário e retomar a preparação.
+6. Fechar o inventário apenas se foi o GafiFish a abri-lo; depois retomar a preparação.
 
 Se o botão não aparecer, a captura falhar ou a alteração não for confirmada antes do timeout, o coordenador pára e liberta os inputs. Não há repetição cega do clique. O teste automatizado usa frames sintéticos; a validação na interface real continua pendente.
 
