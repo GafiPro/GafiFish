@@ -77,6 +77,9 @@
                         <TextBlock x:Name="ShakeStatusText"
                                    Text="Shake: awaiting prompt calibration."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        <TextBlock x:Name="SellStatusText"
+                                   Text="Sell Anywhere: awaiting button calibration."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,6,0,0" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -123,6 +126,15 @@
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button Content="Sample Shake prompt" Click="SampleShakePrompt_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Select Sell button region" Click="SelectSellButtonRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample Sell button color" Click="SampleSellButton_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Select inventory items area" Click="SelectInventoryItemsRegion_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button Content="Reset calibration" Click="ResetCalibration_Click"
