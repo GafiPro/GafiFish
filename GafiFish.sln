@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GafiFish.App", "src\GafiFis
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GafiFish.Core.Tests", "tests\GafiFish.Core.Tests\GafiFish.Core.Tests.csproj", "{B4BD1983-1219-4C70-9AA6-77B46DAF1003}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GafiFish.Windows", "src\GafiFish.Windows\GafiFish.Windows.csproj", "{B4BD1983-1219-4C70-9AA6-77B46DAF1004}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GafiFish.Vision", "src\GafiFish.Vision\GafiFish.Vision.csproj", "{B4BD1983-1219-4C70-9AA6-77B46DAF1005}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,5 +30,13 @@ Global
 		{B4BD1983-1219-4C70-9AA6-77B46DAF1003}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B4BD1983-1219-4C70-9AA6-77B46DAF1003}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B4BD1983-1219-4C70-9AA6-77B46DAF1003}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4BD1983-1219-4C70-9AA6-77B46DAF1004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4BD1983-1219-4C70-9AA6-77B46DAF1004}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4BD1983-1219-4C70-9AA6-77B46DAF1004}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4BD1983-1219-4C70-9AA6-77B46DAF1004}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4BD1983-1219-4C70-9AA6-77B46DAF1005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4BD1983-1219-4C70-9AA6-77B46DAF1005}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4BD1983-1219-4C70-9AA6-77B46DAF1005}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4BD1983-1219-4C70-9AA6-77B46DAF1005}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
