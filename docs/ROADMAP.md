@@ -2,76 +2,82 @@
 
 ## Fase 0 — Pesquisa e desenho
 
-- [x] Identificar macros relevantes para Fisch e referências de Sol's RNG.
-- [x] Ler documentação de deteção, calibração, controlo e funcionalidades.
+- [x] Identificar macros relevantes para Fisch e referências de Perfect Cast.
+- [x] Encontrar o Bloomfisching correto e verificar estado, conteúdo e licença.
 - [x] Rever licenças dos projetos que disponibilizam código.
-- [x] Escolher uma arquitetura sem leitura da memória nem injeção no Roblox.
-- [x] Documentar o plano no repositório.
-- [ ] Rever a lista de funcionalidades com o utilizador.
+- [x] Escolher arquitetura sem leitura da memória nem injeção.
+- [x] Integrar os novos requisitos: Perfect Cast no MVP e Sell Anywhere de 10 em 10 minutos.
+- [x] Documentar a arquitetura e os riscos.
 
-## Fase 1 — Fundação e visão (primeiro código)
+## Fase 1 — Fundação e visão
 
-Objetivo: provar que o GafiFish consegue observar o minijogo de forma consistente, antes de enviar inputs.
+Objetivo: provar que o GafiFish reconhece os elementos visuais antes de controlar inputs.
 
 Entregáveis:
 1. Solução .NET 10 e projetos App/Core/Windows/Vision/Tests.
-2. Janela WPF inicial com estado do jogo.
-3. Deteção da janela do Roblox e captura da região selecionada.
-4. Assistente de calibração para a barra e marcadores.
-5. Overlay que desenha a barra, o alvo, a direção e a confiança.
-6. Modo de reprodução de imagens/gravações para testar o detetor sem abrir o jogo.
+2. Janela WPF inicial.
+3. Deteção da janela Roblox e captura da região selecionada.
+4. Assistente de calibração para a barra, marcadores e medidor de cast.
+5. Overlay que desenha deteções, direção e confiança.
+6. Modo de reprodução de imagens/gravações para testar sem abrir o jogo.
 
-Critério de saída: o overlay acompanha corretamente os elementos relevantes numa sequência de imagens e identifica frames perdidos sem inventar posições.
+Critério de saída: os detetores acompanham elementos relevantes e identificam frames perdidos sem inventar posições.
 
-## Fase 2 — Controlador e ciclo de pesca
+## Fase 2 — Pesca completa e Perfect Cast
 
 Entregáveis:
 1. Máquina de estados com timeouts.
-2. Deteção de prompts de shake.
-3. Estimativa de movimento do peixe.
+2. Auto-shake e deteção da mordida.
+3. Tracking da direção e velocidade do peixe.
 4. Controlador PD/PWM com deadband e limites.
-5. Input Win32 apenas depois de confirmar que a janela certa está ativa.
-6. Hotkeys configuráveis e paragem de emergência.
-7. Libertação garantida de todos os inputs ao parar ou perante erro.
+5. **Perfect Cast incluído no MVP**, com calibração de câmara/medidor e ajuste do timing.
+6. Auto-reel e auto-cast.
+7. Hotkeys configuráveis e paragem de emergência.
+8. Libertação garantida de inputs ao parar ou perante erro.
 
-Critério de saída: o controlador funciona com confiança em testes gravados e pode ser interrompido em qualquer estado.
+Critério de saída: o controlador funciona com confiança em gravações e o Perfect Cast mede, calibra e valida o resultado; nenhum estado pode deixar um botão premido após timeout.
 
-## Fase 3 — Capturas e resumo
+## Fase 3 — Sell Anywhere a cada 10 minutos
+
+Entregáveis:
+1. Temporizador de 10 minutos configurável.
+2. Pedido de venda fica pendente até a captura atual terminar.
+3. Abrir inventário com a janela Roblox em foco.
+4. Reconhecer o botão da gamepass Sell Anywhere.
+5. Acionar uma vez e verificar visualmente o resultado.
+6. Fechar o inventário e retomar a pesca.
+7. Erro seguro se a UI não corresponder ao esperado.
+
+Critério de saída: testes com frames gravados demonstram que o ciclo não vende no meio de uma captura, não faz cliques repetidos cegos e não prossegue perante uma confirmação incerta.
+
+Nota: a gamepass vende itens não favoritos. O utilizador é responsável por marcar como favoritos os peixes que pretende guardar.
+
+## Fase 4 — Capturas e resumo
 
 Entregáveis:
 1. Deteção do resultado de uma pesca.
-2. OCR local da notificação de captura.
-3. Registo com espécie, raridade, mutação e peso quando reconhecíveis.
+2. OCR local da notificação.
+3. Registo de espécie, raridade, mutação e peso quando reconhecíveis.
 4. Histórico local por sessão em SQLite.
-5. Resumo automático quando o utilizador para.
+5. Resumo automático quando o utilizador parar.
 6. Top 25 no máximo, ordenado pela pontuação configurada.
 7. Exportação CSV/JSON e cópia do resumo.
 
-Critério de saída: uma sessão de teste apresenta totais corretos e não mostra mais de 25 entradas, mesmo que o histórico tenha mais capturas.
+Critério de saída: os totais são coerentes e a interface nunca apresenta mais de 25 peixes no resumo.
 
-## Fase 4 — Robustez e perfis
+## Fase 5 — Robustez e melhorias
 
-Entregáveis:
-- Perfis por cana.
-- Calibração de cores por perfil.
+- Perfis por cana e resolução.
 - Ajuste adaptativo à taxa de frames.
 - Deteção de ciclos bloqueados e recuperação segura.
-- Estatísticas de capturas por hora, duração média e taxa de sucesso.
-- Relatórios de diagnóstico exportáveis.
-
-## Fase 5 — Funcionalidades avançadas opcionais
-
-Estas funcionalidades só devem entrar depois de o ciclo principal ser fiável:
-- Perfect Cast com calibração do atraso de input.
-- Alertas quando aparece uma captura prioritária.
-- Preferências de espécies/mutações.
-- Auto-equip da cana com validação visual.
-- Venda automática de inventário e regresso à zona de pesca.
-- Perfis por local e resolução.
+- Estatísticas por hora, taxa de sucesso e vendas.
+- Relatórios de diagnóstico.
+- Alertas para capturas prioritárias e preferências de mutação/espécie.
+- Melhorias do Perfect Cast com dados medidos em sessões de teste.
 
 ## Funcionalidades que não fazem parte do plano
 
-- Leitura ou alteração de memória do Roblox.
+- Leitura ou alteração da memória do Roblox.
 - Injeção de código, executores ou scripts dentro do jogo.
 - Contorno de anti-cheat.
 - Serviços de IA externos que exijam enviar capturas ou tokens.
@@ -79,8 +85,8 @@ Estas funcionalidades só devem entrar depois de o ciclo principal ser fiável:
 
 ## Regras de qualidade
 
-- Cada módulo novo tem testes unitários ou testes com frames gravados.
-- Toda a alteração ao controlador inclui medições antes/depois.
-- As dependências e licenças são revistas.
-- Bugs de input (botão preso, foco errado, hotkey ignorada) têm prioridade sobre novas funcionalidades.
-- Uma melhoria só é aceite se não reduzir a segurança da paragem nem a qualidade da deteção.
+- Cada módulo tem testes unitários ou testes com frames gravados.
+- Cada alteração ao controlador inclui medições antes/depois.
+- Dependências e licenças são revistas.
+- Bugs de input, foco errado e vendas sem confirmação têm prioridade sobre novas funcionalidades.
+- Uma melhoria nunca pode reduzir a segurança da paragem.
