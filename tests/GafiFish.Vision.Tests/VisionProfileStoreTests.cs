@@ -21,8 +21,8 @@ public sealed class VisionProfileStoreTests
 
         try
         {
-            await store.SaveAsync(profile);
-            var loaded = await store.LoadOrDefaultAsync();
+            await store.SaveAsync(profile, TestContext.Current.CancellationToken);
+            var loaded = await store.LoadOrDefaultAsync(TestContext.Current.CancellationToken);
 
             Assert.Equal(profile.ReferenceWidth, loaded.ReferenceWidth);
             Assert.Equal(profile.ReferenceHeight, loaded.ReferenceHeight);
@@ -44,11 +44,11 @@ public sealed class VisionProfileStoreTests
     public async Task LoadOrDefault_ReturnsEmptyProfileForCorruptJson()
     {
         var path = Path.Combine(Path.GetTempPath(), $"gafifish-{Guid.NewGuid():N}.json");
-        await File.WriteAllTextAsync(path, "{ not valid json");
+        await File.WriteAllTextAsync(path, "{ not valid json", TestContext.Current.CancellationToken);
 
         try
         {
-            var profile = await new VisionProfileStore(path).LoadOrDefaultAsync();
+            var profile = await new VisionProfileStore(path).LoadOrDefaultAsync(TestContext.Current.CancellationToken);
 
             Assert.False(profile.IsFishingCalibrated);
             Assert.Equal(NormalizedRegion.FullFrame, profile.FishingRegion);
