@@ -1,9 +1,8 @@
 namespace GafiFish.Core.Casting;
 
 /// <summary>
-/// Pure decision logic for Perfect Cast. It does not send mouse input.
-/// The vision layer supplies calibrated meter observations and the Windows
-/// input layer is responsible for acting on a Release decision.
+/// Predicts when the cast indicator reaches the calibrated target zone.
+/// This class does not send mouse input.
 /// </summary>
 public sealed class PerfectCastController
 {
@@ -24,7 +23,8 @@ public sealed class PerfectCastController
             return Cancel("Cast meter is not visible.");
         }
 
-        if (observation.Confidence < _settings.MinimumConfidence)
+        if (!double.IsFinite(observation.Confidence)
+            || observation.Confidence < _settings.MinimumConfidence)
         {
             return Cancel("Cast meter detection confidence is too low.");
         }
@@ -39,29 +39,59 @@ public sealed class PerfectCastController
             || !IsFinite01(observation.TargetStart)
             || !IsFinite01(observation.TargetEnd)
             || observation.TargetStart >= observation.TargetEnd
-            || !double.IsFinite(observation.IndicatorSpeedPerSecond)
-            || observation.IndicatorSpeedPerSecond < 0)
+            || !double.IsFinite(observation.IndicatorVelocityPerSecond))
         {
             return Cancel("Cast meter observation is outside the calibrated range.");
         }
 
-        var predictedPosition = observation.IndicatorPosition
-            + observation.IndicatorSpeedPerSecond * _settings.EstimatedInputLatency.TotalSeconds;
+        var position = observation.IndicatorPosition;
+        var velocity = observation.IndicatorVelocityPerSecond;
+        var predictedPosition = position + velocity * _settings.EstimatedInputLatency.TotalSeconds;
 
-        if (observation.IndicatorPosition > observation.TargetEnd)
+        if (!double.IsFinite(predictedPosition))
         {
-            return new PerfectCastDecision(
-                PerfectCastDecisionKind.Cancel,
-                "The target zone has already been passed.",
-                predictedPosition);
+            return Cancel("Cast meter prediction is not finite.");
         }
 
-        if (predictedPosition >= observation.TargetStart)
+        var insideTarget = position >= observation.TargetStart
+            && position <= observation.TargetEnd;
+
+        if (insideTarget)
         {
-            return new PerfectCastDecision(
-                PerfectCastDecisionKind.Release,
-                "The indicator is predicted to enter the target zone during input latency.",
-                predictedPosition);
+            return Release(predictedPosition, "The indicator is currently inside the target zone.");
+        }
+
+        if (velocity >= 0)
+        {
+            if (position > observation.TargetEnd)
+            {
+                return Cancel("The indicator has already passed the target zone.");
+            }
+
+            if (predictedPosition >= observation.TargetStart)
+            {
+                return Release(
+                    predictedPosition,
+                    predictedPosition > observation.TargetEnd
+                        ? "Release immediately; input latency may carry the indicator across the target."
+                        : "The indicator is predicted to enter the target zone during input latency.");
+            }
+        }
+        else
+        {
+            if (position < observation.TargetStart)
+            {
+                return Cancel("The indicator has already passed the target zone in the reverse direction.");
+            }
+
+            if (predictedPosition <= observation.TargetEnd)
+            {
+                return Release(
+                    predictedPosition,
+                    predictedPosition < observation.TargetStart
+                        ? "Release immediately; input latency may carry the indicator across the target."
+                        : "The indicator is predicted to enter the target zone during input latency.");
+            }
         }
 
         return new PerfectCastDecision(
@@ -72,6 +102,9 @@ public sealed class PerfectCastController
 
     private static bool IsFinite01(double value) =>
         double.IsFinite(value) && value is >= 0 and <= 1;
+
+    private static PerfectCastDecision Release(double predictedPosition, string reason) =>
+        new(PerfectCastDecisionKind.Release, reason, predictedPosition);
 
     private static PerfectCastDecision Cancel(string reason) =>
         new(PerfectCastDecisionKind.Cancel, reason, double.NaN);
