@@ -201,6 +201,218 @@ public partial class MainWindow : Window
 
     private static string Registered(bool registered) => registered ? "ready" : "in use";
 
+    private void StartAutomation()
+    {
+        if (_automationEnabled)
+        {
+            AutomationStatusText.Text = "Reel assist is already armed. Press F9 to stop it.";
+            return;
+        }
+
+        if (_previewCancellation is null)
+        {
+            AutomationStatusText.Text = "Start observation with F7 before arming Reel assist.";
+            return;
+        }
+
+        if (!_capture.IsRobloxForeground())
+        {
+            AutomationStatusText.Text = "Focus the Roblox game window, then press F8.";
+            return;
+        }
+
+        if (!_profile.IsFishingCalibrated)
+        {
+            AutomationStatusText.Text = "Calibrate the fishing region and both marker colors before arming.";
+            return;
+        }
+
+        RobloxInputService? input = null;
+        try
+        {
+            input = new RobloxInputService(_capture);
+
+            var stateMachine = new FishingStateMachine();
+            if (!stateMachine.TryTransition(
+                    FishingState.Preparing,
+                    "User armed Reel assist with F8.",
+                    DateTimeOffset.UtcNow))
+            {
+                throw new InvalidOperationException("Could not initialise the fishing state machine.");
+            }
+
+            var controller = new ReelController(new ReelControlSettings
+            {
+                PositiveErrorMeansHold = InvertReelDirectionCheckBox.IsChecked != true
+            });
+            var reelCoordinator = new ReelInputCoordinator(input, controller);
+            reelCoordinator.Arm();
+
+            SellAnywhereCoordinator? sellCoordinator = null;
+            PeriodicSellSchedule? sellSchedule = null;
+            var canScheduleSales =
+                _activeSessionId.HasValue
+                && _profile.IsSellButtonCalibrated
+                && _profile.IsInventoryVerificationCalibrated;
+
+            if (canScheduleSales)
+            {
+                sellSchedule = new PeriodicSellSchedule();
+                sellCoordinator = new SellAnywhereCoordinator(
+                    input,
+                    _sellVision,
+                    sellSchedule,
+                    stateMachine);
+                sellCoordinator.Start(DateTimeOffset.UtcNow);
+            }
+
+            _automationInput = input;
+            _runtimeStateMachine = stateMachine;
+            _reelCoordinator = reelCoordinator;
+            _sellCoordinator = sellCoordinator;
+            _sellSchedule = sellSchedule;
+            _automationEnabled = true;
+
+            AutomationStatusText.Text = sellCoordinator is not null
+                ? "Reel assist armed. Sell Anywhere is scheduled for every 10 minutes after a confirmed catch."
+                : "Reel assist armed. Sell Anywhere is off (requires an active OCR session and calibrated inventory).";
+        }
+        catch (Exception exception)
+        {
+            try
+            {
+                input?.Disarm();
+                input?.Dispose();
+            }
+            catch
+            {
+                // Best effort: never hide the original arming error.
+            }
+
+            AutomationStatusText.Text = $"Reel assist could not arm: {exception.Message}";
+        }
+    }
+
+    private void StopAutomation(string reason)
+    {
+        try
+        {
+            _sellCoordinator?.Stop();
+        }
+        catch
+        {
+            // Continue to release the shared input adapter.
+        }
+
+        try
+        {
+            _reelCoordinator?.Stop();
+        }
+        catch
+        {
+            // Continue to release the shared input adapter.
+        }
+
+        try
+        {
+            _automationInput?.Disarm();
+            _automationInput?.Dispose();
+        }
+        catch
+        {
+            // Continue shutdown and report the requested stop reason.
+        }
+
+        if (_runtimeStateMachine is not null
+            && _runtimeStateMachine.CurrentState != FishingState.Stopped)
+        {
+            _ = _runtimeStateMachine.TryTransition(FishingState.Stopping, reason);
+            _ = _runtimeStateMachine.TryTransition(FishingState.Stopped, "All inputs released.");
+        }
+
+        _automationEnabled = false;
+        _automationInput = null;
+        _reelCoordinator = null;
+        _runtimeStateMachine = null;
+        _sellCoordinator = null;
+        _sellSchedule = null;
+        AutomationStatusText.Text = reason;
+    }
+
+    private void ProcessAutomationFrame(
+        ScreenCaptureFrame frame,
+        DetectedMarker? fishMarker,
+        DetectedMarker? controlMarker,
+        FishMotionEstimate? motion)
+    {
+        if (!_automationEnabled
+            || _reelCoordinator is null
+            || _runtimeStateMachine is null
+            || _automationInput is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (_sellCoordinator is not null)
+            {
+                _sellCoordinator.ProcessFrame(
+                    frame,
+                    _profile,
+                    isFishingCycleSafe: _runtimeStateMachine.CurrentState == FishingState.CatchDetected);
+
+                if (!_sellCoordinator.IsStarted)
+                {
+                    var failure = _sellCoordinator.LastStatus;
+                    StopAutomation($"Sell Anywhere stopped safely: {failure}");
+                    return;
+                }
+
+                if (_runtimeStateMachine.CurrentState == FishingState.CatchDetected
+                    && _sellSchedule?.SalePending != true)
+                {
+                    _ = _runtimeStateMachine.TryTransition(
+                        FishingState.Preparing,
+                        "No sale is due; resume fishing after the confirmed catch.",
+                        frame.CapturedAt);
+                }
+            }
+            else if (_runtimeStateMachine.CurrentState == FishingState.CatchDetected)
+            {
+                _ = _runtimeStateMachine.TryTransition(
+                    FishingState.Preparing,
+                    "Catch recorded; prepare for the next fishing cycle.",
+                    frame.CapturedAt);
+            }
+
+            if (_runtimeStateMachine.CurrentState == FishingState.Preparing
+                && fishMarker is not null
+                && controlMarker is not null
+                && fishMarker.Confidence >= 0.70
+                && controlMarker.Confidence >= 0.70)
+            {
+                _ = _runtimeStateMachine.TryTransition(
+                    FishingState.Reeling,
+                    "Both calibrated reel markers are visible with sufficient confidence.",
+                    frame.CapturedAt);
+            }
+
+            var decision = _reelCoordinator.Apply(
+                _runtimeStateMachine.CurrentState,
+                fishMarker,
+                controlMarker,
+                motion);
+
+            AutomationStatusText.Text =
+                $"Reel assist: {_runtimeStateMachine.CurrentState} · {decision.Command} · {decision.Reason}";
+        }
+        catch (Exception exception)
+        {
+            StopAutomation($"Reel assist stopped safely: {exception.Message}");
+        }
+    }
+
     private async void CaptureOnce_Click(object sender, RoutedEventArgs e)
     {
         await CaptureOnceAsync();
@@ -245,6 +457,11 @@ public partial class MainWindow : Window
 
     private void StopPreviewLoop()
     {
+        if (_automationEnabled)
+        {
+            StopAutomation("Observation stopped; Reel assist disarmed and all inputs released.");
+        }
+
         _previewCancellation?.Cancel();
         PreviewButton.Content = "Start observation (F7)";
         StatusText.Text = "Observation stopped.";
@@ -276,6 +493,10 @@ public partial class MainWindow : Window
                     {
                         StatusText.Text = $"Capture paused: {exception.Message}";
                     }
+                }
+                else if (_automationEnabled)
+                {
+                    StopAutomation("Roblox lost foreground focus; all Reel inputs were released.");
                 }
 
                 await Task.Delay(120, token);
@@ -346,6 +567,12 @@ public partial class MainWindow : Window
         SellStatusText.Text = sellResult.IsCalibrated
             ? $"Sell Anywhere: {sellResult.Status}"
             : "Sell Anywhere: select the button region and sample its color.";
+
+        ProcessAutomationFrame(
+            frame,
+            visionResult.FishMarker,
+            visionResult.ControlMarker,
+            motion);
 
         TryStartCatchRecognition(frame);
     }
@@ -905,6 +1132,20 @@ public partial class MainWindow : Window
             _lastCatchFingerprint = fingerprint;
             _lastCatchAt = frame.CapturedAt;
 
+            if (_automationEnabled && _runtimeStateMachine is not null
+                && _runtimeStateMachine.CurrentState is not (
+                    FishingState.CatchDetected
+                    or FishingState.OpeningInventory
+                    or FishingState.SellingInventory
+                    or FishingState.VerifyingSale
+                    or FishingState.ClosingInventory))
+            {
+                _ = _runtimeStateMachine.TryTransition(
+                    FishingState.CatchDetected,
+                    "A high-confidence OCR fish-catch notification was saved.",
+                    frame.CapturedAt);
+            }
+
             SessionStatusText.Text =
                 $"Catch saved: {fishCatch.Species}" +
                 (fishCatch.Rarity.HasValue ? $" · {fishCatch.Rarity.Value}" : string.Empty) +
@@ -922,6 +1163,7 @@ public partial class MainWindow : Window
 
     private async void Window_Closed(object? sender, EventArgs e)
     {
+        StopAutomation("Application closing; all inputs released.");
         StopPreviewLoop();
 
         if (_activeSessionId is Guid sessionId)
@@ -949,6 +1191,16 @@ public partial class MainWindow : Window
         if (_previewHotkeyRegistered)
         {
             Native.UnregisterHotKey(handle, PreviewHotkeyId);
+        }
+
+        if (_reelArmHotkeyRegistered)
+        {
+            Native.UnregisterHotKey(handle, ReelArmHotkeyId);
+        }
+
+        if (_emergencyStopHotkeyRegistered)
+        {
+            Native.UnregisterHotKey(handle, EmergencyStopHotkeyId);
         }
 
         _source?.RemoveHook(WindowMessageHook);
