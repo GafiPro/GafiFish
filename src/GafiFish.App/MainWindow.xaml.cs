@@ -520,6 +520,10 @@ public partial class MainWindow : Window
                         or ArgumentException)
                     {
                         StatusText.Text = $"Capture paused: {exception.Message}";
+                        if (_automationEnabled)
+                        {
+                            StopAutomation($"Screen capture failed; all game inputs were released: {exception.Message}");
+                        }
                     }
                 }
                 else if (_automationEnabled)
@@ -808,6 +812,11 @@ public partial class MainWindow : Window
 
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
+        if (_automationEnabled)
+        {
+            StopAutomation("Calibration changed; Reel assist was disarmed and all inputs released.");
+        }
+
         if (_lastFrame is null)
         {
             CalibrationModeText.Text = "Capture a frame with F6 before calibrating.";
@@ -1035,6 +1044,11 @@ public partial class MainWindow : Window
 
     private async void ResetCalibration_Click(object sender, RoutedEventArgs e)
     {
+        if (_automationEnabled)
+        {
+            StopAutomation("Calibration reset; Reel assist was disarmed and all inputs released.");
+        }
+
         _profile = new VisionProfile();
         _motionTracker.Reset();
         _fishMarkerOverlay.Visibility = Visibility.Collapsed;
@@ -1119,6 +1133,11 @@ public partial class MainWindow : Window
 
     private async void EndSession_Click(object sender, RoutedEventArgs e)
     {
+        if (_automationEnabled)
+        {
+            StopAutomation("OCR session ended; Reel and Sell Anywhere inputs were stopped.");
+        }
+
         if (_activeSessionId is not Guid sessionId)
         {
             return;
