@@ -21,6 +21,7 @@
 - [x] Overlay de peixe/barra, Perfect Cast, Shake e Sell Anywhere.
 - [x] Tracking horizontal com confiança e expiração de deteções antigas.
 - [x] Testes com frames sintéticos.
+- [x] Testes sintéticos de frames para cast e Shake coordinators.
 - [ ] Modo de reprodução de imagens/gravações para testar sem abrir o jogo.
 - [ ] Validar a calibração com capturas reais do Fisch em diferentes resoluções.
 
@@ -34,9 +35,10 @@
 - [x] Reel assistido opt-in com F8 e paragem F9.
 - [x] Libertar o input ao perder foco, parar F7, falhar captura ou ocorrer erro.
 - [x] Deteção visual do indicador e zona-alvo de Perfect Cast; cálculo diagnóstico de timing e latência.
-- [ ] Validar e ativar a libertação automática de Perfect Cast em jogo real.
-- [ ] Interpretar a direção/tecla dos prompts Shake e implementar o respetivo input.
-- [ ] Automatizar cast e recast.
+- [x] Auto-cast opt-in: segura o botão até o medidor Perfect Cast indicar a janela calibrada, com timeout e libertação segura.
+- [x] Auto-shake opt-in: deteta, estabiliza e clica um prompt; não repete até o prompt mover/desaparecer.
+- [ ] Validar Auto-cast e Auto-shake numa captura real do Fisch com diferentes resoluções/canas.
+- [ ] Automatizar recast e equipar cana (atualmente manual).
 - [ ] Perfis por cana com calibração real.
 
 Critério de saída: o Reel e o Perfect Cast têm de funcionar com confiança em capturas/gravações reais; nenhum estado pode deixar um botão premido após timeout.
