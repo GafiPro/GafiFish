@@ -60,7 +60,7 @@ Quando F7 está ativo, o OCR analisa no máximo cerca de um fotograma por segund
 
 O parser atual reconhece uma notificação inglesa que contenha `You caught [species]`. O OCR é genérico e pode confundir nomes estilizados ou texto pequeno; o parser deixa os campos não reconhecidos vazios em vez de inventar dados.
 
-Ao terminar a sessão, o GafiFish guarda a hora de fim e mostra o total, a taxa de capturas por hora e até 25 peixes ordenados pela raridade, mutação, peso e valor reconhecidos. Depois, os botões **Export CSV** e **Export JSON** permitem guardar o histórico completo dessa sessão. Os campos desconhecidos mantêm-se vazios/nulos.
+Ao terminar a sessão, o GafiFish guarda a hora de fim e mostra o total, a taxa de capturas por hora e até 25 peixes ordenados pela raridade, mutação, peso e valor reconhecidos. Os botões **Export CSV** e **Export JSON** guardam o histórico completo dessa sessão, incluindo campos desconhecidos como valores vazios/nulos. Depois, os botões **Export CSV** e **Export JSON** permitem guardar o histórico completo dessa sessão. Os campos desconhecidos mantêm-se vazios/nulos.
 
 ## 5. Sell Anywhere e limites da versão atual
 
