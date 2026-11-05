@@ -1097,12 +1097,14 @@ public partial class MainWindow : Window
             CalibrationAction.SelectCastRegion => _profile with
             {
                 CastRegion = selectedRegion,
+                CastRegionCalibrated = true,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
             CalibrationAction.SelectShakeRegion => _profile with
             {
                 ShakeRegion = selectedRegion,
+                ShakeRegionCalibrated = true,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
