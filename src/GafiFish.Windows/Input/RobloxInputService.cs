@@ -10,7 +10,7 @@ namespace GafiFish.Windows.Input;
 /// input. This service is not connected to automatic gameplay in the current
 /// observation build.
 /// </summary>
-public sealed class RobloxInputService : IDisposable
+public sealed class RobloxInputService : IRobloxInput, IDisposable
 {
     private const uint InputMouse = 0;
     private const uint InputKeyboard = 1;
