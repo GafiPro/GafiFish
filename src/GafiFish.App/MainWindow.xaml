@@ -113,10 +113,13 @@
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8" />
                         <CheckBox x:Name="AutoShakeCheckBox"
                                   Content="Auto-shake (click stable moving prompts)"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8" />
+                        <CheckBox x:Name="SellAnywhereCheckBox"
+                                  Content="Enable Sell Anywhere every 10 minutes (non-favourites are sold)"
                                   Foreground="#EAF0F5" IsChecked="False" />
-                        <TextBlock Text="Equip the rod manually before arming. Auto-cast and Auto-shake are optional and disabled by default."
+                        <TextBlock Text="Equip the rod manually before arming. Auto-cast, Auto-shake and Sell Anywhere are disabled until selected."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
-                        <TextBlock Text="Sell Anywhere is scheduled only when its button and item-list regions are calibrated and an OCR session is active."
+                        <TextBlock Text="Sell Anywhere also requires an active OCR session and calibrated button and inventory-list regions."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
                         <TextBlock x:Name="HotkeyStatusText" Text="Global hotkeys: registering…"
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
