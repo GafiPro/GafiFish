@@ -569,6 +569,7 @@ public partial class MainWindow : Window
             CalibrationAction.SelectRegion => _profile with
             {
                 FishingRegion = selectedRegion,
+                FishingRegionCalibrated = true,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
