@@ -37,10 +37,13 @@ public sealed class SellAnywhereCoordinatorTests
         Assert.Equal(1, input.ClientClicks);
 
         coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1100), fillItems: true), profile, true);
+        Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1220), fillItems: true), profile, true);
 
         Assert.Equal(FishingState.Preparing, machine.CurrentState);
         Assert.False(schedule.SalePending);
-        Assert.Equal(start.AddMinutes(20).AddMilliseconds(1100), schedule.NextDueAt);
+        Assert.Equal(start.AddMinutes(20).AddMilliseconds(1220), schedule.NextDueAt);
         Assert.Equal(2, input.InventoryTogglePresses);
         Assert.Equal(1, input.ClientClicks);
         Assert.Contains("visually verified", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
@@ -83,6 +86,52 @@ public sealed class SellAnywhereCoordinatorTests
         Assert.Equal(FishingState.Error, machine.CurrentState);
         Assert.False(input.IsArmed);
         Assert.True(schedule.SalePending);
+        Assert.Contains("not confirmed", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    [Fact]
+    public void ProcessFrame_DoesNotAcceptSingleTransientInventoryChange()
+    {
+        var start = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+        var input = new FakeRobloxInput();
+        var schedule = new PeriodicSellSchedule();
+        var machine = CreateCatchDetectedMachine(start);
+        var settings = new SellAnywhereSettings
+        {
+            VerificationDelay = TimeSpan.Zero,
+            PhaseTimeout = TimeSpan.FromSeconds(1),
+            RequiredVerificationFrames = 2
+        };
+        var coordinator = new SellAnywhereCoordinator(
+            input,
+            new SellAnywhereVisionDetector(),
+            schedule,
+            machine,
+            settings);
+
+        var profile = CreateProfile();
+        coordinator.Start(start);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(120), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(240), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(360), fillItems: false), profile, true);
+        Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
+        Assert.Equal(1, input.ClientClicks);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1100), fillItems: true), profile, true);
+        Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1220), fillItems: false), profile, true);
+        Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1500), fillItems: false), profile, true);
+
+        Assert.Equal(FishingState.Error, machine.CurrentState);
+        Assert.False(input.IsArmed);
+        Assert.True(schedule.SalePending);
+        Assert.Equal(1, input.ClientClicks);
         Assert.Contains("not confirmed", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
     }
 
