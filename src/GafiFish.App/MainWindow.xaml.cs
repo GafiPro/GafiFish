@@ -1,9 +1,13 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using GafiFish.Vision.Calibration;
 using GafiFish.Vision.Detection;
+using GafiFish.Vision.Tracking;
 using GafiFish.Windows.Capture;
 
 namespace GafiFish.App;
@@ -19,16 +23,58 @@ public partial class MainWindow : Window
 
     private readonly RobloxWindowCapture _capture = new();
     private readonly FishingVisionDetector _vision = new();
-    private readonly VisionProfile _profile = new();
+    private readonly FishMotionTracker _motionTracker = new();
+    private readonly VisionProfileStore _profileStore = new();
+    private readonly Rectangle _fishMarkerOverlay = new()
+    {
+        Stroke = Brushes.Lime,
+        StrokeThickness = 2,
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed
+    };
+    private readonly Rectangle _controlMarkerOverlay = new()
+    {
+        Stroke = Brushes.DeepSkyBlue,
+        StrokeThickness = 2,
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed
+    };
 
+    private VisionProfile _profile = new();
+    private ScreenCaptureFrame? _lastFrame;
     private HwndSource? _source;
     private CancellationTokenSource? _previewCancellation;
     private bool _captureHotkeyRegistered;
     private bool _previewHotkeyRegistered;
+    private CalibrationAction _calibrationAction;
+    private Point? _selectionStartPixel;
+    private Point? _selectionStartOverlay;
+
+    private enum CalibrationAction
+    {
+        None,
+        SelectRegion,
+        SampleFishMarker,
+        SampleControlMarker
+    }
 
     public MainWindow()
     {
         InitializeComponent();
+        PreviewOverlay.Children.Add(_fishMarkerOverlay);
+        PreviewOverlay.Children.Add(_controlMarkerOverlay);
+        Loaded += Window_Loaded;
+    }
+
+    private async void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        _profile = await _profileStore.LoadOrDefaultAsync();
+        CalibrationModeText.Text = _profile.IsFishingCalibrated
+            ? "Saved calibration loaded. Capture a fresh frame to inspect the markers."
+            : "No saved marker colors. Select the search region and sample both markers.";
+        VisionStatusText.Text = _profile.IsFishingCalibrated
+            ? "Vision: saved calibration loaded."
+            : "Vision: awaiting color calibration.";
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -173,12 +219,14 @@ public partial class MainWindow : Window
 
     private void DisplayFrame(ScreenCaptureFrame frame)
     {
+        _lastFrame = frame;
+
         var bitmap = BitmapSource.Create(
             frame.Width,
             frame.Height,
             96,
             96,
-            System.Windows.Media.PixelFormats.Bgra32,
+            PixelFormats.Bgra32,
             null,
             frame.BgraPixels,
             frame.Stride);
@@ -189,7 +237,262 @@ public partial class MainWindow : Window
         ResolutionText.Text = $"{frame.Width} × {frame.Height}";
 
         var visionResult = _vision.Detect(frame, _profile);
-        VisionStatusText.Text = $"Vision: {visionResult.Status}";
+        DrawMarker(_fishMarkerOverlay, visionResult.FishMarker);
+        DrawMarker(_controlMarkerOverlay, visionResult.ControlMarker);
+
+        var motion = _motionTracker.Update(visionResult.FishMarker, frame.CapturedAt);
+        VisionStatusText.Text = motion is not null && visionResult.FishMarker is not null
+            ? $"Vision: {visionResult.Status} Fish X={motion.PositionX:F0}px · {motion.VelocityPixelsPerSecond:+0.0;-0.0;0} px/s · confidence {motion.Confidence:P0}"
+            : $"Vision: {visionResult.Status}";
+    }
+
+    private void DrawMarker(Rectangle overlay, DetectedMarker? marker)
+    {
+        if (marker is null || PreviewImage.Source is not BitmapSource bitmap)
+        {
+            overlay.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var scale = GetImageScale(bitmap.PixelWidth, bitmap.PixelHeight, out var offsetX, out var offsetY);
+        Canvas.SetLeft(overlay, offsetX + marker.Bounds.X * scale);
+        Canvas.SetTop(overlay, offsetY + marker.Bounds.Y * scale);
+        overlay.Width = Math.Max(2, marker.Bounds.Width * scale);
+        overlay.Height = Math.Max(2, marker.Bounds.Height * scale);
+        overlay.Visibility = Visibility.Visible;
+    }
+
+    private double GetImageScale(int pixelWidth, int pixelHeight, out double offsetX, out double offsetY)
+    {
+        var areaWidth = PreviewOverlay.ActualWidth;
+        var areaHeight = PreviewOverlay.ActualHeight;
+        var scale = Math.Min(areaWidth / pixelWidth, areaHeight / pixelHeight);
+        var renderedWidth = pixelWidth * scale;
+        var renderedHeight = pixelHeight * scale;
+        offsetX = (areaWidth - renderedWidth) / 2;
+        offsetY = (areaHeight - renderedHeight) / 2;
+        return scale;
+    }
+
+    private bool TryMapOverlayPoint(Point overlayPoint, out Point pixelPoint)
+    {
+        pixelPoint = default;
+        if (_lastFrame is null || PreviewImage.Source is not BitmapSource bitmap)
+        {
+            return false;
+        }
+
+        var scale = GetImageScale(bitmap.PixelWidth, bitmap.PixelHeight, out var offsetX, out var offsetY);
+        var localX = overlayPoint.X - offsetX;
+        var localY = overlayPoint.Y - offsetY;
+        var renderedWidth = bitmap.PixelWidth * scale;
+        var renderedHeight = bitmap.PixelHeight * scale;
+
+        if (localX < 0 || localY < 0 || localX >= renderedWidth || localY >= renderedHeight)
+        {
+            return false;
+        }
+
+        pixelPoint = new Point(
+            Math.Clamp(localX / scale, 0, bitmap.PixelWidth - 1),
+            Math.Clamp(localY / scale, 0, bitmap.PixelHeight - 1));
+        return true;
+    }
+
+    private void SelectRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectRegion,
+            "Drag a rectangle around the fishing minigame on the captured frame.");
+    }
+
+    private void SampleFishMarker_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleFishMarker,
+            "Click a clear pixel inside the moving fish marker on the captured frame.");
+    }
+
+    private void SampleControlMarker_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleControlMarker,
+            "Click a clear pixel inside your control marker on the captured frame.");
+    }
+
+    private void SetCalibrationAction(CalibrationAction action, string instruction)
+    {
+        if (_lastFrame is null)
+        {
+            CalibrationModeText.Text = "Capture a frame with F6 before calibrating.";
+            return;
+        }
+
+        _calibrationAction = action;
+        CalibrationModeText.Text = instruction;
+        SelectionRectangle.Visibility = Visibility.Collapsed;
+    }
+
+    private void PreviewOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var overlayPoint = e.GetPosition(PreviewOverlay);
+        if (!TryMapOverlayPoint(overlayPoint, out var pixelPoint) || _lastFrame is null)
+        {
+            return;
+        }
+
+        if (_calibrationAction is CalibrationAction.SampleFishMarker or CalibrationAction.SampleControlMarker)
+        {
+            SampleMarkerColor(pixelPoint);
+            e.Handled = true;
+            return;
+        }
+
+        if (_calibrationAction == CalibrationAction.SelectRegion)
+        {
+            _selectionStartPixel = pixelPoint;
+            _selectionStartOverlay = overlayPoint;
+            SelectionRectangle.Visibility = Visibility.Visible;
+            SelectionRectangle.Width = 1;
+            SelectionRectangle.Height = 1;
+            Canvas.SetLeft(SelectionRectangle, overlayPoint.X);
+            Canvas.SetTop(SelectionRectangle, overlayPoint.Y);
+            PreviewOverlay.CaptureMouse();
+            e.Handled = true;
+        }
+    }
+
+    private void PreviewOverlay_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (_calibrationAction != CalibrationAction.SelectRegion
+            || _selectionStartOverlay is null
+            || !PreviewOverlay.IsMouseCaptured)
+        {
+            return;
+        }
+
+        var current = e.GetPosition(PreviewOverlay);
+        var start = _selectionStartOverlay.Value;
+        Canvas.SetLeft(SelectionRectangle, Math.Min(start.X, current.X));
+        Canvas.SetTop(SelectionRectangle, Math.Min(start.Y, current.Y));
+        SelectionRectangle.Width = Math.Abs(current.X - start.X);
+        SelectionRectangle.Height = Math.Abs(current.Y - start.Y);
+    }
+
+    private async void PreviewOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_calibrationAction != CalibrationAction.SelectRegion
+            || _selectionStartPixel is null
+            || _lastFrame is null)
+        {
+            return;
+        }
+
+        var endOverlay = e.GetPosition(PreviewOverlay);
+        if (!TryMapOverlayPoint(endOverlay, out var endPixel))
+        {
+            PreviewOverlay.ReleaseMouseCapture();
+            ClearRegionSelection();
+            return;
+        }
+
+        var startPixel = _selectionStartPixel.Value;
+        var left = Math.Min(startPixel.X, endPixel.X);
+        var top = Math.Min(startPixel.Y, endPixel.Y);
+        var width = Math.Abs(endPixel.X - startPixel.X);
+        var height = Math.Abs(endPixel.Y - startPixel.Y);
+
+        PreviewOverlay.ReleaseMouseCapture();
+        ClearRegionSelection();
+
+        if (width < 8 || height < 8)
+        {
+            CalibrationModeText.Text = "Region too small. Draw a larger rectangle.";
+            return;
+        }
+
+        _profile = _profile with
+        {
+            ReferenceWidth = _lastFrame.Width,
+            ReferenceHeight = _lastFrame.Height,
+            FishingRegion = new NormalizedRegion(
+                left / _lastFrame.Width,
+                top / _lastFrame.Height,
+                width / _lastFrame.Width,
+                height / _lastFrame.Height)
+        };
+
+        _motionTracker.Reset();
+        await SaveProfileAsync("Fishing search region saved.");
+        _calibrationAction = CalibrationAction.None;
+        e.Handled = true;
+    }
+
+    private void ClearRegionSelection()
+    {
+        _selectionStartPixel = null;
+        _selectionStartOverlay = null;
+        SelectionRectangle.Visibility = Visibility.Collapsed;
+        SelectionRectangle.Width = 0;
+        SelectionRectangle.Height = 0;
+    }
+
+    private async void SampleMarkerColor(Point pixelPoint)
+    {
+        if (_lastFrame is null)
+        {
+            return;
+        }
+
+        var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
+        var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
+        var index = y * _lastFrame.Stride + x * 4;
+
+        var color = HsvColorSampler.FromBgra(
+            _lastFrame.BgraPixels[index],
+            _lastFrame.BgraPixels[index + 1],
+            _lastFrame.BgraPixels[index + 2]);
+
+        _profile = _calibrationAction == CalibrationAction.SampleFishMarker
+            ? _profile with { FishMarkerColor = color }
+            : _profile with { ControlMarkerColor = color };
+
+        _profile = _profile with
+        {
+            ReferenceWidth = _lastFrame.Width,
+            ReferenceHeight = _lastFrame.Height
+        };
+
+        _calibrationAction = CalibrationAction.None;
+        _motionTracker.Reset();
+        await SaveProfileAsync("Marker color saved.");
+    }
+
+    private async void ResetCalibration_Click(object sender, RoutedEventArgs e)
+    {
+        _profile = new VisionProfile();
+        _motionTracker.Reset();
+        _fishMarkerOverlay.Visibility = Visibility.Collapsed;
+        _controlMarkerOverlay.Visibility = Visibility.Collapsed;
+        _calibrationAction = CalibrationAction.None;
+        await SaveProfileAsync("Calibration reset.");
+        VisionStatusText.Text = "Vision: awaiting color calibration.";
+    }
+
+    private async Task SaveProfileAsync(string successMessage)
+    {
+        try
+        {
+            await _profileStore.SaveAsync(_profile);
+            CalibrationModeText.Text = successMessage;
+            if (_lastFrame is not null)
+            {
+                var result = _vision.Detect(_lastFrame, _profile);
+                VisionStatusText.Text = $"Vision: {result.Status}";
+            }
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or ArgumentOutOfRangeException)
+        {
+            CalibrationModeText.Text = $"Could not save calibration: {exception.Message}";
+        }
     }
 
     private void Window_Closed(object? sender, EventArgs e)
