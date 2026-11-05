@@ -12,5 +12,6 @@
     <ProjectReference Include="..\GafiFish.Windows\GafiFish.Windows.csproj" />
     <ProjectReference Include="..\GafiFish.Vision\GafiFish.Vision.csproj" />
     <ProjectReference Include="..\GafiFish.Data\GafiFish.Data.csproj" />
+    <ProjectReference Include="..\GafiFish.Ocr\GafiFish.Ocr.csproj" />
   </ItemGroup>
 </Project>
