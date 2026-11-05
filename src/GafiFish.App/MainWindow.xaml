@@ -20,7 +20,7 @@
                 <TextBlock Text="Visual fishing assistant" Foreground="#9BAAB8" Margin="0,4,0,0" />
             </StackPanel>
             <Border DockPanel.Dock="Right" Background="#202C37" CornerRadius="12" Padding="12,7" VerticalAlignment="Center">
-                <TextBlock Text="OBSERVATION MODE" Foreground="#67D5B5" FontWeight="SemiBold" />
+                <TextBlock Text="OBSERVE + REEL ASSIST" Foreground="#67D5B5" FontWeight="SemiBold" />
             </Border>
         </DockPanel>
 
@@ -183,11 +183,12 @@
                 <Border Background="#19232E" CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Text="MVP features" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <TextBlock Text="• Fish tracking and motion estimate" Margin="0,3" />
-                        <TextBlock Text="• Perfect Cast with latency calibration" Margin="0,3" />
-                        <TextBlock Text="• Auto-shake and auto-reel" Margin="0,3" />
-                        <TextBlock Text="• Sell Anywhere every 10 minutes" Margin="0,3" />
-                        <TextBlock Text="• Session summary — Top 25" Margin="0,3" />
+                        <TextBlock Text="• Calibrated fish/bar tracking" Margin="0,3" />
+                        <TextBlock Text="• Perfect Cast timing diagnostics" Margin="0,3" />
+                        <TextBlock Text="• Shake prompt candidate detection" Margin="0,3" />
+                        <TextBlock Text="• F8/F9 guarded Reel assist" Margin="0,3" />
+                        <TextBlock Text="• Sell Anywhere every 10 minutes (OCR + calibration required)" Margin="0,3" />
+                        <TextBlock Text="• Local OCR session history — Top 25" Margin="0,3" />
                     </StackPanel>
                 </Border>
 
