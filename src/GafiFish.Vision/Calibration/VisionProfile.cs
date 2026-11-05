@@ -11,23 +11,29 @@ public sealed record VisionProfile
     public NormalizedRegion FishingRegion { get; init; } = NormalizedRegion.FullFrame;
     public NormalizedRegion CastRegion { get; init; } = NormalizedRegion.FullFrame;
     public NormalizedRegion ShakeRegion { get; init; } = NormalizedRegion.FullFrame;
+    public NormalizedRegion SellButtonRegion { get; init; } = NormalizedRegion.FullFrame;
+    public NormalizedRegion InventoryItemsRegion { get; init; } = NormalizedRegion.FullFrame;
     public HsvColorRange? FishMarkerColor { get; init; }
     public HsvColorRange? ControlMarkerColor { get; init; }
     public HsvColorRange? CastIndicatorColor { get; init; }
     public HsvColorRange? CastTargetColor { get; init; }
     public HsvColorRange? ShakePromptColor { get; init; }
+    public HsvColorRange? SellButtonColor { get; init; }
     public double MinimumBlobArea { get; init; } = 5;
     public double MinimumConfidence { get; init; } = 0.60;
 
     public bool IsFishingCalibrated => FishMarkerColor.HasValue && ControlMarkerColor.HasValue;
     public bool IsCastCalibrated => CastIndicatorColor.HasValue && CastTargetColor.HasValue;
     public bool IsShakeCalibrated => ShakePromptColor.HasValue;
+    public bool IsSellButtonCalibrated => SellButtonColor.HasValue;
 
     public void Validate()
     {
         FishingRegion.Validate();
         CastRegion.Validate();
         ShakeRegion.Validate();
+        SellButtonRegion.Validate();
+        InventoryItemsRegion.Validate();
 
         if (ReferenceWidth < 0 || ReferenceHeight < 0)
         {
@@ -49,5 +55,6 @@ public sealed record VisionProfile
         CastIndicatorColor?.Validate();
         CastTargetColor?.Validate();
         ShakePromptColor?.Validate();
+        SellButtonColor?.Validate();
     }
 }
