@@ -11,4 +11,6 @@ public sealed record ScreenCaptureFrame(
     byte[] BgraPixels,
     DateTimeOffset CapturedAt,
     string WindowTitle,
-    int ProcessId);
+    int ProcessId,
+    int ClientScreenX = 0,
+    int ClientScreenY = 0);
