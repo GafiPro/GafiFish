@@ -550,12 +550,14 @@ public partial class MainWindow : Window
             CalibrationAction.SelectSellButtonRegion => _profile with
             {
                 SellButtonRegion = selectedRegion,
+                SellButtonRegionCalibrated = true,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
             CalibrationAction.SelectInventoryItemsRegion => _profile with
             {
                 InventoryItemsRegion = selectedRegion,
+                InventoryItemsRegionCalibrated = true,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
