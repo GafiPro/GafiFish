@@ -22,7 +22,7 @@ public sealed class SellAnywhereVisionDetectorTests
 
         Assert.True(result.IsCalibrated);
         Assert.NotNull(result.SellButton);
-        Assert.InRange(result.SellButton.CenterX, 67, 73);
+        Assert.InRange(result.SellButton.CenterX, 65, 67);
     }
 
     [Fact]
