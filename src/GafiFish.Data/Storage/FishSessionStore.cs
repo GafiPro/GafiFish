@@ -198,7 +198,7 @@ public sealed class FishSessionStore
             return null;
         }
 
-        var ended = reader.IsDBNull(2) ? null : ParseDate(reader.GetString(2));
+        DateTimeOffset? ended = reader.IsDBNull(2) ? null : ParseDate(reader.GetString(2));
         return new FishingSessionRecord(
             Guid.Parse(reader.GetString(0)),
             ParseDate(reader.GetString(1)),
