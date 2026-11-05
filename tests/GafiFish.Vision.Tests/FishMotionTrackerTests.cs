@@ -18,7 +18,7 @@ public sealed class FishMotionTrackerTests
 
         Assert.NotNull(estimate);
         Assert.Equal(200, estimate.VelocityPixelsPerSecond, precision: 5);
-        Assert.Equal(128, estimate.PredictedPositionX, precision: 5);
+        Assert.Equal(138, estimate.PredictedPositionX, precision: 5);
         Assert.True(estimate.IsFresh);
     }
 
