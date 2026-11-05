@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private readonly FishingVisionDetector _vision = new();
     private readonly CastMeterVisionDetector _castVision = new();
     private readonly ShakePromptVisionDetector _shakeVision = new();
+    private readonly SellAnywhereVisionDetector _sellVision = new();
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private readonly VisionProfileStore _profileStore = new();
@@ -66,7 +67,10 @@ public partial class MainWindow : Window
         SampleCastIndicator,
         SampleCastTarget,
         SelectShakeRegion,
-        SampleShakePrompt
+        SampleShakePrompt,
+        SelectSellButtonRegion,
+        SampleSellButton,
+        SelectInventoryItemsRegion
     }
 
     public MainWindow()
@@ -92,6 +96,9 @@ public partial class MainWindow : Window
         ShakeStatusText.Text = _profile.IsShakeCalibrated
             ? "Shake: saved prompt calibration loaded."
             : "Shake: awaiting prompt calibration.";
+        SellStatusText.Text = _profile.IsSellButtonCalibrated
+            ? "Sell Anywhere: saved button calibration loaded."
+            : "Sell Anywhere: awaiting button calibration.";
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -279,6 +286,11 @@ public partial class MainWindow : Window
         ShakeStatusText.Text = shakeResult.IsCalibrated
             ? $"Shake: {shakeResult.Status}"
             : "Shake: select the prompt region and sample its color.";
+
+        var sellResult = _sellVision.DetectButton(frame, _profile);
+        SellStatusText.Text = sellResult.IsCalibrated
+            ? $"Sell Anywhere: {sellResult.Status}"
+            : "Sell Anywhere: select the button region and sample its color.";
     }
 
     private void DrawMarker(Rectangle overlay, DetectedMarker? marker)
@@ -382,6 +394,24 @@ public partial class MainWindow : Window
             "Click a clear pixel inside the visible Shake prompt.");
     }
 
+    private void SelectSellButtonRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectSellButtonRegion,
+            "Drag a rectangle around the Sell Inventory button inside the open inventory.");
+    }
+
+    private void SampleSellButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleSellButton,
+            "Click a clear pixel inside the Sell Inventory button.");
+    }
+
+    private void SelectInventoryItemsRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectInventoryItemsRegion,
+            "Drag a rectangle around the inventory item list. This area is used to verify that the list changes after selling.");
+    }
+
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
         if (_lastFrame is null)
@@ -407,7 +437,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleControlMarker
             or CalibrationAction.SampleCastIndicator
             or CalibrationAction.SampleCastTarget
-            or CalibrationAction.SampleShakePrompt)
+            or CalibrationAction.SampleShakePrompt
+            or CalibrationAction.SampleSellButton)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
@@ -416,7 +447,9 @@ public partial class MainWindow : Window
 
         if (_calibrationAction is CalibrationAction.SelectRegion
             or CalibrationAction.SelectCastRegion
-            or CalibrationAction.SelectShakeRegion)
+            or CalibrationAction.SelectShakeRegion
+            or CalibrationAction.SelectSellButtonRegion
+            or CalibrationAction.SelectInventoryItemsRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -434,7 +467,9 @@ public partial class MainWindow : Window
     {
         if (_calibrationAction is not (CalibrationAction.SelectRegion
             or CalibrationAction.SelectCastRegion
-            or CalibrationAction.SelectShakeRegion)
+            or CalibrationAction.SelectShakeRegion
+            or CalibrationAction.SelectSellButtonRegion
+            or CalibrationAction.SelectInventoryItemsRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -453,7 +488,9 @@ public partial class MainWindow : Window
     {
         if (_calibrationAction is not (CalibrationAction.SelectRegion
             or CalibrationAction.SelectCastRegion
-            or CalibrationAction.SelectShakeRegion)
+            or CalibrationAction.SelectShakeRegion
+            or CalibrationAction.SelectSellButtonRegion
+            or CalibrationAction.SelectInventoryItemsRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -510,6 +547,18 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectSellButtonRegion => _profile with
+            {
+                SellButtonRegion = selectedRegion,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectInventoryItemsRegion => _profile with
+            {
+                InventoryItemsRegion = selectedRegion,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             _ => _profile
         };
 
@@ -520,6 +569,8 @@ public partial class MainWindow : Window
             CalibrationAction.SelectRegion => "Fishing search region saved.",
             CalibrationAction.SelectCastRegion => "Perfect Cast meter region saved.",
             CalibrationAction.SelectShakeRegion => "Shake prompt region saved.",
+            CalibrationAction.SelectSellButtonRegion => "Sell Anywhere button region saved.",
+            CalibrationAction.SelectInventoryItemsRegion => "Inventory item-list region saved.",
             _ => "Region saved."
         };
         await SaveProfileAsync(regionMessage);
@@ -559,6 +610,7 @@ public partial class MainWindow : Window
             CalibrationAction.SampleCastIndicator => _profile with { CastIndicatorColor = color },
             CalibrationAction.SampleCastTarget => _profile with { CastTargetColor = color },
             CalibrationAction.SampleShakePrompt => _profile with { ShakePromptColor = color },
+            CalibrationAction.SampleSellButton => _profile with { SellButtonColor = color },
             _ => _profile
         };
 
@@ -584,6 +636,7 @@ public partial class MainWindow : Window
         VisionStatusText.Text = "Vision: awaiting color calibration.";
         CastStatusText.Text = "Perfect Cast: awaiting meter calibration.";
         ShakeStatusText.Text = "Shake: awaiting prompt calibration.";
+        SellStatusText.Text = "Sell Anywhere: awaiting button calibration.";
     }
 
     private async Task SaveProfileAsync(string successMessage)
