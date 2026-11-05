@@ -456,8 +456,7 @@ public partial class MainWindow : Window
                     frame.CapturedAt);
             }
 
-            // Priority: once the fish/bar markers are visible, leave Shake and
-            // hand over to the Reel controller rather than clicking a stale prompt.
+            // A detected fish/bar pair takes priority over Shake candidates.
             var reelMarkersVisible =
                 fishMarker is not null
                 && controlMarker is not null
@@ -475,7 +474,7 @@ public partial class MainWindow : Window
                     frame.CapturedAt);
             }
 
-            // Optional automatic cast. The rod must already be equipped by the user.
+            // Auto-cast is opt-in. The user must equip the rod manually first.
             if (_autoCastEnabled
                 && _castCoordinator is not null
                 && _runtimeStateMachine.CurrentState == FishingState.Preparing
@@ -492,14 +491,18 @@ public partial class MainWindow : Window
                 }
 
                 _castCoordinator.BeginCast(frame.CapturedAt);
-                AutomationStatusText.Text = "Auto-cast: holding left mouse; waiting for the calibrated Perfect Cast window.";
+                AutomationStatusText.Text =
+                    "Auto-cast: holding left mouse; waiting for the calibrated Perfect Cast window.";
             }
 
             if (_runtimeStateMachine.CurrentState == FishingState.Casting
                 && _castCoordinator is not null
                 && _castCoordinator.IsHolding)
             {
-                var castResult = _castCoordinator.ProcessObservation(castObservation, frame.CapturedAt);
+                var castResult = _castCoordinator.ProcessObservation(
+                    castObservation,
+                    DateTimeOffset.UtcNow);
+
                 AutomationStatusText.Text = $"Auto-cast: {castResult.Kind} · {castResult.Reason}";
 
                 if (castResult.Kind == CastInputResultKind.Released)
@@ -519,13 +522,13 @@ public partial class MainWindow : Window
                 }
             }
 
-            // Optional automatic Shake. A click is accepted only after a stable
-            // candidate is seen; another click requires the previous prompt to
-            // move or disappear for multiple frames.
+            // Auto-shake clicks only a high-confidence prompt that remains
+            // stable across frames. A second click requires it to move/disappear.
             if (_autoShakeEnabled && _shakeCoordinator is not null)
             {
                 if (shakePrompts.Count > 0
-                    && _runtimeStateMachine.CurrentState is FishingState.Preparing or FishingState.WaitingForBite)
+                    && _runtimeStateMachine.CurrentState is
+                        FishingState.Preparing or FishingState.WaitingForBite)
                 {
                     _ = _runtimeStateMachine.TryTransition(
                         FishingState.Shaking,
@@ -546,8 +549,8 @@ public partial class MainWindow : Window
                 }
             }
 
-            // The cast coordinator owns the left mouse button during Casting.
-            // Calling ReelInputCoordinator outside Reeling would release it.
+            // Casting owns the left mouse button while it is charging. Reel
+            // must not run in parallel and accidentally release the cast.
             if (!(_runtimeStateMachine.CurrentState == FishingState.Casting
                 && _castCoordinator?.IsHolding == true))
             {
