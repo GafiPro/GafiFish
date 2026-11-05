@@ -9,6 +9,6 @@ public sealed record CastMeterObservation(
     double IndicatorPosition,
     double TargetStart,
     double TargetEnd,
-    double IndicatorSpeedPerSecond,
+    double IndicatorVelocityPerSecond,
     double Confidence,
     DateTimeOffset CapturedAt);
