@@ -45,9 +45,9 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 4. Em **Visual calibration**, seleciona a região do minijogo, do medidor de Perfect Cast, do prompt Shake e do botão/inventário Sell Anywhere. Para os detetores por cor, amostra um pixel limpo de cada marcador.
 5. Seleciona também a região da notificação de captura. Esta região é usada pelo OCR.
 6. Pressiona **Start session + local OCR**, regressa ao Roblox e usa F7. O OCR só analisa fotogramas enquanto existir uma sessão ativa.
-7. Pressiona **End session and show Top 25** para guardar a sessão e ver o resumo.
-8. Depois de calibrares a região do minijogo e os dois marcadores, regressa ao Roblox e pressiona **F8** para armar o Reel assistido. **F9** é a paragem de emergência e liberta o input.
-9. Ao terminares a sessão, usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
+7. Depois de calibrares a região do minijogo e os dois marcadores, regressa ao Roblox e pressiona **F8** para armar o Reel assistido. Se as regiões do Sell Anywhere também estiverem calibradas, o temporizador de venda fica ativo. **F9** é a paragem de emergência e liberta o input.
+8. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
+9. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
 
 Sell Anywhere vende os peixes que não estejam marcados como favoritos. Marca previamente como favoritos todos os peixes que pretendes guardar. A venda só é armada por F8 quando existe uma sessão OCR e as regiões do botão/inventário estão calibradas.
 
