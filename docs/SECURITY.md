@@ -24,8 +24,8 @@ Referência: https://about.roblox.com/community-standards
 A gamepass vende itens não favoritos. Para evitar perdas:
 - O GafiFish não altera o estado de favorito de qualquer peixe.
 - A venda só pode começar depois do fim do ciclo de pesca e com o inventário visualmente reconhecido.
-- O botão tem de ser identificado na região calibrada; não usar coordenadas fixas cegas.
-- A ação é executada uma vez e o resultado tem de ser confirmado visualmente.
+- O botão tem de ser identificado de forma estável na região calibrada; não usar coordenadas fixas cegas.
+- A ação é executada uma vez e o resultado tem de ser confirmado por uma alteração estável em dois fotogramas consecutivos.
 - Se aparecer um diálogo inesperado, o botão não for reconhecido ou não houver confirmação, a automação pára e pede intervenção.
 - O utilizador deve favoritar previamente todos os peixes/itens que pretende guardar.
 
@@ -46,7 +46,7 @@ A gamepass vende itens não favoritos. Para evitar perdas:
 ## Regras de paragem imediata
 
 O motor de input deve libertar o rato e o teclado e parar quando:
-- o utilizador carrega na hotkey de emergência;
+- o utilizador carrega em F9 (hotkey global de emergência);
 - a janela do Roblox deixa de estar em primeiro plano;
 - deixa de ser possível identificar a janela correta;
 - a captura falha ou excede a idade máxima permitida;
@@ -54,7 +54,7 @@ O motor de input deve libertar o rato e o teclado e parar quando:
 - ocorre uma exceção não recuperável;
 - o utilizador fecha a aplicação.
 
-A paragem de emergência não depende da interface gráfica estar responsiva. Deve ser tratada por um caminho curto e independente do loop de visão.
+F9 está registado como hotkey global quando o Windows permite o registo. A paragem também é acionada quando F7 pára, a janela Roblox perde o foco ou uma captura falha. O tratamento atual corre no dispatcher WPF; uma paragem durante um bloqueio total da interface ainda não está garantida.
 
 ## Privacidade
 
