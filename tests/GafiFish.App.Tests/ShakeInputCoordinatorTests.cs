@@ -24,7 +24,7 @@ public sealed class ShakeInputCoordinatorTests
         Assert.Equal(ShakeInputResultKind.Stabilising, first.Kind);
         Assert.Equal(0, input.Clicks);
 
-        var second = coordinator.ProcessFrame(
+        var second = ProcessAt(coordinator,
             Frame(start.AddMilliseconds(100)),
             [Prompt(52, 51)]);
 
@@ -38,14 +38,11 @@ public sealed class ShakeInputCoordinatorTests
     {
         var input = new FakeRobloxInput();
         input.Arm();
-        var coordinator = new ShakeInputCoordinator(input, new ShakeInputSettings
-        {
-            MaximumFrameAge = TimeSpan.FromSeconds(10)
-        });
+        var coordinator = new ShakeInputCoordinator(input);
         var start = DateTimeOffset.UtcNow.AddSeconds(-2);
 
-        _ = coordinator.ProcessFrame(Frame(start), [Prompt(50, 50)]);
-        _ = coordinator.ProcessFrame(Frame(start.AddMilliseconds(100)), [Prompt(50, 50)]);
+        _ = ProcessAt(coordinator, Frame(start), [Prompt(50, 50)]);
+        _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(100)), [Prompt(50, 50)]);
 
         var repeated = coordinator.ProcessFrame(
             Frame(start.AddMilliseconds(650)),
@@ -66,16 +63,16 @@ public sealed class ShakeInputCoordinatorTests
         });
         var start = DateTimeOffset.UtcNow.AddSeconds(-3);
 
-        _ = coordinator.ProcessFrame(Frame(start), [Prompt(20, 30)]);
-        _ = coordinator.ProcessFrame(Frame(start.AddMilliseconds(100)), [Prompt(20, 30)]);
+        _ = ProcessAt(coordinator, Frame(start), [Prompt(20, 30)]);
+        _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(100)), [Prompt(20, 30)]);
         Assert.Equal(1, input.Clicks);
 
-        var movedFirst = coordinator.ProcessFrame(
+        var movedFirst = ProcessAt(coordinator,
             Frame(start.AddMilliseconds(650)),
             [Prompt(65, 30)]);
         Assert.Equal(ShakeInputResultKind.Stabilising, movedFirst.Kind);
 
-        var movedSecond = coordinator.ProcessFrame(
+        var movedSecond = ProcessAt(coordinator,
             Frame(start.AddMilliseconds(750)),
             [Prompt(66, 31)]);
 
@@ -95,18 +92,18 @@ public sealed class ShakeInputCoordinatorTests
         });
         var start = DateTimeOffset.UtcNow.AddSeconds(-3);
 
-        _ = coordinator.ProcessFrame(Frame(start), [Prompt(30, 30)]);
-        _ = coordinator.ProcessFrame(Frame(start.AddMilliseconds(100)), [Prompt(30, 30)]);
+        _ = ProcessAt(coordinator, Frame(start), [Prompt(30, 30)]);
+        _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(100)), [Prompt(30, 30)]);
 
-        _ = coordinator.ProcessFrame(Frame(start.AddMilliseconds(600)), []);
-        _ = coordinator.ProcessFrame(Frame(start.AddMilliseconds(700)), []);
+        _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(600)), []);
+        _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(700)), []);
 
-        var firstAfterReturn = coordinator.ProcessFrame(
+        var firstAfterReturn = ProcessAt(coordinator,
             Frame(start.AddMilliseconds(800)),
             [Prompt(30, 30)]);
         Assert.Equal(ShakeInputResultKind.Stabilising, firstAfterReturn.Kind);
 
-        var secondAfterReturn = coordinator.ProcessFrame(
+        var secondAfterReturn = ProcessAt(coordinator,
             Frame(start.AddMilliseconds(900)),
             [Prompt(31, 30)]);
 
