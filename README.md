@@ -2,16 +2,17 @@
 
 Aplicação Windows para análise visual e automatização do ciclo de pesca no Roblox Fisch.
 
-> **Estado atual:** planeamento técnico e pesquisa. Ainda não existe uma versão funcional do macro.
+> **Estado atual:** pesquisa e planeamento publicados; o motor executável ainda está em desenvolvimento.
 
-## Objetivos
+## Objetivos principais
 
-- Detetar visualmente as fases de pesca (cast, shake e reel).
-- Acompanhar a posição e a velocidade do peixe em tempo real.
-- Controlar os inputs com um controlador adaptativo.
-- Registar as capturas de cada sessão.
-- Ao parar, apresentar um resumo com o total de peixes e, quando existirem mais de 25, mostrar apenas os 25 melhores.
-- Permitir calibração por resolução e por cana.
+- Pesca automática: cast, shake, reel e recast.
+- Perfect Cast integrado desde a primeira versão funcional, com calibração da câmara e do medidor.
+- Tracking visual do peixe, com estimativa de direção, velocidade e antecipação.
+- Venda automática a cada **10 minutos**, usando a gamepass **Sell Anywhere** do utilizador.
+- Registo de capturas e resumo ao parar.
+- Apresentar no máximo os **25 melhores peixes**, mesmo que a sessão tenha mais capturas.
+- Histórico completo local e exportação CSV/JSON.
 
 ## Stack proposta
 
@@ -19,11 +20,38 @@ Aplicação Windows para análise visual e automatização do ciclo de pesca no 
 - **WPF** — interface Windows.
 - **OpenCvSharp / OpenCV** — visão computacional.
 - **Windows Graphics Capture / DXGI** — captura de imagem.
-- **Win32 SendInput** — simulação de inputs normais do rato e teclado.
+- **Win32 SendInput** — inputs normais do rato e teclado.
 - **SQLite + JSON** — histórico e configuração local.
 - **xUnit** — testes automatizados.
 
-A escolha evita depender de Python em execução e aproveita a integração nativa com Windows. O processamento visual será local.
+O processamento visual será local. O GafiFish não depende de Python em execução nem de serviços de IA na cloud.
+
+## Funcionalidades da primeira versão
+
+### Pesca e controlo
+1. Captura e calibração do minijogo.
+2. Deteção da barra, do peixe e do estado da pesca.
+3. Tracking da direção e velocidade do peixe.
+4. Auto-shake, auto-reel e auto-cast.
+5. **Perfect Cast incluído desde o início**, com calibração e ajuste de timing.
+6. Perfis de calibração por cana.
+
+### Venda automática
+1. Intervalo predefinido de **10 minutos**.
+2. Não interromper uma captura: a venda fica pendente até o ciclo atual terminar.
+3. Abrir o inventário.
+4. Usar o botão da gamepass **Sell Anywhere**.
+5. Confirmar visualmente a venda, fechar o inventário e retomar a pesca.
+6. Parar e pedir intervenção se a interface não corresponder ao esperado.
+
+**Importante:** Sell Anywhere vende itens não favoritos. Marcar como favorito tudo o que pretendes guardar. A aplicação nunca tentará remover favoritos nem usar APIs internas do jogo.
+
+### Registo e estatísticas
+1. Leitura local da notificação de captura.
+2. Histórico de espécies, raridade, mutações e peso quando os dados forem reconhecidos com confiança.
+3. Resumo apresentado ao parar.
+4. Top 25 capturas, com ordenação configurável.
+5. Exportação CSV/JSON.
 
 ## Princípios de segurança
 
@@ -36,30 +64,6 @@ A escolha evita depender de Python em execução e aproveita a integração nati
 - Não enviar capturas de ecrã para serviços externos.
 
 A utilização de automação pode estar sujeita às regras do Roblox e do Fisch e pode implicar penalizações da conta. O GafiFish não tentará contornar sistemas anti-cheat.
-
-## Funcionalidades previstas
-
-### MVP
-1. Captura e calibração da área do minijogo.
-2. Deteção da barra, do peixe e do estado da pesca.
-3. Rastreamento da direção e velocidade do peixe.
-4. Auto-shake, auto-reel e auto-cast.
-5. Tecla global de iniciar/parar e paragem de emergência.
-6. Sobreposição de diagnóstico e registos locais.
-
-### Registo e estatísticas
-1. Leitura local da notificação de captura.
-2. Histórico de espécies, raridade, mutações e peso — apenas quando os dados estiverem visíveis e forem reconhecidos com confiança.
-3. Resumo apresentado ao parar.
-4. Top 25 capturas, com ordenação configurável.
-5. Exportação CSV/JSON.
-
-### Evoluções
-- Perfis individuais por cana.
-- Perfect Cast com calibração do atraso de input.
-- Alertas para capturas prioritárias.
-- Estatísticas por hora e taxa de sucesso.
-- Venda automática e recuperação de posição, depois de o ciclo principal estar estável.
 
 ## Documentação
 
