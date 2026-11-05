@@ -1,8 +1,8 @@
 # GafiFish
 
-Aplicação Windows para observação visual, calibração e registo de sessões de pesca no Roblox Fisch.
+Aplicação Windows para observação visual, calibração, Reel assistido e registo de sessões de pesca no Roblox Fisch.
 
-**Estado: observação e registo locais.**
+**Estado: captura, diagnóstico visual, Reel assistido e histórico local; lançamento e Shake automáticos ainda pendentes.**
 
 ## O que já funciona
 
@@ -11,18 +11,21 @@ Aplicação Windows para observação visual, calibração e registo de sessões
 - Deteção dos marcadores do peixe e da barra, com estimativa curta de movimento.
 - Deteção do indicador e da zona-alvo do Perfect Cast, com decisão diagnóstica considerando a latência.
 - Deteção de candidatos a prompts de Shake.
-- Deteção visual do botão Sell Anywhere e medição de alterações na lista do inventário.
+- Deteção visual do botão Sell Anywhere e verificação de alterações estáveis na lista do inventário.
+- Reel assistido opt-in com F8/F9, controlador preditivo e libertação automática de input quando os marcadores desaparecem ou o Roblox perde o foco.
+- Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
 - Histórico local SQLite e resumo de sessão com os 25 melhores peixes.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR e persistência.
 
-## O que ainda não está ativado
+## O que ainda não está automatizado
 
-A interface atual está em **OBSERVATION MODE**. Não envia cliques nem teclas para o jogo.
+- O Perfect Cast calcula uma decisão diagnóstica, mas ainda não executa o lançamento.
+- O Shake encontra candidatos visuais, mas ainda não interpreta de forma fiável a direção e a tecla de cada prompt.
+- O Reel assistido não faz recast nem inicia uma sessão de pesca sozinho; só controla o hold/release quando o minijogo e ambos os marcadores calibrados são detetados.
+- A venda real depende de calibração feita no teu ecrã, da gamepass Sell Anywhere e de uma notificação OCR de confiança elevada. O fluxo foi testado com frames simulados, mas ainda precisa de validação numa sessão real do Fisch.
 
-O adaptador de input Win32, o controlador do Reel e o coordenador de Sell Anywhere existem como módulos separados, mas ainda não estão ligados a um fluxo automático de pesca na interface. O Shake deteta candidatos, mas ainda não interpreta a direção/tecla de cada prompt. Estas partes dependem de validar a disposição real dos prompts e dos controlos com capturas do jogo; não se devem assumir coordenadas ou cores fixas.
-
-O coordenador de venda foi testado com cenários simulados, incluindo confirmação visual e falha segura, mas não executa vendas na versão de observação.
+Não se assumem coordenadas, cores ou teclas para os prompts de Shake/lançamento.
 
 ## Instalação
 
@@ -43,6 +46,7 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 5. Seleciona também a região da notificação de captura. Esta região é usada pelo OCR.
 6. Pressiona **Start session + local OCR**, regressa ao Roblox e usa F7. O OCR só analisa fotogramas enquanto existir uma sessão ativa.
 7. Pressiona **End session and show Top 25** para guardar a sessão e ver o resumo.
+8. Depois de calibrares a região do minijogo e os dois marcadores, regressa ao Roblox e pressiona **F8** para armar o Reel assistido. **F9** é a paragem de emergência e liberta o input.
 
 O parser de capturas é deliberadamente conservador: só regista uma espécie quando reconhece uma notificação compatível com o padrão inglês `You caught [species]`. Raridade, mutação, peso e valor ficam vazios quando não são reconhecidos com confiança. A notificação real do jogo poderá exigir afinação adicional.
 
@@ -53,6 +57,8 @@ O parser de capturas é deliberadamente conservador: só regista uma espécie qu
 - Modelo OCR: `%LOCALAPPDATA%\\GafiFish\\tessdata\\eng.traineddata`
 
 As capturas e o texto OCR são processados localmente. O GafiFish não envia imagens para serviços externos.
+
+O Reel assistido usa apenas eventos normais de rato/teclado do Windows. F8 exige a janela Roblox em primeiro plano e F7 ativo. Se o Roblox perder o foco, ou se F7 parar, o input é libertado. O mapeamento hold/release pode ser invertido na caixa de seleção da interface.
 
 ## Desenvolvimento
 
@@ -82,8 +88,8 @@ A CI Windows compila a solução, executa as cinco suites de testes e publica um
 - Não altera ficheiros do Roblox nem tráfego de rede.
 - Não pede nem guarda credenciais, cookies ou tokens.
 - Não exige privilégios de administrador.
-- O adaptador de input liberta os botões e desarma quando perde o foco ou é parado.
-- A aplicação atual não envia inputs para o jogo.
+- O adaptador de input liberta os botões e desarma quando perde o foco, quando F7 pára ou quando F9 é pressionado.
+- A venda envia um único clique por tentativa; não repete cliques às cegas quando a confirmação visual falha.
 
 A utilização de automação pode estar sujeita às regras do Roblox e do Fisch e pode implicar penalizações da conta. O GafiFish não tenta contornar sistemas anti-cheat.
 
