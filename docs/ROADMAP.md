@@ -2,7 +2,7 @@
 
 ## Fase 0 — Pesquisa e desenho
 
-<badge>Concluída</badge>
+**Estado: concluída**
 
 - [x] Identificar macros relevantes para Fisch e referências de Perfect Cast.
 - [x] Verificar o Bloomfisching, conteúdo e licença.
@@ -13,7 +13,7 @@
 
 ## Fase 1 — Fundação e visão
 
-<badge>Implementada; falta validação com frames reais</badge>
+**Estado: implementada; falta validação com frames reais**
 
 - [x] Solução .NET 10 e projetos App/Core/Windows/Vision/Data/Ocr.
 - [x] Janela WPF e captura do cliente Roblox visível.
@@ -26,7 +26,7 @@
 
 ## Fase 2 — Pesca e Perfect Cast
 
-<badge>Parcial</badge>
+**Estado: parcial**
 
 - [x] Máquina de estados e decisões com timeouts no fluxo de venda.
 - [x] Tracking da direção/velocidade do peixe.
@@ -43,7 +43,7 @@ Critério de saída: o Reel e o Perfect Cast têm de funcionar com confiança em
 
 ## Fase 3 — Sell Anywhere a cada 10 minutos
 
-<badge>Implementada em simulação; por validar no Fisch real</badge>
+**Estado: implementada em simulação; por validar no Fisch real**
 
 - [x] Temporizador de 10 minutos.
 - [x] Venda pendente até existir uma captura OCR de confiança elevada e o ciclo chegar a um estado seguro.
@@ -58,7 +58,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 
 ## Fase 4 — Capturas e resumo
 
-<badge>Implementada</badge>
+**Estado: implementada**
 
 - [x] OCR local da notificação de captura.
 - [x] Parser conservador de espécie, raridade, mutação, peso e valor quando reconhecidos.
