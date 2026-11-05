@@ -15,6 +15,7 @@ public sealed class VisionProfileStoreTests
             ReferenceWidth = 1920,
             ReferenceHeight = 1080,
             FishingRegion = new NormalizedRegion(0.20, 0.70, 0.60, 0.20),
+            FishingRegionCalibrated = true,
             FishMarkerColor = new HsvColorRange(20, 100, 80, 40, 255, 255),
             ControlMarkerColor = new HsvColorRange(0, 0, 160, 10, 80, 255)
         };
