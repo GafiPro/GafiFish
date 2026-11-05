@@ -330,6 +330,9 @@ public partial class MainWindow : Window
             _autoCastEnabled = autoCastEnabled;
             _autoShakeEnabled = autoShakeEnabled;
             _automationEnabled = true;
+            InvertReelDirectionCheckBox.IsEnabled = false;
+            AutoCastCheckBox.IsEnabled = false;
+            AutoShakeCheckBox.IsEnabled = false;
 
             var enabledModes = new List<string> { "Reel assist" };
             if (autoCastEnabled) enabledModes.Add("Auto-cast");
@@ -404,6 +407,9 @@ public partial class MainWindow : Window
         _shakeCoordinator = null;
         _autoCastEnabled = false;
         _autoShakeEnabled = false;
+        InvertReelDirectionCheckBox.IsEnabled = true;
+        AutoCastCheckBox.IsEnabled = true;
+        AutoShakeCheckBox.IsEnabled = true;
         AutomationStatusText.Text = reason;
     }
 
@@ -528,6 +534,14 @@ public partial class MainWindow : Window
 
             // Auto-shake clicks only a high-confidence prompt that remains
             // stable across frames. A second click requires it to move/disappear.
+            if (_autoCastEnabled
+                && _runtimeStateMachine.CurrentState == FishingState.WaitingForBite
+                && _runtimeStateMachine.HasTimedOut(TimeSpan.FromSeconds(30), frame.CapturedAt))
+            {
+                StopAutomation("No bite/reel markers appeared within 30 seconds after casting; all inputs released.");
+                return;
+            }
+
             if (_autoShakeEnabled && _shakeCoordinator is not null)
             {
                 if (shakePrompts.Count > 0
