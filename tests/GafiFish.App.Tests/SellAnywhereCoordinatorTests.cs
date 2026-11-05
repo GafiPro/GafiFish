@@ -27,23 +27,24 @@ public sealed class SellAnywhereCoordinatorTests
         var profile = CreateProfile();
         coordinator.Start(start);
 
-        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10), fillItems: false, showSellButton: false), profile, true);
         coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(120), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(240), fillItems: false), profile, true);
         Assert.Equal(FishingState.SellingInventory, machine.CurrentState);
 
-        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(240), fillItems: false), profile, true);
         coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(360), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(480), fillItems: false), profile, true);
         Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
         Assert.Equal(1, input.ClientClicks);
 
-        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1100), fillItems: true), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1130), fillItems: true), profile, true);
         Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
 
-        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1220), fillItems: true), profile, true);
+        coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1250), fillItems: true), profile, true);
 
         Assert.Equal(FishingState.Preparing, machine.CurrentState);
         Assert.False(schedule.SalePending);
-        Assert.Equal(start.AddMinutes(20).AddMilliseconds(1220), schedule.NextDueAt);
+        Assert.Equal(start.AddMinutes(20).AddMilliseconds(1250), schedule.NextDueAt);
         Assert.Equal(2, input.InventoryTogglePresses);
         Assert.Equal(1, input.ClientClicks);
         Assert.Contains("visually verified", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
