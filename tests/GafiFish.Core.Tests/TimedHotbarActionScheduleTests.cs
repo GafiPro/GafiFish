@@ -26,16 +26,20 @@ public sealed class TimedHotbarActionScheduleTests
     }
 
     [Fact]
-    public void ExecutedActionIsRescheduledWithGap()
+    public void SimultaneouslyDueActionsAreSeparatedByMinimumGap()
     {
         var start = DateTimeOffset.UtcNow;
-        var action = new TimedHotbarAction(TimedHotbarActionKind.Potion, 5, TimeSpan.FromMinutes(1));
-        var schedule = new TimedHotbarActionSchedule([action], start);
+        var totem = new TimedHotbarAction(TimedHotbarActionKind.Totem, 3, TimeSpan.FromMinutes(1));
+        var potion = new TimedHotbarAction(TimedHotbarActionKind.Potion, 5, TimeSpan.FromMinutes(1));
+        var schedule = new TimedHotbarActionSchedule([totem, potion], start);
         var used = start.AddMinutes(1);
-        schedule.MarkExecuted(action, used);
-        Assert.Null(schedule.TryGetDue(used.AddSeconds(1), true));
-        Assert.Null(schedule.TryGetDue(used.AddMinutes(1), true));
-        Assert.Equal(action, schedule.TryGetDue(used.AddMinutes(1).AddSeconds(2), true));
+
+        var firstAction = schedule.TryGetDue(used, isSafeState: true);
+        Assert.Equal(totem, firstAction);
+        schedule.MarkExecuted(firstAction!, used);
+
+        Assert.Null(schedule.TryGetDue(used.AddSeconds(1), isSafeState: true));
+        Assert.Equal(potion, schedule.TryGetDue(used.AddSeconds(2), isSafeState: true));
     }
 
     [Fact]
