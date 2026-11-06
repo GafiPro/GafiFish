@@ -293,6 +293,16 @@
                         </Grid>
                         <TextBlock Text="Create a named visual-calibration profile for each rod. Select the profile manually before fishing."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <TextBlock Text="Capture performance" Foreground="#9BAAB8" Margin="0,0,0,5" />
+                        <ComboBox x:Name="CapturePerformanceModeComboBox" SelectedIndex="1" Height="34"
+                                  Background="#20313E" Foreground="#EAF0F5" Margin="0,0,0,5">
+                            <ComboBoxItem Content="Economy · lower CPU use" />
+                            <ComboBoxItem Content="Balanced · recommended" />
+                            <ComboBoxItem Content="Responsive · faster tracking" />
+                        </ComboBox>
+                        <TextBlock x:Name="PerformanceModeStatusText"
+                                   Text="Balanced capture cadence · adaptive frame pacing."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
                         <Button Content="Capture frame (F6)" Click="CaptureOnce_Click"
                                 Height="38" Margin="0,0,0,8"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
@@ -339,9 +349,22 @@
                                   Unchecked="TargetFishCheckBox_Changed" />
                         <TextBox x:Name="TargetFishTextBox"
                                  Text="Wrath Scylla" IsEnabled="False"
-                                 Height="32" Padding="8,5" Margin="0,0,0,8"
+                                 Height="34" Padding="8,5" Margin="0,0,0,7"
                                  Background="#263543" Foreground="#EAF0F5"
                                  ToolTip="Example: Wrath Scylla" />
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="84" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Stop after this many target catches"
+                                       Foreground="#9BAAB8" VerticalAlignment="Center" />
+                            <TextBox x:Name="TargetFishCatchGoalTextBox" Grid.Column="1"
+                                     Text="1" IsEnabled="False" Height="32" Padding="7,4"
+                                     Background="#263543" Foreground="#EAF0F5"
+                                     HorizontalContentAlignment="Center" />
+                        </Grid>
+                        <TextBlock x:Name="TargetFishProgressText" Text="Target progress · 0 / 1"
+                                   Foreground="#67D5B5" FontSize="11" Margin="0,0,0,8" />
                         <TextBlock Text="Target matching checks the catch notification text (case-insensitive, punctuation-insensitive). It does not stop for unrelated catches."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
                         <CheckBox x:Name="AutoShakeCheckBox"
@@ -504,14 +527,23 @@
                                 Height="36" Background="#4A3037" Foreground="White" BorderThickness="0"
                                 IsEnabled="False" />
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button x:Name="ExportCsvButton" Content="Export CSV" Click="ExportCsv_Click"
-                                    Width="132" Height="32" Margin="0,0,8,0"
+                            <Button x:Name="ExportCsvButton" Content="Export session CSV" Click="ExportCsv_Click"
+                                    Width="150" Height="34" Margin="0,0,8,0"
                                     Background="#294153" Foreground="White" BorderThickness="0"
                                     IsEnabled="False" />
-                            <Button x:Name="ExportJsonButton" Content="Export JSON" Click="ExportJson_Click"
-                                    Width="132" Height="32"
+                            <Button x:Name="ExportJsonButton" Content="Export session JSON" Click="ExportJson_Click"
+                                    Width="150" Height="34"
                                     Background="#294153" Foreground="White" BorderThickness="0"
                                     IsEnabled="False" />
+                        </StackPanel>
+                        <Separator Margin="0,10,0,8" Background="#33414F" />
+                        <TextBlock Text="Full local catch archive" Foreground="#9BAAB8" Margin="0,0,0,7" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Export all CSV" Click="ExportAllHistoryCsv_Click"
+                                    Width="150" Height="32" Margin="0,0,8,0"
+                                    Background="#203847" Foreground="#EAF0F5" />
+                            <Button Content="Export all JSON" Click="ExportAllHistoryJson_Click"
+                                    Width="150" Height="32" Background="#203847" Foreground="#EAF0F5" />
                         </StackPanel>
                         <TextBlock x:Name="SessionStatusText" Text="No session running."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
