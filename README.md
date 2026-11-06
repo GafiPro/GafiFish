@@ -46,7 +46,7 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 5. Seleciona também a região da notificação de captura. Esta região é usada pelo OCR.
 6. Pressiona **Start session + local OCR**, regressa ao Roblox e usa F7. O OCR só analisa fotogramas enquanto existir uma sessão ativa.
 7. Para Auto-cast, calibra a região do medidor e as cores do indicador e da zona-alvo; para Auto-shake, calibra a região e a cor dos prompts. Marca as respetivas caixas na interface antes de ativar o assistente. Ambas estão desligadas por defeito.
-8. Se pretenderes vender automaticamente, marca também **Enable Sell Anywhere every 10 minutes** — a gamepass vende todos os itens não favoritos. Regressa ao Roblox e pressiona **F8** para armar o Reel assistido e as opções escolhidas. A venda só fica ativa com essa caixa marcada, sessão OCR ativa e regiões do botão/inventário calibradas. **F9** é a paragem de emergência e liberta o input.
+8. Para iniciar, clica em **Start macro (F8)** e muda para a janela Roblox; o GafiFish arma-se assim que captura o primeiro fotograma do Roblox. Também podes usar F8 diretamente com o Roblox em primeiro plano. Para parar, clica em **Stop macro (F9)** ou usa F9. Para o modo ilimitado até à primeira captura, ativa **Keep fishing until the first fish is caught** — exige Auto-cast, sessão OCR e região de notificação calibrada. Para vender automaticamente, marca **Enable Sell Anywhere every 10 minutes**; a gamepass vende os itens não favoritos, por isso marca como favoritos os que pretendes guardar.
 9. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
 10. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
 
