@@ -105,6 +105,8 @@ public partial class MainWindow : Window
     private bool _autoCastEnabled;
     private bool _autoShakeEnabled;
     private bool _keepFishingUntilCatchEnabled;
+    private bool _targetFishEnabled;
+    private string? _targetFishName;
     private bool _startRequested;
     private MissedBiteRetryPolicy _missedBiteRetries = new();
     private bool _automationEnabled;
@@ -273,6 +275,14 @@ public partial class MainWindow : Window
         StopAutomation("Macro stopped by the user; all game inputs released.");
     }
 
+    private void TargetFishCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        TargetFishTextBox.IsEnabled =
+            AutoCastCheckBox.IsChecked == true
+            && TargetFishCheckBox.IsChecked == true
+            && !_automationEnabled;
+    }
+
     private void AutoCastCheckBox_Changed(object sender, RoutedEventArgs e)
     {
         if (_automationEnabled)
@@ -282,9 +292,12 @@ public partial class MainWindow : Window
 
         var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
         KeepFishingUntilCatchCheckBox.IsEnabled = autoCastEnabled;
+        TargetFishCheckBox.IsEnabled = autoCastEnabled;
+        TargetFishTextBox.IsEnabled = autoCastEnabled && TargetFishCheckBox.IsChecked == true;
         if (!autoCastEnabled)
         {
             KeepFishingUntilCatchCheckBox.IsChecked = false;
+            TargetFishCheckBox.IsChecked = false;
         }
     }
 
@@ -321,18 +334,32 @@ public partial class MainWindow : Window
         var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
         var autoShakeEnabled = AutoShakeCheckBox.IsChecked == true;
         var keepFishingUntilCatch = KeepFishingUntilCatchCheckBox.IsChecked == true;
+        var targetFishEnabled = TargetFishCheckBox.IsChecked == true;
+        var targetFishName = TargetFishTextBox.Text.Trim();
 
-        if (keepFishingUntilCatch && !autoCastEnabled)
+        if (targetFishEnabled && string.IsNullOrWhiteSpace(targetFishName))
+        {
+            AutomationStatusText.Text = "Enter the fish name you want GafiFish to catch.";
+            return;
+        }
+
+        if (targetFishEnabled && keepFishingUntilCatch)
+        {
+            AutomationStatusText.Text = "Choose either the first-catch mode or target-fish mode, not both.";
+            return;
+        }
+
+        if ((keepFishingUntilCatch || targetFishEnabled) && !autoCastEnabled)
         {
             AutomationStatusText.Text = "Keep-fishing mode requires Auto-cast.";
             return;
         }
 
-        if (keepFishingUntilCatch
+        if ((keepFishingUntilCatch || targetFishEnabled)
             && (!_activeSessionId.HasValue || _ocr is null || !_profile.IsCatchNotificationCalibrated))
         {
             AutomationStatusText.Text =
-                "Keep-fishing mode requires an active local OCR session and a calibrated catch-notification region.";
+                "First-catch and target-fish modes require an active local OCR session and a calibrated catch-notification region.";
             return;
         }
 
@@ -419,13 +446,17 @@ public partial class MainWindow : Window
             _autoCastEnabled = autoCastEnabled;
             _autoShakeEnabled = autoShakeEnabled;
             _keepFishingUntilCatchEnabled = keepFishingUntilCatch;
-            _missedBiteRetries = new MissedBiteRetryPolicy(unlimitedRetries: keepFishingUntilCatch);
+            _targetFishEnabled = targetFishEnabled;
+            _targetFishName = targetFishEnabled ? targetFishName : null;
+            _missedBiteRetries = new MissedBiteRetryPolicy(unlimitedRetries: keepFishingUntilCatch || targetFishEnabled);
             _automationEnabled = true;
             StartMacroButton.IsEnabled = false;
             StopMacroButton.IsEnabled = true;
             InvertReelDirectionCheckBox.IsEnabled = false;
             AutoCastCheckBox.IsEnabled = false;
             KeepFishingUntilCatchCheckBox.IsEnabled = false;
+            TargetFishCheckBox.IsEnabled = false;
+            TargetFishTextBox.IsEnabled = false;
             AutoShakeCheckBox.IsEnabled = false;
             SellAnywhereCheckBox.IsEnabled = false;
             EquipRodCheckBox.IsEnabled = false;
@@ -434,6 +465,7 @@ public partial class MainWindow : Window
             var enabledModes = new List<string> { "Reel assist" };
             if (autoCastEnabled) enabledModes.Add("Auto-cast");
             if (keepFishingUntilCatch) enabledModes.Add("until first confirmed catch");
+            if (targetFishEnabled) enabledModes.Add($"target: {targetFishName}");
             if (autoShakeEnabled) enabledModes.Add("Auto-shake");
             if (sellCoordinator is not null) enabledModes.Add("Sell Anywhere / 10 min");
             else if (SellAnywhereCheckBox.IsChecked == true)
@@ -523,11 +555,15 @@ public partial class MainWindow : Window
         _autoCastEnabled = false;
         _autoShakeEnabled = false;
         _keepFishingUntilCatchEnabled = false;
+        _targetFishEnabled = false;
+        _targetFishName = null;
         StartMacroButton.IsEnabled = true;
         StopMacroButton.IsEnabled = false;
         InvertReelDirectionCheckBox.IsEnabled = true;
         AutoCastCheckBox.IsEnabled = true;
         KeepFishingUntilCatchCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
+        TargetFishCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
+        TargetFishTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true && TargetFishCheckBox.IsChecked == true;
         AutoShakeCheckBox.IsEnabled = true;
         SellAnywhereCheckBox.IsEnabled = true;
         EquipRodCheckBox.IsEnabled = true;
@@ -1716,16 +1752,25 @@ public partial class MainWindow : Window
                 return;
             }
 
+            var targetFishCaught = _automationEnabled
+                && _targetFishEnabled
+                && !string.IsNullOrWhiteSpace(_targetFishName)
+                && FishCatchTargetMatcher.Matches(result.Text, _targetFishName)
+                && result.Confidence >= 0.90
+                && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
+
             var stopAfterFirstCatch = _automationEnabled
                 && _keepFishingUntilCatchEnabled
                 && result.Confidence >= 0.90
                 && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
 
-            if (stopAfterFirstCatch)
+            if (targetFishCaught || stopAfterFirstCatch)
             {
                 if (!_runtimeStateMachine!.TryTransition(
                         FishingState.CatchDetected,
-                        "A high-confidence local OCR notification confirmed the first caught fish.",
+                        targetFishCaught
+                            ? $"A high-confidence local OCR notification matched target '{_targetFishName}'."
+                            : "A high-confidence local OCR notification confirmed the first caught fish.",
                         frame.CapturedAt))
                 {
                     StopAutomation("The catch was recognised but the fishing state could not confirm it; all inputs released.");
@@ -1734,7 +1779,9 @@ public partial class MainWindow : Window
 
                 // Stop before the database write so no later frame can start a new
                 // cycle or trigger a periodic inventory action after the first catch.
-                StopAutomation($"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
+                StopAutomation(targetFishCaught
+                    ? $"Target fish confirmed ({_targetFishName}); target-fishing mode completed."
+                    : $"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
             }
 
             var fingerprint = string.Join(
