@@ -396,7 +396,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if ((keepFishingUntilCatch || targetFishEnabled) && !autoCastEnabled)        if ((autoTotemEnabled || autoPotionEnabled) && !autoCastEnabled)
+        if ((autoTotemEnabled || autoPotionEnabled) && !autoCastEnabled)
         {
             AutomationStatusText.Text = "Timed consumables require Auto-cast so they are only used between fishing cycles.";
             return;
@@ -407,7 +407,7 @@ public partial class MainWindow : Window
             return;
         }
 
-
+        if ((keepFishingUntilCatch || targetFishEnabled) && !autoCastEnabled)
         {
             AutomationStatusText.Text = "Keep-fishing mode requires Auto-cast.";
             return;
@@ -469,13 +469,6 @@ public partial class MainWindow : Window
             }
 
             var castCoordinator = autoCastEnabled
-                ? new CastInputCoordinator(input, _perfectCast)
-                : null;
-            var shakeCoordinator = autoShakeEnabled
-                ? new ShakeInputCoordinator(input)
-                : null;
-
-            SellAnywhereCoordinator? sellCoordinator = null;            var castCoordinator = autoCastEnabled
                 ? new CastInputCoordinator(input, _perfectCast)
                 : null;
             var shakeCoordinator = autoShakeEnabled
@@ -1304,7 +1297,7 @@ public partial class MainWindow : Window
     {
         if (string.Equals(name.Trim(), "Default", StringComparison.OrdinalIgnoreCase))
             return new VisionProfileStore();
-        var path = Path.Combine(
+        var path = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GafiFish", "rod-profiles", $"{ProfileSlug(name)}.json");
         return new VisionProfileStore(path);
@@ -1344,7 +1337,6 @@ public partial class MainWindow : Window
             _profile = await _profileStore.LoadOrDefaultAsync();
             _motionTracker.Reset();
             _castVision.Reset();
-            _shakeVision.Reset();
             CalibrationModeText.Text = $"Loaded profile '{_activeProfileName}'.";
             VisionStatusText.Text = _profile.IsFishingCalibrated ? "Vision: profile calibration loaded." : "Vision: profile needs fishing calibration.";
             CastStatusText.Text = _profile.IsCastCalibrated ? "Perfect Cast: profile calibration loaded." : "Perfect Cast: awaiting meter calibration.";
@@ -1915,7 +1907,7 @@ public partial class MainWindow : Window
         {
             File.WriteAllText(dialog.FileName,
                 JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
-            SessionStatusText.Text = $"Diagnostics exported to {Path.GetFileName(dialog.FileName)}.";
+            SessionStatusText.Text = $"Diagnostics exported to {System.IO.Path.GetFileName(dialog.FileName)}.";
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or JsonException)
@@ -1972,7 +1964,7 @@ public partial class MainWindow : Window
                 await SessionExportService.ExportCsvAsync(catches, dialog.FileName);
             }
 
-            SessionStatusText.Text = $"Exported {catches.Count} catches to {System.IO.Path.GetFileName(dialog.FileName)}.";
+            SessionStatusText.Text = $"Exported {catches.Count} catches to {System.IO.System.IO.Path.GetFileName(dialog.FileName)}.";
         }
         catch (Exception exception)
         {
