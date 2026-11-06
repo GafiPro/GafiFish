@@ -2184,6 +2184,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        StopFrameReplay();
         _previewCancellation = new CancellationTokenSource();
         PreviewButton.Content = "Stop observation";
         StatusText.Text = "Observation active. Bring Roblox to the foreground.";
@@ -2209,6 +2210,7 @@ public partial class MainWindow : Window
         PreviewButton.Content = "Start observation";
         StatusText.Text = "Observation stopped.";
         AddActivityLog("INFO", "CAPTURE", "Continuous observation stopped.");
+        UpdateFrameReplayControls();
     }
 
     private async Task RunPreviewLoopAsync(CancellationTokenSource owner)
@@ -2276,6 +2278,7 @@ public partial class MainWindow : Window
                 _previewCancellation = null;
                 owner.Dispose();
                 PreviewButton.Content = "Start observation";
+                UpdateFrameReplayControls();
             }
         }
     }
@@ -2445,9 +2448,10 @@ public partial class MainWindow : Window
     private void UpdateFrameReplayControls()
     {
         var sequence = _frameReplaySequence;
-        ReplayPreviousButton.IsEnabled = sequence?.HasPrevious == true;
-        ReplayNextButton.IsEnabled = sequence?.HasNext == true;
-        ReplayPlayButton.IsEnabled = sequence is not null && sequence.Count > 1;
+        var offlineModeAvailable = _previewCancellation is null && !_automationEnabled;
+        ReplayPreviousButton.IsEnabled = offlineModeAvailable && sequence?.HasPrevious == true;
+        ReplayNextButton.IsEnabled = offlineModeAvailable && sequence?.HasNext == true;
+        ReplayPlayButton.IsEnabled = offlineModeAvailable && sequence is not null && sequence.Count > 1;
         ReplayPlayButton.Content = _frameReplayTimer.IsEnabled ? "Pause" : "Play";
     }
 
