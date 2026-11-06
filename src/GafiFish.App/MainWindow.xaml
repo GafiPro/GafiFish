@@ -626,8 +626,14 @@
                                        Text="Select a saved session to inspect its catches."
                                        Foreground="#EAF0F5" TextWrapping="Wrap" />
                         </Border>
-                        <Button Content="Export diagnostics" Click="ExportDiagnostics_Click"
-                                Height="32" Margin="0,7,0,0" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Grid Margin="0,7,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="Export diagnostics" Click="ExportDiagnostics_Click"
+                                    Height="34" Background="#294153" Foreground="White" BorderThickness="0" />
+                            <Button Grid.Column="2" Content="Export support bundle" Click="ExportSupportBundle_Click"
+                                    Height="34" Background="#285B50" Foreground="White" BorderThickness="0"
+                                    ToolTip="ZIP with diagnostics, recent activity log and a readme. No screenshots or database." />
+                        </Grid>
                         <Separator Margin="0,14,0,10" Background="#33414F" />
                         <TextBlock Text="Catch alerts" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8" />
                         <TextBlock Text="Priority species (comma-separated)" Foreground="#9BAAB8" Margin="0,0,0,5" />

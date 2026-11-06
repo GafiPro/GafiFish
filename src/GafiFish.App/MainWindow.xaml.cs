@@ -1,4 +1,5 @@
 using System.IO;
+using System.IO.Compression;
 using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Text.Json;
@@ -2984,6 +2985,96 @@ public partial class MainWindow : Window
             exception is IOException or UnauthorizedAccessException or JsonException)
         {
             SessionStatusText.Text = $"Diagnostics export failed: {exception.Message}";
+        }
+    }
+
+    private void ExportSupportBundle_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export GafiFish support bundle",
+            Filter = "GafiFish support bundle (*.zip)|*.zip",
+            DefaultExt = "zip",
+            AddExtension = true,
+            FileName = $"GafiFish-support-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var diagnostics = new
+            {
+                GeneratedAtUtc = DateTimeOffset.UtcNow,
+                Application = "GafiFish",
+                Runtime = Environment.Version.ToString(),
+                OperatingSystem = Environment.OSVersion.ToString(),
+                Profile = _activeProfileName,
+                Capture = new
+                {
+                    IsObserving = _previewCancellation is not null,
+                    Width = _lastFrame?.Width,
+                    Height = _lastFrame?.Height,
+                    FramesPerSecond = _smoothedCaptureFps,
+                    PerformanceMode = GetSelectedCapturePerformanceMode().ToString()
+                },
+                Calibration = new
+                {
+                    Fishing = _profile.IsFishingCalibrated,
+                    PerfectCast = _profile.IsCastCalibrated,
+                    Shake = _profile.IsShakeCalibrated,
+                    SellButton = _profile.IsSellButtonCalibrated,
+                    Inventory = _profile.IsInventoryVerificationCalibrated,
+                    CatchNotification = _profile.IsCatchNotificationCalibrated
+                },
+                Automation = new
+                {
+                    Enabled = _automationEnabled,
+                    State = _runtimeStateMachine?.CurrentState.ToString() ?? "Disarmed",
+                    AutoCast = _autoCastEnabled,
+                    AutoShake = _autoShakeEnabled,
+                    AutoTotem = _autoTotemEnabled,
+                    AutoPotion = _autoPotionEnabled
+                },
+                Status = new
+                {
+                    Vision = VisionStatusText.Text,
+                    Cast = CastStatusText.Text,
+                    Shake = ShakeStatusText.Text,
+                    Sell = SellStatusText.Text,
+                    Automation = AutomationStatusText.Text,
+                    OCR = OcrStatusText.Text,
+                    Session = SessionStatusText.Text
+                }
+            };
+
+            using var archive = ZipFile.Open(dialog.FileName, ZipArchiveMode.Create);
+            var diagnosticsEntry = archive.CreateEntry("diagnostics.json", CompressionLevel.Optimal);
+            using (var writer = new StreamWriter(diagnosticsEntry.Open()))
+                writer.Write(JsonSerializer.Serialize(diagnostics, new JsonSerializerOptions { WriteIndented = true }));
+
+            var logEntry = archive.CreateEntry("activity.log", CompressionLevel.Optimal);
+            using (var writer = new StreamWriter(logEntry.Open()))
+                writer.Write(string.Join(Environment.NewLine, _activityLogStore.LoadRecent(500)));
+
+            var readmeEntry = archive.CreateEntry("README.txt", CompressionLevel.Optimal);
+            using (var writer = new StreamWriter(readmeEntry.Open()))
+            {
+                writer.WriteLine("GafiFish support bundle");
+                writer.WriteLine("Contains diagnostics.json and the latest 500 local activity events.");
+                writer.WriteLine("It does not include screenshots, session database, calibration files, OCR models or account credentials.");
+                writer.WriteLine("Review the diagnostics and activity log before sharing this archive.");
+            }
+
+            SessionStatusText.Text = $"Support bundle exported: {System.IO.Path.GetFileName(dialog.FileName)}.";
+            AddActivityLog("INFO", "DIAGNOSTICS", "Exported a privacy-limited support bundle.");
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            SessionStatusText.Text = $"Support bundle export failed: {exception.Message}";
+            AddActivityLog("ERROR", "DIAGNOSTICS", $"Could not export support bundle: {exception.Message}");
         }
     }
 
