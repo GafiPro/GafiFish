@@ -870,6 +870,7 @@ public partial class MainWindow : Window
         KeepFishingUntilCatchCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
         TargetFishCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
         TargetFishTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true && TargetFishCheckBox.IsChecked == true;
+        TargetFishCatchGoalTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true && TargetFishCheckBox.IsChecked == true;
         UpdateTimedItemControls();
         AutoShakeCheckBox.IsEnabled = true;
         SellAnywhereCheckBox.IsEnabled = true;
