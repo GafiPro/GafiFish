@@ -139,6 +139,40 @@ public sealed class FishSessionStoreTests
         }
     }
 
+    [Fact]
+    public async Task GetRecentSessions_ReturnsNewestFirstAndHonoursLimit()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gafifish-{Guid.NewGuid():N}.db");
+        var store = new FishSessionStore(path);
+        var startedAt = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+
+        try
+        {
+            await store.InitializeAsync(TestContext.Current.CancellationToken);
+            var sessionIds = new List<Guid>();
+            for (var index = 0; index < 4; index++)
+            {
+                sessionIds.Add(await store.StartSessionAsync(
+                    startedAt.AddMinutes(index),
+                    TestContext.Current.CancellationToken));
+            }
+
+            var recent = await store.GetRecentSessionsAsync(2, TestContext.Current.CancellationToken);
+
+            Assert.Equal(2, recent.Count);
+            Assert.Equal(sessionIds[3], recent[0].Id);
+            Assert.Equal(sessionIds[2], recent[1].Id);
+            Assert.Equal(startedAt.AddMinutes(3), recent[0].StartedAt);
+
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                () => store.GetRecentSessionsAsync(0, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            DeleteDatabaseFiles(path);
+        }
+    }
+
     private static void DeleteDatabaseFiles(string path)
     {
         SqliteConnection.ClearAllPools();

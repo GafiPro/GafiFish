@@ -17,6 +17,7 @@ using GafiFish.Vision.Tracking;
 using GafiFish.Windows.Capture;
 using GafiFish.Core.Models;
 using GafiFish.Data.Storage;
+using GafiFish.Data.Models;
 using GafiFish.Data.Export;
 using GafiFish.Ocr.Engine;
 using GafiFish.Ocr.Installation;
@@ -126,6 +127,7 @@ public partial class MainWindow : Window
     private bool _ocrInProgress;
     private Task? _catchRecognitionTask;
     private bool _isEndingSession;
+    private bool _isRefreshingSessionHistory;
     private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
     private string? _lastCatchFingerprint;
@@ -197,6 +199,115 @@ public partial class MainWindow : Window
         TelemetryText.Text = $"Profile: {_activeProfileName} · waiting for the first frame.";
         UpdateTimedItemControls();
         await RefreshLifetimeStatisticsAsync();
+        await RefreshSessionHistoryAsync();
+    }
+
+    private async Task RefreshSessionHistoryAsync(Guid? preferredSessionId = null)
+    {
+        try
+        {
+            var previousId = preferredSessionId
+                ?? (SessionHistoryList.SelectedItem as FishingSessionRecord)?.Id;
+            var sessions = await _sessionStore.GetRecentSessionsAsync(20);
+            var selectedSession = previousId.HasValue
+                ? sessions.FirstOrDefault(session => session.Id == previousId.Value)
+                : null;
+            selectedSession ??= sessions.FirstOrDefault();
+
+            _isRefreshingSessionHistory = true;
+            try
+            {
+                SessionHistoryList.ItemsSource = sessions;
+                SessionHistoryList.SelectedItem = selectedSession;
+            }
+            finally
+            {
+                _isRefreshingSessionHistory = false;
+            }
+
+            UpdateSessionExportButtons(selectedSession);
+            if (selectedSession is null)
+            {
+                SelectedSessionDetailsText.Text = "No saved fishing sessions yet.";
+                return;
+            }
+
+            await ShowSessionDetailsAsync(selectedSession);
+        }
+        catch (Exception exception)
+        {
+            SelectedSessionDetailsText.Text = $"Could not load session history: {exception.Message}";
+            UpdateSessionExportButtons(null);
+        }
+    }
+
+    private async Task ShowSessionDetailsAsync(FishingSessionRecord session)
+    {
+        try
+        {
+            var catches = await _sessionStore.GetCatchesAsync(session.Id);
+            var finishedAt = session.EndedAt;
+            var durationEnd = finishedAt ?? DateTimeOffset.UtcNow;
+            var duration = durationEnd >= session.StartedAt
+                ? durationEnd - session.StartedAt
+                : TimeSpan.Zero;
+            var status = finishedAt.HasValue
+                ? $"Ended: {finishedAt.Value.ToLocalTime():dd/MM/yyyy HH:mm}"
+                : "Status: In progress";
+
+            var latestCatchLines = catches
+                .OrderByDescending(fish => fish.CaughtAt)
+                .Take(15)
+                .Select(fish =>
+                {
+                    var species = string.IsNullOrWhiteSpace(fish.Species) ? "Unidentified fish" : fish.Species;
+                    var rarity = fish.Rarity?.ToString() ?? "Unknown rarity";
+                    var mutation = string.IsNullOrWhiteSpace(fish.Mutation) ? string.Empty : $" · {fish.Mutation}";
+                    var weight = fish.WeightKg.HasValue ? $" · {fish.WeightKg.Value:F2} kg" : string.Empty;
+                    var value = fish.EstimatedValue.HasValue ? $" · ~{fish.EstimatedValue.Value:N0}" : string.Empty;
+                    return $"{fish.CaughtAt.ToLocalTime():HH:mm:ss} · {species} · {rarity}{mutation}{weight}{value}";
+                });
+
+            SelectedSessionDetailsText.Text =
+                $"Started: {session.StartedAt.ToLocalTime():dd/MM/yyyy HH:mm}{Environment.NewLine}" +
+                $"{status}{Environment.NewLine}" +
+                $"Duration: {duration.TotalMinutes:F1} min · {catches.Count} catches{Environment.NewLine}" +
+                (catches.Count > 15 ? "Latest 15 catches:" : "Catches:") + Environment.NewLine +
+                (catches.Count == 0 ? "No catches saved in this session." : string.Join(Environment.NewLine, latestCatchLines));
+        }
+        catch (Exception exception)
+        {
+            SelectedSessionDetailsText.Text = $"Could not load this session: {exception.Message}";
+        }
+    }
+
+    private void UpdateSessionExportButtons(FishingSessionRecord? selectedSession)
+    {
+        var canExport = selectedSession?.EndedAt is not null
+            || (selectedSession is null && _lastCompletedSessionId.HasValue);
+        ExportCsvButton.IsEnabled = canExport;
+        ExportJsonButton.IsEnabled = canExport;
+    }
+
+    private async void RefreshSessionHistory_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshSessionHistoryAsync();
+    }
+
+    private async void SessionHistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isRefreshingSessionHistory)
+            return;
+
+        var selectedSession = SessionHistoryList.SelectedItem as FishingSessionRecord;
+        UpdateSessionExportButtons(selectedSession);
+        if (selectedSession is null)
+        {
+            SelectedSessionDetailsText.Text = "Select a saved session to inspect its catches.";
+            return;
+        }
+
+        await ShowSessionDetailsAsync(selectedSession);
     }
 
     private async Task RefreshLifetimeStatisticsAsync()
@@ -1804,6 +1915,7 @@ public partial class MainWindow : Window
             OcrStatusText.Text = "Local OCR ready. Images stay on this computer.";
             SessionStatusText.Text = "Session running. Start F7 observation to detect catch notifications.";
             SessionSummaryText.Text = string.Empty;
+            await RefreshSessionHistoryAsync(sessionId);
         }
         catch (Exception exception)
         {
@@ -1869,6 +1981,7 @@ public partial class MainWindow : Window
             OcrStatusText.Text = "Local OCR remains ready for the next session.";
             StartSessionButton.IsEnabled = true;
             await RefreshLifetimeStatisticsAsync();
+            await RefreshSessionHistoryAsync(sessionId);
         }
         catch (Exception exception)
         {
@@ -1988,9 +2101,13 @@ public partial class MainWindow : Window
 
     private async Task ExportCompletedSessionAsync(bool exportJson)
     {
-        if (_lastCompletedSessionId is not Guid sessionId)
+        var selectedSession = SessionHistoryList.SelectedItem as FishingSessionRecord;
+        Guid? selectedSessionId = selectedSession is { EndedAt: not null }
+            ? selectedSession.Id
+            : selectedSession is null ? _lastCompletedSessionId : null;
+        if (selectedSessionId is not Guid sessionId)
         {
-            SessionStatusText.Text = "End a session before exporting its catch history.";
+            SessionStatusText.Text = "Select a completed session before exporting its catch history.";
             return;
         }
 
@@ -2170,6 +2287,7 @@ public partial class MainWindow : Window
             await _sessionStore.SaveCatchAsync(sessionId, fishCatch);
             AlertForCatchIfNeeded(fishCatch);
             await RefreshLifetimeStatisticsAsync();
+            await RefreshSessionHistoryAsync(sessionId);
             _lastCatchFingerprint = fingerprint;
             _lastCatchAt = frame.CapturedAt;
 

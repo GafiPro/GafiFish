@@ -70,8 +70,9 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Parser conservador de espécie, raridade, mutação, peso e valor quando reconhecidos.
 - [x] Deduplicação temporal de notificações.
 - [x] Histórico de sessões e capturas em SQLite.
+- [x] Explorador das 20 sessões mais recentes, com detalhes das últimas 15 capturas por sessão.
+- [x] Exportação CSV/JSON da sessão concluída selecionada, incluindo sessões anteriores.
 - [x] Resumo com até 25 melhores peixes.
-- [x] Exportação CSV/JSON.
 - [ ] Afinação do parser com notificações reais do Fisch e nomes especiais.
 - [ ] Cópia direta do resumo para a área de transferência.
 

@@ -16,7 +16,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Botões visíveis Start macro / Stop macro, além dos atalhos F8/F9. O modo de recast contínuo exige Auto-cast, sessão OCR ativa e região de notificação calibrada; o timeout de Reel liberta o controlo e reinicia o ciclo, sem eliminar os stops de emergência.
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
-- Histórico local SQLite, resumo de sessão com os 25 melhores peixes e exportação CSV/JSON.
+- Histórico local SQLite, explorador das 20 sessões mais recentes, detalhes das últimas 15 capturas de cada sessão e exportação CSV/JSON da sessão selecionada.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR e persistência.
 
 ## O que falta validar no jogo real
