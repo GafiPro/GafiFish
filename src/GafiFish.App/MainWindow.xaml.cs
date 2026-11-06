@@ -104,8 +104,7 @@ public partial class MainWindow : Window
     private ShakeInputCoordinator? _shakeCoordinator;
     private bool _autoCastEnabled;
     private bool _autoShakeEnabled;
-    private int _missedBiteRetryCount;
-    private const int MaximumMissedBiteRetries = 2;
+    private readonly MissedBiteRetryPolicy _missedBiteRetries = new();
     private bool _automationEnabled;
     private LocalTesseractOcr? _ocr;
     private Guid? _activeSessionId;
@@ -348,7 +347,7 @@ public partial class MainWindow : Window
             _shakeCoordinator = shakeCoordinator;
             _autoCastEnabled = autoCastEnabled;
             _autoShakeEnabled = autoShakeEnabled;
-            _missedBiteRetryCount = 0;
+            _missedBiteRetries.Reset();
             _automationEnabled = true;
             InvertReelDirectionCheckBox.IsEnabled = false;
             AutoCastCheckBox.IsEnabled = false;
@@ -585,20 +584,19 @@ public partial class MainWindow : Window
                 && _runtimeStateMachine.CurrentState == FishingState.WaitingForBite
                 && _runtimeStateMachine.HasTimedOut(TimeSpan.FromSeconds(30), frame.CapturedAt))
             {
-                if (_missedBiteRetryCount < MaximumMissedBiteRetries)
+                if (_missedBiteRetries.TryConsumeRetry())
                 {
-                    _missedBiteRetryCount++;
                     _castVision.Reset();
                     if (!_runtimeStateMachine.TryTransition(
                             FishingState.Preparing,
-                            $"No bite after 30 seconds; starting bounded recast retry {_missedBiteRetryCount}/{MaximumMissedBiteRetries}.",
+                            $"No bite after 30 seconds; starting bounded recast retry {_missedBiteRetries.RetriesUsed}/{_missedBiteRetries.MaximumRetries}.",
                             frame.CapturedAt))
                     {
                         throw new InvalidOperationException("Could not return to Preparing after a missed bite.");
                     }
 
                     AutomationStatusText.Text =
-                        $"No bite detected. Recasting ({_missedBiteRetryCount}/{MaximumMissedBiteRetries} retries used).";
+                        $"No bite detected. Recasting ({_missedBiteRetries.RetriesUsed}/{_missedBiteRetries.MaximumRetries} retries used).";
                 }
                 else
                 {
