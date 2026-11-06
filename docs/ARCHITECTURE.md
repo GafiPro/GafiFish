@@ -74,7 +74,7 @@ O Reel usa um controlador PD com look-ahead curto e deadband:
 
 A coordenação está em `ReelInputCoordinator`. Só atua no estado `Reeling` e precisa de ambos os marcadores calibrados. F8 arma o input; F9 pára e liberta todos os inputs. A opção de inversão do mapeamento hold/release existe porque a direção correta deve ser confirmada no minijogo real.
 
-O Reel não faz cast nem recast. A direção, a velocidade e os limiares precisam de validação com a interface real do Fisch.
+O ciclo pode opcionalmente equipar a cana a partir de um slot de hotbar, faz Auto-cast, espera pela mordida e tenta recast até duas vezes após timeouts. Depois de detetar os dois marcadores, o Reel usa o controlador PD. A direção, velocidade e limiares ainda precisam de validação com a interface real do Fisch.
 
 ## 5. Perfect Cast
 
