@@ -200,6 +200,8 @@ public partial class MainWindow : Window
         WatchSpeciesTextBox.Text = catchAlertSettings.WatchedSpecies;
         AlertLegendaryCheckBox.IsChecked = catchAlertSettings.AlertOnLegendaryOrHigher;
         AlertMutationCheckBox.IsChecked = catchAlertSettings.AlertOnMutation;
+        MinimumAlertWeightTextBox.Text = catchAlertSettings.MinimumWeightKg?.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
+        MinimumAlertValueTextBox.Text = catchAlertSettings.MinimumEstimatedValue?.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
         CatchAlertSettingsStatusText.Text = "Saved alert preferences loaded from this computer.";
         ApplyHotkeySettingsToControls();
         RegisterGlobalHotkeys();
@@ -451,6 +453,8 @@ public partial class MainWindow : Window
     {
         if (ExportFilteredCatchHistoryButton is not null)
             ExportFilteredCatchHistoryButton.IsEnabled = _visibleCatchHistoryRows.Count > 0;
+        if (ExportFilteredCatchHistoryJsonButton is not null)
+            ExportFilteredCatchHistoryJsonButton.IsEnabled = _visibleCatchHistoryRows.Count > 0;
         if (CopySelectedCatchButton is not null)
             CopySelectedCatchButton.IsEnabled = CatchHistoryGrid.SelectedItem is CatchHistoryRow;
     }
@@ -558,6 +562,53 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ExportFilteredCatchHistoryJson_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = _visibleCatchHistoryRows.ToArray();
+        if (rows.Length == 0)
+            return;
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export filtered GafiFish catch archive as JSON",
+            Filter = "JSON file (*.json)|*.json",
+            DefaultExt = "json",
+            AddExtension = true,
+            FileName = $"GafiFish-filtered-catches-{DateTime.Now:yyyyMMdd-HHmmss}.json",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var records = rows.Select(item => new
+            {
+                item.CaughtAt,
+                item.Species,
+                item.Rarity,
+                item.Mutation,
+                item.WeightKg,
+                item.EstimatedValue,
+                item.RecognitionConfidence,
+                item.SessionStartedAt,
+                item.SessionId
+            }).ToArray();
+            var json = JsonSerializer.Serialize(records, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+            });
+            File.WriteAllText(dialog.FileName, json);
+            CatchArchiveStatusText.Text =
+                $"Exported {rows.Length:N0} filtered catches to {System.IO.Path.GetFileName(dialog.FileName)}.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            CatchArchiveStatusText.Text = $"Could not export filtered catch archive: {exception.Message}";
+        }
+    }
+
     private static string EscapeCsvCell(string value) =>
         "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 
@@ -604,11 +655,20 @@ public partial class MainWindow : Window
 
     private async void SaveCatchAlertSettings_Click(object sender, RoutedEventArgs e)
     {
+        if (!TryReadOptionalPositiveDouble(MinimumAlertWeightTextBox.Text, out var minimumWeight)
+            || !TryReadOptionalPositiveDecimal(MinimumAlertValueTextBox.Text, out var minimumValue))
+        {
+            CatchAlertSettingsStatusText.Text = "Enter positive numbers for the thresholds, or leave them blank to disable them.";
+            return;
+        }
+
         var settings = new CatchAlertSettings
         {
             WatchedSpecies = WatchSpeciesTextBox.Text.Trim(),
             AlertOnLegendaryOrHigher = AlertLegendaryCheckBox.IsChecked == true,
-            AlertOnMutation = AlertMutationCheckBox.IsChecked == true
+            AlertOnMutation = AlertMutationCheckBox.IsChecked == true,
+            MinimumWeightKg = minimumWeight,
+            MinimumEstimatedValue = minimumValue
         };
 
         try
@@ -623,15 +683,56 @@ public partial class MainWindow : Window
         }
     }
 
+    private static bool TryReadOptionalPositiveDouble(string? text, out double? value)
+    {
+        value = null;
+        if (string.IsNullOrWhiteSpace(text))
+            return true;
+
+        var parsed = double.TryParse(text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.CurrentCulture, out var current)
+            ? current
+            : double.TryParse(text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out current) ? current : double.NaN;
+        if (!double.IsFinite(parsed) || parsed <= 0)
+            return false;
+
+        value = parsed;
+        return true;
+    }
+
+    private static bool TryReadOptionalPositiveDecimal(string? text, out decimal? value)
+    {
+        value = null;
+        if (string.IsNullOrWhiteSpace(text))
+            return true;
+
+        var parsed = decimal.TryParse(text, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.CurrentCulture, out var current)
+            ? current
+            : decimal.TryParse(text, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out current) ? current : 0m;
+        if (parsed <= 0)
+            return false;
+
+        value = parsed;
+        return true;
+    }
+
     private void AlertForCatchIfNeeded(FishCatch fishCatch)
     {
+        _ = TryReadOptionalPositiveDouble(MinimumAlertWeightTextBox.Text, out var minimumWeight);
+        _ = TryReadOptionalPositiveDecimal(MinimumAlertValueTextBox.Text, out var minimumValue);
+
         var watchedSpecies = WatchSpeciesTextBox.Text.Split(
             new[] { ',', ';', '\r', '\n' },
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var options = new CatchAlertOptions(
             watchedSpecies,
             AlertLegendaryCheckBox.IsChecked == true,
-            AlertMutationCheckBox.IsChecked == true);
+            AlertMutationCheckBox.IsChecked == true,
+            minimumWeight,
+            minimumValue);
         var reasons = CatchAlertMatcher.GetReasons(fishCatch, options);
         if (reasons.Count == 0)
             return;
@@ -2752,7 +2853,9 @@ public partial class MainWindow : Window
                 TargetFish = _targetFishEnabled ? _targetFishName : null,
                 PrioritySpecies = WatchSpeciesTextBox.Text,
                 AlertLegendary = AlertLegendaryCheckBox.IsChecked == true,
-                AlertMutation = AlertMutationCheckBox.IsChecked == true
+                AlertMutation = AlertMutationCheckBox.IsChecked == true,
+                MinimumAlertWeightKg = TryReadOptionalPositiveDouble(MinimumAlertWeightTextBox.Text, out var diagnosticWeight) ? diagnosticWeight : null,
+                MinimumAlertEstimatedValue = TryReadOptionalPositiveDecimal(MinimumAlertValueTextBox.Text, out var diagnosticValue) ? diagnosticValue : null
             },
             Status = new
             {

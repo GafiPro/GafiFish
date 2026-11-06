@@ -1,3 +1,4 @@
+using System.Globalization;
 using GafiFish.Core.Models;
 
 namespace GafiFish.Core.Services;
@@ -33,6 +34,24 @@ public static class CatchAlertMatcher
         if (options.AlertOnMutation && !string.IsNullOrWhiteSpace(fishCatch.Mutation))
         {
             reasons.Add($"Mutation: {fishCatch.Mutation}");
+        }
+
+        if (options.MinimumWeightKg is double minimumWeight
+            && double.IsFinite(minimumWeight)
+            && minimumWeight > 0
+            && fishCatch.WeightKg is double actualWeight
+            && double.IsFinite(actualWeight)
+            && actualWeight >= minimumWeight)
+        {
+            reasons.Add($"Weight threshold: {minimumWeight.ToString("0.##", CultureInfo.InvariantCulture)} kg+");
+        }
+
+        if (options.MinimumEstimatedValue is decimal minimumValue
+            && minimumValue > 0
+            && fishCatch.EstimatedValue is decimal actualValue
+            && actualValue >= minimumValue)
+        {
+            reasons.Add($"Estimated value threshold: {minimumValue.ToString("0.##", CultureInfo.InvariantCulture)}+");
         }
 
         return reasons;

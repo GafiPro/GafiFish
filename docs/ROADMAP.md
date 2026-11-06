@@ -163,3 +163,13 @@ Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, dete�
 - [x] Carregar preferências automaticamente no arranque.
 - [x] Gravação atómica e validação do tamanho da lista de espécies.
 - [x] Testes de valores por defeito, round-trip, JSON inválido e validação.
+
+
+## Alertas quantitativos e exportação — novembro de 2026
+
+- [x] Alertas de captura opcionais por peso mínimo reconhecido pelo OCR.
+- [x] Alertas de captura opcionais por valor estimado mínimo reconhecido pelo OCR.
+- [x] Preferências dos novos limites guardadas no ficheiro local de alertas.
+- [x] Os campos não reconhecidos pelo OCR nunca disparam alertas quantitativos.
+- [x] Exportação JSON dos resultados atualmente filtrados no Catchbook, em paralelo com CSV.
+- [x] Testes para limites atingidos/não atingidos, campos OCR desconhecidos e validação das preferências.

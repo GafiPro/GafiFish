@@ -639,7 +639,21 @@
                                   IsChecked="True" Foreground="#EAF0F5" Margin="0,8,0,4" />
                         <CheckBox x:Name="AlertMutationCheckBox"
                                   Content="Alert for any recognised mutation"
-                                  IsChecked="False" Foreground="#EAF0F5" Margin="0,2,0,4" />
+                                  IsChecked="False" Foreground="#EAF0F5" Margin="0,2,0,8" />
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Minimum recognised weight (kg)" Foreground="#DCE6ED" VerticalAlignment="Center" />
+                            <TextBox x:Name="MinimumAlertWeightTextBox" Grid.Column="1" Height="30" Padding="8,4"
+                                     Background="#263543" Foreground="#EAF0F5" ToolTip="Leave blank to disable weight alerts." />
+                        </Grid>
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Minimum estimated value" Foreground="#DCE6ED" VerticalAlignment="Center" />
+                            <TextBox x:Name="MinimumAlertValueTextBox" Grid.Column="1" Height="30" Padding="8,4"
+                                     Background="#263543" Foreground="#EAF0F5" ToolTip="Leave blank to disable value alerts." />
+                        </Grid>
+                        <TextBlock Text="Numeric alerts only trigger when OCR recognised the relevant value."
+                                   Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,5" />
                         <TextBlock x:Name="CatchAlertStatusText"
                                    Text="Alerts ready · Legendary+ enabled."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,5,0,0" />
@@ -756,6 +770,8 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="CatchArchiveStatusText" Grid.Column="0"
                                        Text="The archive is stored locally in the GafiFish SQLite database."
@@ -766,7 +782,10 @@
                             <Button x:Name="ExportFilteredCatchHistoryButton" Grid.Column="3" Content="Export filtered CSV"
                                     Click="ExportFilteredCatchHistoryCsv_Click" Height="34" Padding="12,0"
                                     Background="#285B50" Foreground="White" BorderThickness="0" IsEnabled="False" />
-                            <Button Grid.Column="5" Content="Refresh" Click="RefreshCatchArchive_Click"
+                            <Button x:Name="ExportFilteredCatchHistoryJsonButton" Grid.Column="5" Content="Export JSON"
+                                    Click="ExportFilteredCatchHistoryJson_Click" Height="34" Padding="12,0"
+                                    Background="#285B50" Foreground="White" BorderThickness="0" IsEnabled="False" />
+                            <Button Grid.Column="7" Content="Refresh" Click="RefreshCatchArchive_Click"
                                     Height="34" Padding="12,0" Background="#203847" Foreground="White" BorderThickness="0" />
                         </Grid>
                     </Grid>

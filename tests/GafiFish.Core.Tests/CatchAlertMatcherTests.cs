@@ -54,6 +54,47 @@ public sealed class CatchAlertMatcherTests
     }
 
     [Fact]
+    public void AlertsWhenRecognisedWeightAndValueReachConfiguredThresholds()
+    {
+        var fish = Catch("Heavy Fish", FishRarity.Common, null);
+        var options = new CatchAlertOptions([], false, false, 1.2, 90m);
+
+        var reasons = CatchAlertMatcher.GetReasons(fish, options);
+
+        Assert.Equal(2, reasons.Count);
+        Assert.Contains(reasons, reason => reason.StartsWith("Weight threshold", StringComparison.Ordinal));
+        Assert.Contains(reasons, reason => reason.StartsWith("Estimated value threshold", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DoesNotAlertForRecognisedWeightOrValueBelowThreshold()
+    {
+        var fish = Catch("Small Fish", FishRarity.Common, null);
+        var options = new CatchAlertOptions([], false, false, 2.0, 150m);
+
+        Assert.Empty(CatchAlertMatcher.GetReasons(fish, options));
+    }
+
+    [Fact]
+    public void UnknownWeightAndValueNeverTriggerNumericThresholds()
+    {
+        var fish = new FishCatch(Guid.NewGuid(), DateTimeOffset.UtcNow,
+            "Unmeasured Fish", FishRarity.Common, null, null, null, 0.96);
+        var options = new CatchAlertOptions([], false, false, 0.1, 1m);
+
+        Assert.Empty(CatchAlertMatcher.GetReasons(fish, options));
+    }
+
+    [Fact]
+    public void InvalidNumericThresholdsAreIgnoredByMatcher()
+    {
+        var fish = Catch("Test Fish", FishRarity.Common, null);
+        var options = new CatchAlertOptions([], false, false, double.NaN, -10m);
+
+        Assert.Empty(CatchAlertMatcher.GetReasons(fish, options));
+    }
+
+    [Fact]
     public void UnknownSpeciesDoesNotMatchWatchList()
     {
         var reasons = CatchAlertMatcher.GetReasons(

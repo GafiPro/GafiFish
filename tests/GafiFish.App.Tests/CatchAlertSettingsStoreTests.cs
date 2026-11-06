@@ -33,7 +33,9 @@ public sealed class CatchAlertSettingsStoreTests
         {
             WatchedSpecies = "Scylla, Megalodon; Bluefin Tuna",
             AlertOnLegendaryOrHigher = false,
-            AlertOnMutation = true
+            AlertOnMutation = true,
+            MinimumWeightKg = 12.5,
+            MinimumEstimatedValue = 2500m
         };
 
         try
@@ -76,6 +78,26 @@ public sealed class CatchAlertSettingsStoreTests
             var settings = new CatchAlertSettings { WatchedSpecies = new string('x', 2001) };
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 store.SaveAsync(settings, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task SaveAsync_RejectsNonPositiveNumericThresholds()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var store = new CatchAlertSettingsStore(Path.Combine(directory, "alerts.json"));
+            await Assert.ThrowsAsync<ArgumentException>(() => store.SaveAsync(
+                new CatchAlertSettings { MinimumWeightKg = 0 },
+                TestContext.Current.CancellationToken));
+            await Assert.ThrowsAsync<ArgumentException>(() => store.SaveAsync(
+                new CatchAlertSettings { MinimumEstimatedValue = -1m },
+                TestContext.Current.CancellationToken));
         }
         finally
         {
