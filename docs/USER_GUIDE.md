@@ -24,10 +24,11 @@ Com o Roblox em primeiro plano e a observação F7 ativa:
 - Se o Roblox perder o foco ou F7 for parado, o GafiFish também desarma e liberta os inputs.
 
 O controlador só atua quando ambos os marcadores estão presentes e acima do limiar de confiança. Se um desaparecer, o botão esquerdo é libertado. A opção **Invert hold/release mapping** permite inverter o sentido do controlo; testa-a apenas numa situação segura. Antes de pressionar F8, podes ativar duas opções desligadas por defeito:
-- **Auto-cast**: exige medidor Cast calibrado. Segura o botão esquerdo e liberta-o quando o Perfect Cast indica a janela-alvo; cancela se a leitura ficar inválida ou ultrapassar 8 segundos.
-- **Auto-shake**: exige região e cor Shake calibradas. Clica apenas num candidato acima do limiar, estável em dois frames; espera que desapareça ou se mova antes de aceitar outro clique.
+- **Equipar cana** (opcional): marca a caixa e escolhe o slot de hotbar que contém a cana (1–9 ou 0). Ao pressionar F8, o GafiFish envia essa tecla uma vez através do input normal do Windows. Se não ativares a opção, deixa a cana equipada manualmente.
+- **Auto-cast e auto-recast**: exige medidor Cast calibrado. Segura o botão esquerdo e liberta-o quando o Perfect Cast prevê a janela-alvo; cancela se a leitura ficar inválida ou ultrapassar 8 segundos. Se não surgirem marcadores de Reel em 30 segundos, tenta novamente até duas vezes; depois pára em segurança.
+- **Auto-shake**: exige região e cor Shake calibradas. Clica só após dois frames estáveis acima do limiar, não repete o mesmo prompt e termina a sequência depois de quatro frames sem candidatos.
 
-Equipar a cana continua a ser uma ação manual. Estas opções foram testadas em frames simulados, não numa sessão real do Fisch. A direção e o timing devem ser verificados com cuidado antes de as usares numa sessão importante.
+A direção e o timing do Reel/Cast/Shake foram testados com inputs simulados e frames sintéticos, não numa sessão real do Fisch. A calibração visual e a resposta da tua cana/resolução ainda precisam de validação prática.
 
 
 
@@ -74,4 +75,4 @@ O fluxo verifica primeiro se o botão já está visível. Se o inventário estiv
 
 Sell Anywhere vende o que não estiver marcado como favorito. A opção está desligada por defeito e exige confirmação explícita na caixa da interface. Marca como favorito tudo o que pretendes guardar antes de a ativares. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
 
-O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake usa os candidatos de cor/forma na região calibrada. Ambos são opções na interface, desligadas por defeito, e ainda precisam de ser validados com uma captura real. O GafiFish não equipa a cana nem faz recast depois de uma captura. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
+O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake usa os candidatos de cor/forma na região calibrada. Ambos são opções na interface, desligadas por defeito, e ainda precisam de ser validados com uma captura real. O GafiFish pode equipar a cana no slot escolhido e faz recast automático após uma captura; se não houver mordida, limita-se a duas tentativas adicionais. A deteção visual ainda requer calibração real. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
