@@ -768,15 +768,18 @@ public partial class MainWindow : Window
             if (_runtimeStateMachine.CurrentState == FishingState.Reeling
                 && _runtimeStateMachine.HasTimedOut(TimeSpan.FromMinutes(3), frame.CapturedAt))
             {
-                if (_keepFishingUntilCatchEnabled)
+                if (_keepFishingUntilCatchEnabled || _targetFishEnabled)
                 {
+                    var recoveryGoal = _targetFishEnabled
+                        ? $"target '{_targetFishName}'"
+                        : "the first confirmed catch";
                     if (!_runtimeStateMachine.TryTransition(
                             FishingState.Recovering,
                             "Reel phase exceeded its safety window; release control and begin a fresh cycle.",
                             frame.CapturedAt)
                         || !_runtimeStateMachine.TryTransition(
                             FishingState.Preparing,
-                            "Recovery completed; prepare a fresh cast while waiting for the first confirmed catch.",
+                            $"Recovery completed; prepare a fresh cast while waiting for {recoveryGoal}.",
                             frame.CapturedAt))
                     {
                         throw new InvalidOperationException("Could not recover from a timed-out Reel phase.");
