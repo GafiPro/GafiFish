@@ -8,7 +8,7 @@ public sealed class MissedBiteRetryPolicy
 {
     public const int DefaultMaximumRetries = 2;
 
-    public MissedBiteRetryPolicy(int maximumRetries = DefaultMaximumRetries)
+    public MissedBiteRetryPolicy(int maximumRetries = DefaultMaximumRetries, bool unlimitedRetries = false)
     {
         if (maximumRetries is < 0 or > 10)
         {
@@ -16,11 +16,13 @@ public sealed class MissedBiteRetryPolicy
         }
 
         MaximumRetries = maximumRetries;
+        UnlimitedRetries = unlimitedRetries;
     }
 
     public int MaximumRetries { get; }
+    public bool UnlimitedRetries { get; }
     public int RetriesUsed { get; private set; }
-    public bool CanRetry => RetriesUsed < MaximumRetries;
+    public bool CanRetry => UnlimitedRetries || RetriesUsed < MaximumRetries;
 
     public bool TryConsumeRetry()
     {
