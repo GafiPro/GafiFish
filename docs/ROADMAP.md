@@ -205,3 +205,14 @@ Appraise/Treasure Appraise, Auto Enchant, automação visual do Aquarium, Angler
 - [x] Alerta do claim condicionado ao lembrete horário.
 - [x] Deduplicação por ação e timestamp para evitar spam a cada atualização do temporizador.
 - [x] Preferência persistente e testes de ações independentes, novas conclusões e estados não registados.
+
+
+## Auto Aquarium — motor visual calibrável — novembro de 2026
+
+- [x] Configurações de botão independentes por ação: região normalizada e cor do estado pronto, inicialmente vazias.
+- [x] Deteção OpenCV restrita à região que o utilizador selecionou para cada botão.
+- [x] Coordenador de ações que aguarda cooldown registado, exige três frames estáveis e envia um único clique.
+- [x] Confirmação por desaparecimento do botão ativo em dois frames consecutivos; falha fechada após timeout sem repetir.
+- [x] Opções independentes de alimentação, reposição e claim, todas desligadas por defeito.
+- [x] Reposição exige ativação explícita e a UI informa que pode gastar moeda do jogo.
+- [ ] Validar as sete calibrações com frames reais do Fisch e testar o fluxo completo no jogo.

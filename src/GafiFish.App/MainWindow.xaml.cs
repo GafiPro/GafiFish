@@ -68,6 +68,11 @@ public partial class MainWindow : Window
     private readonly AquariumScheduleStore _aquariumScheduleStore = new();
     private AquariumScheduleState _aquariumScheduleState = new();
     private readonly AquariumReadyAlertTracker _aquariumReadyAlertTracker = new();
+    private readonly AquariumButtonVisionDetector _aquariumButtonVision = new();
+    private AquariumAutomationCoordinator? _aquariumAutomationCoordinator;
+    private RobloxInputService? _aquariumAutomationInput;
+    private bool _aquariumStartRequested;
+    private AquariumActionKind _aquariumCalibrationActionKind = AquariumActionKind.FeedGuppiesBest;
     private readonly DispatcherTimer _aquariumTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _frameReplayTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
     private FrameReplaySequence? _frameReplaySequence;
@@ -181,7 +186,9 @@ public partial class MainWindow : Window
         SelectSellButtonRegion,
         SampleSellButton,
         SelectInventoryItemsRegion,
-        SelectCatchNotificationRegion
+        SelectCatchNotificationRegion,
+        SelectAquariumButtonRegion,
+        SampleAquariumButtonColor
     }
 
     public MainWindow()
@@ -219,6 +226,12 @@ public partial class MainWindow : Window
         _isLoadingAquariumSchedule = true;
         AquariumClaimReminderCheckBox.IsChecked = _aquariumScheduleState.ClaimReminderEnabled;
         AquariumReadySoundCheckBox.IsChecked = _aquariumScheduleState.ReadySoundEnabled;
+        AquariumAutoFeedCheckBox.IsChecked = _aquariumScheduleState.AutoFeedEnabled;
+        AquariumAutoRestockCheckBox.IsChecked = _aquariumScheduleState.AutoRestockEnabled;
+        AquariumAutoClaimCheckBox.IsChecked = _aquariumScheduleState.AutoClaimEnabled;
+        AquariumAutoFeedCheckBox.IsChecked = _aquariumScheduleState.AutoFeedEnabled;
+        AquariumAutoRestockCheckBox.IsChecked = _aquariumScheduleState.AutoRestockEnabled;
+        AquariumAutoClaimCheckBox.IsChecked = _aquariumScheduleState.AutoClaimEnabled;
         _isLoadingAquariumSchedule = false;
         RefreshAquariumPlannerDisplay(DateTimeOffset.UtcNow);
         _aquariumTimer.Start();
@@ -842,6 +855,225 @@ public partial class MainWindow : Window
         AddActivityLog("INFO", "AQUARIUM", $"Cooldown ready: {summary}");
     }
 
+
+    private AquariumAutomationOptions ReadAquariumAutomationOptions() =>
+        new(
+            AquariumAutoFeedCheckBox.IsChecked == true,
+            AquariumAutoRestockCheckBox.IsChecked == true,
+            AquariumAutoClaimCheckBox.IsChecked == true);
+
+    private static IReadOnlyList<AquariumActionKind> GetAquariumActions(AquariumAutomationOptions options)
+    {
+        var actions = new List<AquariumActionKind>();
+        foreach (var action in Enum.GetValues<AquariumActionKind>())
+        {
+            var enabled = action switch
+            {
+                AquariumActionKind.FeedGuppiesBest or AquariumActionKind.FeedFishChow
+                    or AquariumActionKind.FeedSplashSnacks => options.FeedEnabled,
+                AquariumActionKind.RestockGuppiesBest or AquariumActionKind.RestockFishChow
+                    or AquariumActionKind.RestockSplashSnacks => options.RestockEnabled,
+                AquariumActionKind.ClaimReward => options.ClaimEnabled,
+                _ => false
+            };
+            if (enabled)
+                actions.Add(action);
+        }
+        return actions;
+    }
+
+    private AquariumActionKind ReadAquariumCalibrationAction()
+    {
+        if (AquariumVisualActionComboBox.SelectedItem is ComboBoxItem item
+            && item.Tag is string tag
+            && Enum.TryParse<AquariumActionKind>(tag, ignoreCase: true, out var action))
+            return action;
+
+        throw new InvalidOperationException("Select a valid Aquarium action to calibrate.");
+    }
+
+    private void SelectAquariumButtonRegion_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _aquariumCalibrationActionKind = ReadAquariumCalibrationAction();
+            SetCalibrationAction(
+                CalibrationAction.SelectAquariumButtonRegion,
+                $"Drag a tight rectangle around the enabled {AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            CalibrationModeText.Text = exception.Message;
+        }
+    }
+
+    private void SampleAquariumButtonColor_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _aquariumCalibrationActionKind = ReadAquariumCalibrationAction();
+            SetCalibrationAction(
+                CalibrationAction.SampleAquariumButtonColor,
+                $"Click a clear pixel inside the enabled {AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            CalibrationModeText.Text = exception.Message;
+        }
+    }
+
+    private void StartAquariumAutomation_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled || _startRequested)
+        {
+            AquariumAutomationStatusText.Text = "Stop the fishing macro before arming Auto Aquarium.";
+            return;
+        }
+        if (_aquariumAutomationCoordinator?.IsStarted == true || _aquariumStartRequested)
+            return;
+
+        var options = ReadAquariumAutomationOptions();
+        if (!options.HasEnabledActions)
+        {
+            AquariumAutomationStatusText.Text = "Enable at least one action. Restock and claim are optional and off by default.";
+            return;
+        }
+
+        foreach (var action in GetAquariumActions(options))
+        {
+            if (!_profile.AquariumButtons.TryGetValue(action, out var calibration) || !calibration.IsCalibrated)
+            {
+                AquariumAutomationStatusText.Text =
+                    $"Calibrate the region and enabled-button colour for {AquariumAutomationCoordinator.FormatAction(action)} first.";
+                return;
+            }
+        }
+
+        if (_previewCancellation is null)
+            TogglePreviewLoop();
+
+        _aquariumStartRequested = true;
+        StartAquariumAutomationButton.IsEnabled = false;
+        StopAquariumAutomationButton.IsEnabled = true;
+        AquariumAutomationStatusText.Text =
+            "Start requested. Switch to Roblox and keep the Aquarium panel open; the first fresh frame will arm the module.";
+    }
+
+    private void StartAquariumAutomationNow()
+    {
+        _aquariumStartRequested = false;
+        RobloxInputService? input = null;
+        try
+        {
+            if (_automationEnabled)
+                throw new InvalidOperationException("The fishing macro is already armed.");
+            input = new RobloxInputService(_capture);
+            var coordinator = new AquariumAutomationCoordinator(
+                input,
+                _aquariumButtonVision,
+                AquariumActionConfirmed);
+            coordinator.Start();
+
+            _aquariumAutomationInput = input;
+            _aquariumAutomationCoordinator = coordinator;
+            AquariumAutomationStatusText.Text = coordinator.LastStatus;
+            AddActivityLog("INFO", "AQUARIUM", "Auto Aquarium armed with user-calibrated action buttons.");
+        }
+        catch (Exception exception)
+        {
+            try { input?.Dispose(); } catch { }
+            _aquariumAutomationInput = null;
+            _aquariumAutomationCoordinator = null;
+            StartAquariumAutomationButton.IsEnabled = true;
+            StopAquariumAutomationButton.IsEnabled = false;
+            AquariumAutomationStatusText.Text = $"Auto Aquarium could not start: {exception.Message}";
+            AddActivityLog("ERROR", "AQUARIUM", $"Auto Aquarium start failed: {exception.Message}");
+        }
+    }
+
+    private void AquariumActionConfirmed(AquariumActionKind action, DateTimeOffset confirmedAt)
+    {
+        _aquariumScheduleState = AquariumAutomationCoordinator.MarkCompleted(
+            _aquariumScheduleState, action, confirmedAt);
+        RefreshAquariumPlannerDisplay(confirmedAt);
+        _ = SaveAquariumScheduleAsync($"{AquariumAutomationCoordinator.FormatAction(action)} visually confirmed.");
+    }
+
+    private void StopAquariumAutomation(
+        string reason,
+        bool log = true,
+        bool coordinatorAlreadyStopped = false)
+    {
+        _aquariumStartRequested = false;
+        var releaseFailed = false;
+
+        try
+        {
+            if (!coordinatorAlreadyStopped && _aquariumAutomationCoordinator?.IsStarted == true)
+                _aquariumAutomationCoordinator.Stop();
+            else if (_aquariumAutomationInput?.IsArmed == true)
+                _aquariumAutomationInput.Disarm();
+        }
+        catch
+        {
+            releaseFailed = true;
+        }
+
+        try { _aquariumAutomationInput?.Dispose(); }
+        catch { releaseFailed = true; }
+
+        _aquariumAutomationCoordinator = null;
+        _aquariumAutomationInput = null;
+        StartAquariumAutomationButton.IsEnabled = true;
+        StopAquariumAutomationButton.IsEnabled = false;
+        AquariumAutomationStatusText.Text = releaseFailed
+            ? $"{reason} Warning: could not confirm every input release."
+            : reason;
+
+        if (log)
+            AddActivityLog(releaseFailed ? "WARN" : "INFO", "AQUARIUM", AquariumAutomationStatusText.Text);
+    }
+
+    private static VisionProfile WithAquariumButtonRegion(
+        VisionProfile profile,
+        AquariumActionKind action,
+        NormalizedRegion region,
+        int referenceWidth,
+        int referenceHeight)
+    {
+        var buttons = profile.AquariumButtons.ToDictionary(item => item.Key, item => item.Value);
+        var current = buttons.TryGetValue(action, out var existing)
+            ? existing
+            : new AquariumButtonCalibration();
+        buttons[action] = current with { Region = region, RegionCalibrated = true };
+        return profile with
+        {
+            AquariumButtons = buttons,
+            ReferenceWidth = referenceWidth,
+            ReferenceHeight = referenceHeight
+        };
+    }
+
+    private static VisionProfile WithAquariumButtonColor(
+        VisionProfile profile,
+        AquariumActionKind action,
+        HsvColorRange color,
+        int referenceWidth,
+        int referenceHeight)
+    {
+        var buttons = profile.AquariumButtons.ToDictionary(item => item.Key, item => item.Value);
+        var current = buttons.TryGetValue(action, out var existing)
+            ? existing
+            : new AquariumButtonCalibration();
+        buttons[action] = current with { ButtonColor = color };
+        return profile with
+        {
+            AquariumButtons = buttons,
+            ReferenceWidth = referenceWidth,
+            ReferenceHeight = referenceHeight
+        };
+    }
+
     private void RefreshAquariumPlannerDisplay(DateTimeOffset now)
     {
         AquariumGuppiesFeedStatusText.Text =
@@ -952,6 +1184,25 @@ public partial class MainWindow : Window
             _aquariumScheduleState.ReadySoundEnabled
                 ? "Aquarium ready sounds enabled."
                 : "Aquarium ready sounds disabled.");
+    }
+
+    private async void AquariumAutomationOptions_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingAquariumSchedule)
+            return;
+
+        if (_aquariumAutomationCoordinator?.IsStarted == true || _aquariumStartRequested)
+        {
+            StopAquariumAutomation("Automation options changed; Auto Aquarium was disarmed.");
+        }
+
+        _aquariumScheduleState = _aquariumScheduleState with
+        {
+            AutoFeedEnabled = AquariumAutoFeedCheckBox.IsChecked == true,
+            AutoRestockEnabled = AquariumAutoRestockCheckBox.IsChecked == true,
+            AutoClaimEnabled = AquariumAutoClaimCheckBox.IsChecked == true
+        };
+        await SaveAquariumScheduleAsync("Auto Aquarium preferences saved.");
     }
 
     private async Task SaveAquariumScheduleAsync(string activity)
@@ -1445,8 +1696,10 @@ public partial class MainWindow : Window
 
     private void StartMacro_Click(object sender, RoutedEventArgs e)
     {
-        if (_automationEnabled || _startRequested)
+        if (_automationEnabled || _startRequested || _aquariumStartRequested
+            || _aquariumAutomationCoordinator?.IsStarted == true)
         {
+            AutomationStatusText.Text = "Stop Auto Aquarium before starting the fishing macro.";
             return;
         }
 
@@ -1476,6 +1729,8 @@ public partial class MainWindow : Window
         }
 
         StopAutomation("Macro stopped by the user; all game inputs released.");
+        if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
+            StopAquariumAutomation("Stopped by the user; Auto Aquarium inputs released.");
         if (_isUiHidden) RestoreMainWindow();
     }
 
@@ -1558,6 +1813,12 @@ public partial class MainWindow : Window
 
     private void StartAutomation()
     {
+        if (_aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true)
+        {
+            AutomationStatusText.Text = "Stop Auto Aquarium before starting the fishing macro.";
+            return;
+        }
+
         if (_automationEnabled)
         {
             AutomationStatusText.Text = "Reel assist is already armed. Press F9 to stop it.";
@@ -2222,6 +2483,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        StopAquariumAutomation("Observation restarted; Auto Aquarium inputs released.", log: false);
         StopFrameReplay();
         _previewCancellation = new CancellationTokenSource();
         PreviewButton.Content = "Stop observation";
@@ -2245,6 +2507,8 @@ public partial class MainWindow : Window
             AutomationStatusText.Text = "Observation stopped; pending macro start cancelled.";
         }
 
+        if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
+            StopAquariumAutomation("Observation stopped; Auto Aquarium inputs released.");
         _previewCancellation?.Cancel();
         PreviewButton.Content = "Start observation";
         StatusText.Text = "Observation stopped.";
@@ -2270,6 +2534,9 @@ public partial class MainWindow : Window
                         DisplayFrame(frame);
                         StatusText.Text = "Observing Roblox. Alt+Tab here to inspect the latest frame.";
 
+                        if (_aquariumStartRequested && !_automationEnabled)
+                            StartAquariumAutomationNow();
+
                         if (_startRequested && !_automationEnabled)
                         {
                             _startRequested = false;
@@ -2289,14 +2556,17 @@ public partial class MainWindow : Window
                     {
                         StatusText.Text = $"Capture paused: {exception.Message}";
                         if (_automationEnabled)
-                        {
                             StopAutomation($"Screen capture failed; all game inputs were released: {exception.Message}");
-                        }
+                        if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
+                            StopAquariumAutomation($"Screen capture failed; Auto Aquarium stopped: {exception.Message}");
                     }
                 }
-                else if (_automationEnabled)
+                else
                 {
-                    StopAutomation("Roblox lost foreground focus; all Reel inputs were released.");
+                    if (_automationEnabled)
+                        StopAutomation("Roblox lost foreground focus; all Reel inputs were released.");
+                    if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
+                        StopAquariumAutomation("Roblox lost foreground focus; Auto Aquarium stopped and inputs released.");
                 }
 
                 var processingMilliseconds = Stopwatch.GetElapsedTime(loopStartedAt).TotalMilliseconds;
@@ -2645,11 +2915,25 @@ public partial class MainWindow : Window
                 shakeResult.Prompts);
 
             TryStartCatchRecognition(frame);
+
+            if (_aquariumAutomationCoordinator is { IsStarted: true } aquariumCoordinator)
+            {
+                aquariumCoordinator.ProcessFrame(
+                    frame,
+                    _profile,
+                    _aquariumScheduleState,
+                    ReadAquariumAutomationOptions());
+                AquariumAutomationStatusText.Text = aquariumCoordinator.LastStatus;
+
+                if (!aquariumCoordinator.IsStarted)
+                    StopAquariumAutomation(aquariumCoordinator.LastStatus, log: true, coordinatorAlreadyStopped: true);
+            }
         }
         else
         {
             AutomationStatusText.Text =
                 "Offline replay active · game inputs and OCR session writes are disabled.";
+            AquariumAutomationStatusText.Text = "Offline replay · Auto Aquarium is disabled.";
         }
     }
 
@@ -3006,9 +3290,9 @@ public partial class MainWindow : Window
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
         if (_automationEnabled)
-        {
             StopAutomation("Calibration changed; Reel assist was disarmed and all inputs released.");
-        }
+        if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
+            StopAquariumAutomation("Calibration changed; Auto Aquarium was disarmed.");
 
         if (_lastFrame is null)
         {
@@ -3034,7 +3318,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleCastIndicator
             or CalibrationAction.SampleCastTarget
             or CalibrationAction.SampleShakePrompt
-            or CalibrationAction.SampleSellButton)
+            or CalibrationAction.SampleSellButton
+            or CalibrationAction.SampleAquariumButtonColor)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
@@ -3046,7 +3331,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectShakeRegion
             or CalibrationAction.SelectSellButtonRegion
             or CalibrationAction.SelectInventoryItemsRegion
-            or CalibrationAction.SelectCatchNotificationRegion)
+            or CalibrationAction.SelectCatchNotificationRegion
+            or CalibrationAction.SelectAquariumButtonRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -3067,7 +3353,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectShakeRegion
             or CalibrationAction.SelectSellButtonRegion
             or CalibrationAction.SelectInventoryItemsRegion
-            or CalibrationAction.SelectCatchNotificationRegion)
+            or CalibrationAction.SelectCatchNotificationRegion
+            or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -3089,7 +3376,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectShakeRegion
             or CalibrationAction.SelectSellButtonRegion
             or CalibrationAction.SelectInventoryItemsRegion
-            or CalibrationAction.SelectCatchNotificationRegion)
+            or CalibrationAction.SelectCatchNotificationRegion
+            or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -3170,6 +3458,8 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectAquariumButtonRegion => WithAquariumButtonRegion(
+                _profile, _aquariumCalibrationActionKind, selectedRegion, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
         };
 
@@ -3183,6 +3473,7 @@ public partial class MainWindow : Window
             CalibrationAction.SelectSellButtonRegion => "Sell Anywhere button region saved.",
             CalibrationAction.SelectInventoryItemsRegion => "Inventory item-list region saved.",
             CalibrationAction.SelectCatchNotificationRegion => "Catch notification OCR region saved.",
+            CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
             _ => "Region saved."
         };
         await SaveProfileAsync(regionMessage);
@@ -3223,6 +3514,8 @@ public partial class MainWindow : Window
             CalibrationAction.SampleCastTarget => _profile with { CastTargetColor = color },
             CalibrationAction.SampleShakePrompt => _profile with { ShakePromptColor = color },
             CalibrationAction.SampleSellButton => _profile with { SellButtonColor = color },
+            CalibrationAction.SampleAquariumButtonColor => WithAquariumButtonColor(
+                _profile, _aquariumCalibrationActionKind, color, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
         };
 
@@ -3240,9 +3533,9 @@ public partial class MainWindow : Window
     private async void ResetCalibration_Click(object sender, RoutedEventArgs e)
     {
         if (_automationEnabled)
-        {
             StopAutomation("Calibration reset; Reel assist was disarmed and all inputs released.");
-        }
+        if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
+            StopAquariumAutomation("Calibration reset; Auto Aquarium was disarmed.");
 
         _profile = new VisionProfile();
         _motionTracker.Reset();
@@ -3987,6 +4280,7 @@ public partial class MainWindow : Window
     {
         _dashboardSessionTimer.Stop();
         _aquariumTimer.Stop();
+        StopAquariumAutomation("Application closing; Auto Aquarium inputs released.", log: false);
         StopAutomation("Application closing; all inputs released.");
         StopPreviewLoop();
         _isEndingSession = true;

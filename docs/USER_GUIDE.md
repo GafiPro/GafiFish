@@ -150,3 +150,12 @@ O replay executa apenas a apresentação e os detetores visuais para inspeção/
 ## Alertas de cooldown do Aquarium
 
 Na página **Aquarium**, ativa **Play a sound when an aquarium action becomes ready** para receber um som local quando um dos cooldowns registados terminar. Cada alimentação/reposição é alertada independentemente; o claim só gera alerta quando o respetivo lembrete horário está ativo. Cada conclusão só gera um alerta por timestamp, sem repetir o som a cada segundo. Os alertas funcionam enquanto o GafiFish estiver aberto e não executam ações dentro do jogo.
+
+
+## Auto Aquarium (calibração visual)
+
+A automação do Aquarium é independente da pesca e tem de ser armada separadamente na página **Aquarium**. Primeiro abre o painel do Aquarium em Fisch e captura um frame com F6. Para cada ação que pretendes automatizar, escolhe-a na lista, seleciona uma região apertada à volta do respetivo botão ativo e amostra uma cor no interior desse botão. Repete para todas as ações que ativares.
+
+As opções **Auto feed**, **Auto restock** e **Auto claim** são independentes e começam desligadas. A reposição pode gastar moeda do jogo e, por isso, exige ativação explícita. As ações só ficam elegíveis quando o respetivo horário inicial já foi registado e o cooldown horário terminou. Mantém o painel do Aquarium aberto e o Roblox em primeiro plano: o GafiFish não tenta navegar até ao Aquarium.
+
+O motor espera por três frames estáveis antes de enviar um clique único. Só atualiza o horário depois de o botão na cor de estado ativo desaparecer em dois frames consecutivos. Se a confirmação não acontecer no prazo de cinco segundos, desarma sem repetir o clique. A calibração depende da resolução, tema e estado da interface; testa primeiro cada ação e não uses coordenadas ou cores aproximadas.
