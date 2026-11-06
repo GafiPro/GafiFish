@@ -384,9 +384,9 @@
                                     <TextBlock Text="Aquarium Planner" FontSize="19" FontWeight="SemiBold" />
                                     <TextBlock Text="Track each hourly food action and reward claim without guessing the cooldown."
                                                Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,5,0,10" />
-                                    <TextBlock Text="After feeding or buying food in Fisch, press the matching button below. The countdown is saved locally and survives app restarts."
+                                    <TextBlock Text="Track each food action manually or let the optional visual automation click calibrated buttons when their hourly cooldown is ready."
                                                Foreground="#DCE6ED" TextWrapping="Wrap" />
-                                    <TextBlock Text="This is a reminder planner: it does not open the Aquarium, buy food or click in the game."
+                                    <TextBlock Text="Auto Aquarium requires the panel to stay open. It never guesses button positions: calibrate each enabled action from a live frame first."
                                                Foreground="#EACB80" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
                                 </StackPanel>
                             </Border>
@@ -468,6 +468,53 @@
                                     <Button Content="Mark reward claimed"
                                             Click="AquariumMarkClaimed_Click" Height="34"
                                             HorizontalAlignment="Left" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
+                                    CornerRadius="16" Padding="16" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Auto Aquarium · visual calibration" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <TextBlock Text="For each action: open the Aquarium in Fisch, capture with F6, choose the action below, select the ready button area, then sample a clear pixel from its enabled button colour."
+                                               Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,9" />
+                                    <ComboBox x:Name="AquariumVisualActionComboBox" SelectedIndex="0" Height="34"
+                                              Background="#263543" Foreground="#EAF0F5" Margin="0,0,0,8">
+                                        <ComboBoxItem Content="Feed · Guppies' Best" Tag="FeedGuppiesBest" />
+                                        <ComboBoxItem Content="Restock · Guppies' Best" Tag="RestockGuppiesBest" />
+                                        <ComboBoxItem Content="Feed · Fish Chow" Tag="FeedFishChow" />
+                                        <ComboBoxItem Content="Restock · Fish Chow" Tag="RestockFishChow" />
+                                        <ComboBoxItem Content="Feed · Splash Snacks" Tag="FeedSplashSnacks" />
+                                        <ComboBoxItem Content="Restock · Splash Snacks" Tag="RestockSplashSnacks" />
+                                        <ComboBoxItem Content="Claim hourly reward" Tag="ClaimReward" />
+                                    </ComboBox>
+                                    <WrapPanel>
+                                        <Button Content="Select button area" Click="SelectAquariumButtonRegion_Click"
+                                                Height="32" Margin="0,0,8,8" />
+                                        <Button Content="Sample ready button colour" Click="SampleAquariumButtonColor_Click"
+                                                Height="32" Margin="0,0,0,8" />
+                                    </WrapPanel>
+                                    <TextBlock Text="Automation options (all off by default)" FontWeight="SemiBold" Margin="0,6,0,5" />
+                                    <CheckBox x:Name="AquariumAutoFeedCheckBox" Content="Automatically feed when ready"
+                                              Foreground="#EAF0F5" IsChecked="False" Margin="0,3,0,3"
+                                              Checked="AquariumAutomationOptions_Changed" Unchecked="AquariumAutomationOptions_Changed" />
+                                    <CheckBox x:Name="AquariumAutoRestockCheckBox" Content="Automatically restock (may spend in-game currency)"
+                                              Foreground="#EACB80" IsChecked="False" Margin="0,3,0,3"
+                                              Checked="AquariumAutomationOptions_Changed" Unchecked="AquariumAutomationOptions_Changed" />
+                                    <CheckBox x:Name="AquariumAutoClaimCheckBox" Content="Automatically claim hourly reward"
+                                              Foreground="#EAF0F5" IsChecked="False" Margin="0,3,0,8"
+                                              Checked="AquariumAutomationOptions_Changed" Unchecked="AquariumAutomationOptions_Changed" />
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" x:Name="StartAquariumAutomationButton" Content="Arm Auto Aquarium"
+                                                Click="StartAquariumAutomation_Click" Height="36" Background="#285B50" />
+                                        <Button Grid.Column="2" x:Name="StopAquariumAutomationButton" Content="Stop Auto Aquarium"
+                                                Click="StopAquariumAutomation_Click" Height="36" Background="#653641" IsEnabled="False" />
+                                    </Grid>
+                                    <TextBlock x:Name="AquariumAutomationStatusText"
+                                               Text="Stopped · calibrate each action you enable, then arm while the Aquarium panel is open."
+                                               Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,9,0,0" />
+                                    <TextBlock Text="A button must be stable for 3 frames. GafiFish clicks it once, then waits for its ready-state colour to disappear in 2 frames before recording the cooldown. If the change is ambiguous, it stops without retrying."
+                                               Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
                                 </StackPanel>
                             </Border>
 
