@@ -295,6 +295,104 @@ public sealed class FishSessionStore
         return sessions;
     }
 
+    public async Task<LifetimeFishingStatistics> GetLifetimeStatisticsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        int totalSessions;
+        double completedFishingHours;
+        await using (var sessionsCommand = connection.CreateCommand())
+        {
+            sessionsCommand.CommandText = """
+                SELECT
+                    COUNT(*),
+                    COALESCE(SUM(
+                        CASE
+                            WHEN EndedAt IS NOT NULL
+                                AND julianday(EndedAt) >= julianday(StartedAt)
+                            THEN (julianday(EndedAt) - julianday(StartedAt)) * 24.0
+                            ELSE 0.0
+                        END), 0.0)
+                FROM Sessions;
+                """;
+            await using var reader = await sessionsCommand.ExecuteReaderAsync(cancellationToken);
+            await reader.ReadAsync(cancellationToken);
+            totalSessions = checked((int)reader.GetInt64(0));
+            completedFishingHours = reader.GetDouble(1);
+        }
+
+        int totalCatches;
+        int identifiedCatches;
+        int mutatedCatches;
+        int legendaryOrHigherCatches;
+        decimal totalEstimatedValue;
+        double? averageWeightKg;
+        double? heaviestWeightKg;
+        await using (var catchesCommand = connection.CreateCommand())
+        {
+            catchesCommand.CommandText = """
+                SELECT
+                    COUNT(*),
+                    COALESCE(SUM(CASE WHEN Species IS NOT NULL AND TRIM(Species) <> '' THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN Mutation IS NOT NULL AND TRIM(Mutation) <> '' THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN Rarity >= $legendary THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(COALESCE(EstimatedValue, 0.0)), 0.0),
+                    AVG(WeightKg),
+                    MAX(WeightKg)
+                FROM FishCatches;
+                """;
+            catchesCommand.Parameters.AddWithValue("$legendary", (int)FishRarity.Legendary);
+            await using var reader = await catchesCommand.ExecuteReaderAsync(cancellationToken);
+            await reader.ReadAsync(cancellationToken);
+            totalCatches = checked((int)reader.GetInt64(0));
+            identifiedCatches = checked((int)reader.GetInt64(1));
+            mutatedCatches = checked((int)reader.GetInt64(2));
+            legendaryOrHigherCatches = checked((int)reader.GetInt64(3));
+            totalEstimatedValue = (decimal)reader.GetDouble(4);
+            averageWeightKg = reader.IsDBNull(5) ? null : reader.GetDouble(5);
+            heaviestWeightKg = reader.IsDBNull(6) ? null : reader.GetDouble(6);
+        }
+
+        var topSpecies = new List<SpeciesCatchStatistic>();
+        await using (var speciesCommand = connection.CreateCommand())
+        {
+            speciesCommand.CommandText = """
+                SELECT Species, COUNT(*) AS CatchCount
+                FROM FishCatches
+                WHERE Species IS NOT NULL AND TRIM(Species) <> ''
+                GROUP BY Species
+                ORDER BY CatchCount DESC, Species COLLATE NOCASE ASC
+                LIMIT 5;
+                """;
+            await using var reader = await speciesCommand.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                topSpecies.Add(new SpeciesCatchStatistic(
+                    reader.GetString(0),
+                    checked((int)reader.GetInt64(1))));
+            }
+        }
+
+        var catchesPerHour = completedFishingHours > 0
+            ? totalCatches / completedFishingHours
+            : 0d;
+
+        return new LifetimeFishingStatistics(
+            totalSessions,
+            totalCatches,
+            identifiedCatches,
+            mutatedCatches,
+            legendaryOrHigherCatches,
+            totalEstimatedValue,
+            averageWeightKg,
+            heaviestWeightKg,
+            completedFishingHours,
+            catchesPerHour,
+            topSpecies);
+    }
+
     private static string FormatDate(DateTimeOffset value) =>
         value.ToString("O", CultureInfo.InvariantCulture);
 

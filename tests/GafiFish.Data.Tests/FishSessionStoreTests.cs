@@ -92,6 +92,52 @@ public sealed class FishSessionStoreTests
         }
     }
 
+    [Fact]
+    public async Task GetLifetimeStatistics_AggregatesSessionsCatchesAndTopSpecies()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gafifish-{Guid.NewGuid():N}.db");
+        var store = new FishSessionStore(path);
+        var startedAt = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+
+        try
+        {
+            await store.InitializeAsync(TestContext.Current.CancellationToken);
+            var firstSession = await store.StartSessionAsync(startedAt, TestContext.Current.CancellationToken);
+            await store.SaveCatchAsync(firstSession,
+                new FishCatch(Guid.NewGuid(), startedAt.AddMinutes(5), "Golden Koi", FishRarity.Secret, "Golden", 5.0, 1200m, 0.98),
+                TestContext.Current.CancellationToken);
+            await store.SaveCatchAsync(firstSession,
+                new FishCatch(Guid.NewGuid(), startedAt.AddMinutes(15), "Golden Koi", FishRarity.Common, null, 2.0, 100m, 0.96),
+                TestContext.Current.CancellationToken);
+            await store.FinishSessionAsync(firstSession, startedAt.AddHours(1), TestContext.Current.CancellationToken);
+
+            var secondSession = await store.StartSessionAsync(startedAt.AddDays(1), TestContext.Current.CancellationToken);
+            await store.SaveCatchAsync(secondSession,
+                new FishCatch(Guid.NewGuid(), startedAt.AddDays(1).AddMinutes(10), "Bluefin Tuna", FishRarity.Legendary, "Shiny", 10.0, 2500m, 0.99),
+                TestContext.Current.CancellationToken);
+            await store.FinishSessionAsync(secondSession, startedAt.AddDays(1).AddMinutes(30), TestContext.Current.CancellationToken);
+
+            var statistics = await store.GetLifetimeStatisticsAsync(TestContext.Current.CancellationToken);
+
+            Assert.Equal(2, statistics.TotalSessions);
+            Assert.Equal(3, statistics.TotalCatches);
+            Assert.Equal(3, statistics.IdentifiedCatches);
+            Assert.Equal(2, statistics.MutatedCatches);
+            Assert.Equal(2, statistics.LegendaryOrHigherCatches);
+            Assert.Equal(3800m, statistics.TotalEstimatedValue);
+            Assert.Equal(17.0 / 3.0, statistics.AverageWeightKg, precision: 8);
+            Assert.Equal(10.0, statistics.HeaviestWeightKg);
+            Assert.Equal(1.5, statistics.CompletedFishingHours, precision: 6);
+            Assert.Equal(2.0, statistics.CatchesPerHour, precision: 6);
+            Assert.Equal("Golden Koi", statistics.TopSpecies[0].Species);
+            Assert.Equal(2, statistics.TopSpecies[0].Count);
+        }
+        finally
+        {
+            DeleteDatabaseFiles(path);
+        }
+    }
+
     private static void DeleteDatabaseFiles(string path)
     {
         SqliteConnection.ClearAllPools();
