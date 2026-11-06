@@ -36,9 +36,11 @@
 - [x] Libertar o input ao perder foco, parar F7, falhar captura ou ocorrer erro.
 - [x] Deteção visual do indicador e zona-alvo de Perfect Cast; cálculo diagnóstico de timing e latência.
 - [x] Auto-cast opt-in: segura o botão até o medidor Perfect Cast indicar a janela calibrada, com timeout e libertação segura.
-- [x] Auto-shake opt-in: deteta, estabiliza e clica um prompt; não repete até o prompt mover/desaparecer.
-- [ ] Validar Auto-cast e Auto-shake numa captura real do Fisch com diferentes resoluções/canas.
-- [ ] Automatizar recast e equipar cana (atualmente manual).
+- [x] Auto-shake opt-in: deteta candidatos de confiança elevada, clica após dois frames estáveis e deteta o fim da sequência após quatro frames sem prompt.
+- [x] Auto-recast limitado: duas tentativas adicionais após 30 segundos sem mordida; pára depois do limite.
+- [x] Equipar a cana por seleção opcional do slot de hotbar 1–0.
+- [x] Timeout de segurança de três minutos no estado Reel.
+- [ ] Validar Auto-cast, Auto-shake, Reel e hotbar numa captura/sessão real do Fisch com diferentes resoluções/canas.
 - [ ] Perfis por cana com calibração real.
 
 Critério de saída: o Reel e o Perfect Cast têm de funcionar com confiança em capturas/gravações reais; nenhum estado pode deixar um botão premido após timeout.
@@ -74,7 +76,8 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 ## Fase 5 — Robustez e melhorias
 
 - [ ] Ajuste adaptativo à taxa de frames.
-- [ ] Deteção de ciclos bloqueados e recuperação segura em todos os estados.
+- [x] Limites de tempo e recuperação segura nos estados Cast, Shake, espera por mordida e Reel.
+- [ ] Reprodução de capturas/gravações reais para diagnóstico sem abrir o jogo.
 - [ ] Estatísticas de vendas e rendimento por hora.
 - [ ] Relatórios de diagnóstico exportáveis.
 - [ ] Alertas para capturas prioritárias e preferências de espécie/mutação.
@@ -82,7 +85,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 
 ## Próximo bloqueio técnico
 
-O Shake e o Perfect Cast já têm deteção visual e overlay, mas não devem enviar inputs com base apenas em cores/contornos genéricos. Para fechar essas etapas, precisamos de frames reais do medidor e dos prompts do jogo e de confirmar o que cada prompt pede. Até lá, ficam em modo diagnóstico.
+O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e testes sintéticos. Os inputs automáticos continuam opt-in e exigem calibração manual. O último bloqueio para fechar a validação do produto é testar com frames reais do teu Fisch, confirmar o sentido do Reel e os tempos do medidor/prompt.
 
 ## Funcionalidades que não fazem parte do plano
 
