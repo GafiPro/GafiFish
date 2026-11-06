@@ -105,6 +105,7 @@ public partial class MainWindow : Window
     private bool _autoCastEnabled;
     private bool _autoShakeEnabled;
     private bool _keepFishingUntilCatchEnabled;
+    private bool _startRequested;
     private MissedBiteRetryPolicy _missedBiteRetries = new();
     private bool _automationEnabled;
     private LocalTesseractOcr? _ocr;
@@ -237,10 +238,40 @@ public partial class MainWindow : Window
 
     private static string Registered(bool registered) => registered ? "ready" : "in use";
 
-    private void StartMacro_Click(object sender, RoutedEventArgs e) => StartAutomation();
+    private void StartMacro_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled || _startRequested)
+        {
+            return;
+        }
 
-    private void StopMacro_Click(object sender, RoutedEventArgs e) =>
+        // The button is clicked while this window owns focus. Start observation,
+        // then arm only after the capture loop sees Roblox in the foreground.
+        if (_previewCancellation is null)
+        {
+            TogglePreviewLoop();
+        }
+
+        _startRequested = true;
+        StartMacroButton.IsEnabled = false;
+        StopMacroButton.IsEnabled = true;
+        AutomationStatusText.Text =
+            "Start requested. Switch to the Roblox window; the macro will arm when its first frame is captured.";
+    }
+
+    private void StopMacro_Click(object sender, RoutedEventArgs e)
+    {
+        if (_startRequested && !_automationEnabled)
+        {
+            _startRequested = false;
+            StartMacroButton.IsEnabled = true;
+            StopMacroButton.IsEnabled = false;
+            AutomationStatusText.Text = "Pending start cancelled.";
+            return;
+        }
+
         StopAutomation("Macro stopped by the user; all game inputs released.");
+    }
 
     private void AutoCastCheckBox_Changed(object sender, RoutedEventArgs e)
     {
@@ -257,6 +288,10 @@ public partial class MainWindow : Window
             AutomationStatusText.Text = "Reel assist is already armed. Press F9 to stop it.";
             return;
         }
+
+        _startRequested = false;
+        StartMacroButton.IsEnabled = true;
+        StopMacroButton.IsEnabled = false;
 
         if (_previewCancellation is null)
         {
@@ -470,6 +505,7 @@ public partial class MainWindow : Window
         }
 
         _automationEnabled = false;
+        _startRequested = false;
         _automationInput = null;
         _reelCoordinator = null;
         _runtimeStateMachine = null;
@@ -788,6 +824,13 @@ public partial class MainWindow : Window
         {
             StopAutomation("Observation stopped; Reel assist disarmed and all inputs released.");
         }
+        else if (_startRequested)
+        {
+            _startRequested = false;
+            StartMacroButton.IsEnabled = true;
+            StopMacroButton.IsEnabled = false;
+            AutomationStatusText.Text = "Observation stopped; pending macro start cancelled.";
+        }
 
         _previewCancellation?.Cancel();
         PreviewButton.Content = "Start observation (F7)";
@@ -808,6 +851,14 @@ public partial class MainWindow : Window
                         var frame = await Task.Run(_capture.CaptureForegroundClient, token);
                         DisplayFrame(frame);
                         StatusText.Text = "Observing Roblox. Alt+Tab here to inspect the latest frame.";
+
+                        if (_startRequested && !_automationEnabled)
+                        {
+                            _startRequested = false;
+                            StartMacroButton.IsEnabled = true;
+                            StopMacroButton.IsEnabled = false;
+                            StartAutomation();
+                        }
                     }
                     catch (OperationCanceledException)
                     {
