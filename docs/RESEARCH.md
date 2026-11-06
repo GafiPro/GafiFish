@@ -66,11 +66,13 @@ Pesquisa consultada em 5 de novembro de 2026. As licenças e os repositórios po
 
 ## 7. OpenMacro / XTernal / Swift
 
-- Website: [macro.fish](https://macro.fish/)
-- XTernal: [termx3/OpenMacro-XTernal](https://github.com/termx3/OpenMacro-XTernal)
-- Swift é comercial e apresenta funções avançadas para Fisch.
-- XTernal é publicado sob AGPL-3.0, mas declara usar leitura da memória do Roblox.
-- Decisão: não usar leitura de memória, injeção, executores nem técnicas de contorno. O GafiFish funciona apenas com imagem do ecrã e inputs normais do Windows.
+- Website oficial: [macro.fish](https://macro.fish/) e [openmacro.net](https://openmacro.net/).
+- XTernal: [termx3/OpenMacro-XTernal](https://github.com/termx3/OpenMacro-XTernal). É a oferta gratuita e open-source para Fisch. O README declara que lê diretamente a memória do processo Roblox em vez de analisar a imagem do ecrã.
+- Licença do XTernal: AGPL-3.0-only. Permite estudar, modificar e redistribuir, mas uma versão derivada distribuída tem de cumprir a AGPL e disponibilizar o código-fonte correspondente. Não incorporar partes no GafiFish sem decidir primeiro a licença do projeto e cumprir todas as obrigações da AGPL. A pasta `library/` tem dependências com licenças próprias; não presumir que tudo segue a mesma licença.
+- Swift: produto comercial e fechado, distinto do XTernal. O site anuncia suporte a canas e totens, Auto Harpoon, Auto Appraise e recarga Sovereign. Estas são funcionalidades anunciadas pelo fornecedor, não validadas independentemente nesta pesquisa.
+- Histórico público do Swift: a versão 2.0.4 refere uma melhoria do método Predict de 64% para 87% de taxa de captura em testes/simulação; a versão 2.0.6, de 24 de outubro de 2026, lista sobretudo correções de estabilidade. Não transportar esses números para o GafiFish: dependem do método e do ambiente de teste do fornecedor.
+- Os Termos do OpenMacro dizem que a automação pode violar regras do Roblox ou de experiências individuais e resultar em medidas sobre a conta. Também estabelecem condições etárias e exigem que um encarregado de educação reveja e aceite os termos quando o utilizador tem menos de 18 anos.
+- Decisão técnica: não copiar código do Swift nem tentar reproduzir os seus componentes internos. Não adotar leitura de memória, injeção ou executores. O GafiFish mantém a arquitetura independente baseada em captura visual local e eventos normais de rato/teclado do Windows. Podem aproveitar-se apenas ideias gerais documentadas publicamente, com implementação própria e testes.
 
 ## 8. Venda através da gamepass Sell Anywhere
 
