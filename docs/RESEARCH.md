@@ -1,6 +1,6 @@
 # Pesquisa de referências
 
-Pesquisa consultada em 5 de novembro de 2026. As licenças e os repositórios podem mudar; voltar a verificá-los antes de reutilizar código.
+Pesquisa consultada e ampliada em 6 de novembro de 2026. As licenças e os repositórios podem mudar; voltar a verificá-los antes de reutilizar código.
 
 ## 1. Bloomfisching — projeto pedido pelo utilizador
 
