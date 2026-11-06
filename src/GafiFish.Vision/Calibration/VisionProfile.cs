@@ -1,3 +1,4 @@
+using GafiFish.Core.Aquarium;
 namespace GafiFish.Vision.Calibration;
 
 /// <summary>
@@ -26,6 +27,7 @@ public sealed record VisionProfile
     public HsvColorRange? CastTargetColor { get; init; }
     public HsvColorRange? ShakePromptColor { get; init; }
     public HsvColorRange? SellButtonColor { get; init; }
+    public Dictionary<AquariumActionKind, AquariumButtonCalibration> AquariumButtons { get; init; } = [];
     public double MinimumBlobArea { get; init; } = 5;
     public double MinimumConfidence { get; init; } = 0.60;
 
@@ -71,5 +73,8 @@ public sealed record VisionProfile
         CastTargetColor?.Validate();
         ShakePromptColor?.Validate();
         SellButtonColor?.Validate();
+        ArgumentNullException.ThrowIfNull(AquariumButtons);
+        foreach (var button in AquariumButtons.Values)
+            button.Validate();
     }
 }

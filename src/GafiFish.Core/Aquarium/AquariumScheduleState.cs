@@ -19,6 +19,9 @@ public sealed record AquariumScheduleState
     public DateTimeOffset? LastClaimedAt { get; init; }
     public bool ClaimReminderEnabled { get; init; }
     public bool ReadySoundEnabled { get; init; }
+    public bool AutoFeedEnabled { get; init; }
+    public bool AutoRestockEnabled { get; init; }
+    public bool AutoClaimEnabled { get; init; }
 
     public AquariumFoodProgress GetProgress(AquariumFoodType foodType) =>
         foodType switch
