@@ -2,7 +2,7 @@
 
 Aplicação Windows para observação visual, calibração, Reel assistido e registo de sessões de pesca no Roblox Fisch.
 
-**Estado: Reel assistido, Auto-cast e Auto-shake opcionais, Sell Anywhere temporizado e histórico local; validação prática no Fisch ainda pendente.**
+**Estado: aplicação gráfica Windows com iniciar/parar, Reel assistido, Auto-cast/Auto-shake opcionais, modo de recast até à primeira captura confirmada, Sell Anywhere temporizado e histórico local; validação prática no Fisch ainda pendente.**
 
 ## O que já funciona
 
@@ -11,9 +11,9 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Deteção dos marcadores do peixe e da barra, com estimativa curta de movimento.
 - Deteção do indicador e da zona-alvo do Perfect Cast, com decisão diagnóstica considerando a latência.
 - Deteção de prompts Shake e Auto-shake opcional: só clica após dois frames estáveis, evita repetir o mesmo prompt e reconhece o fim da sequência após quatro frames sem prompt.
-- Auto-cast opcional: segura e liberta o rato na janela Perfect Cast calibrada; após 30 segundos sem mordida, faz até dois recasts e pára se continuar sem mordida.
+- Auto-cast opcional: segura e liberta o rato na janela Perfect Cast calibrada; por defeito, após 30 segundos sem mordida faz até dois recasts adicionais. O modo opcional “Keep fishing until the first fish is caught” remove esse limite e termina após uma notificação OCR de captura com confiança elevada.
 - Deteção visual do botão Sell Anywhere e verificação de alterações estáveis na lista do inventário.
-- Reel assistido opt-in com F8/F9, controlador preditivo, limite de segurança de três minutos e libertação de input quando os marcadores desaparecem ou o Roblox perde o foco.
+- Botões visíveis Start macro / Stop macro, além dos atalhos F8/F9. O modo de recast contínuo exige Auto-cast, sessão OCR ativa e região de notificação calibrada; o timeout de Reel liberta o controlo e reinicia o ciclo, sem eliminar os stops de emergência.
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
 - Histórico local SQLite, resumo de sessão com os 25 melhores peixes e exportação CSV/JSON.
