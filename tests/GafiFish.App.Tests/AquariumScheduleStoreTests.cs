@@ -18,7 +18,10 @@ public sealed class AquariumScheduleStoreTests
             FishChow = new AquariumFoodProgress(fedAt.AddMinutes(5), null),
             LastClaimedAt = claimedAt,
             ClaimReminderEnabled = true,
-            ReadySoundEnabled = true
+            ReadySoundEnabled = true,
+            AutoFeedEnabled = true,
+            AutoRestockEnabled = true,
+            AutoClaimEnabled = true
         };
 
         try

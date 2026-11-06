@@ -922,6 +922,9 @@ public partial class MainWindow : Window
         }
     }
 
+    private void StopAquariumAutomation_Click(object sender, RoutedEventArgs e) =>
+        StopAquariumAutomation("Stopped by the user; Auto Aquarium inputs released.");
+
     private void StartAquariumAutomation_Click(object sender, RoutedEventArgs e)
     {
         if (_automationEnabled || _startRequested)
@@ -1679,6 +1682,7 @@ public partial class MainWindow : Window
         }
         else if (id == EmergencyStopHotkeyId)
         {
+            StopAquariumAutomation($"Emergency stop ({_hotkeySettings.StopKey}): Auto Aquarium inputs released.");
             StopAutomation($"Emergency stop ({_hotkeySettings.StopKey}): all game inputs released.");
             if (_isUiHidden) RestoreMainWindow();
             handled = true;
@@ -2565,7 +2569,7 @@ public partial class MainWindow : Window
                 {
                     if (_automationEnabled)
                         StopAutomation("Roblox lost foreground focus; all Reel inputs were released.");
-                    if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
+                    if (_aquariumAutomationCoordinator?.IsStarted == true)
                         StopAquariumAutomation("Roblox lost foreground focus; Auto Aquarium stopped and inputs released.");
                 }
 
