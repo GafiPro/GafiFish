@@ -275,9 +275,16 @@ public partial class MainWindow : Window
 
     private void AutoCastCheckBox_Changed(object sender, RoutedEventArgs e)
     {
-        if (!_automationEnabled)
+        if (_automationEnabled)
         {
-            KeepFishingUntilCatchCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
+            return;
+        }
+
+        var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
+        KeepFishingUntilCatchCheckBox.IsEnabled = autoCastEnabled;
+        if (!autoCastEnabled)
+        {
+            KeepFishingUntilCatchCheckBox.IsChecked = false;
         }
     }
 
