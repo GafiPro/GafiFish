@@ -32,16 +32,18 @@
 - [x] Máquina de estados e decisões com timeouts no fluxo de venda.
 - [x] Tracking da direção/velocidade do peixe.
 - [x] Controlador PD com deadband e antecipação curta.
-- [x] Reel assistido opt-in com F8 e paragem F9.
+- [x] Reel assistido opt-in com botões Start/Stop na janela e atalhos F8/F9; o botão Start aguarda o Roblox voltar a primeiro plano antes de armar.
 - [x] Libertar o input ao perder foco, parar F7, falhar captura ou ocorrer erro.
 - [x] Deteção visual do indicador e zona-alvo de Perfect Cast; cálculo diagnóstico de timing e latência.
 - [x] Auto-cast opt-in: segura o botão até o medidor Perfect Cast indicar a janela calibrada, com timeout e libertação segura.
 - [x] Auto-shake opt-in: deteta candidatos de confiança elevada, clica após dois frames estáveis e deteta o fim da sequência após quatro frames sem prompt.
-- [x] Auto-recast limitado: duas tentativas adicionais após 30 segundos sem mordida; pára depois do limite.
+- [x] Auto-recast normal: duas tentativas adicionais após 30 segundos sem mordida.
+- [x] Modo opcional de tentativas ilimitadas até à primeira captura confirmada por OCR de confiança elevada (requer sessão e região de notificação calibradas).
 - [x] Equipar a cana por seleção opcional do slot de hotbar 1–0.
 - [x] Timeout de segurança de três minutos no estado Reel.
-- [ ] Validar Auto-cast, Auto-shake, Reel e hotbar numa captura/sessão real do Fisch com diferentes resoluções/canas.
+- [ ] Validar Auto-cast, Auto-shake, Reel, modo de captura contínua e hotbar numa sessão real do Fisch com diferentes resoluções/canas.
 - [ ] Perfis por cana com calibração real.
+- [ ] Melhorar a deteção com cascata de fallback (cor, contorno, template e tracking temporário), após reunir frames reais.
 
 Critério de saída: o Reel e o Perfect Cast têm de funcionar com confiança em capturas/gravações reais; nenhum estado pode deixar um botão premido após timeout.
 
@@ -81,11 +83,16 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [ ] Estatísticas de vendas e rendimento por hora.
 - [ ] Relatórios de diagnóstico exportáveis.
 - [ ] Alertas para capturas prioritárias e preferências de espécie/mutação.
+- [ ] HUD de telemetria com posição, erro, confiança, estado e motivo de cada decisão.
+- [ ] Perfis por cana com ajuste do controlador e cores próprios.
+- [ ] Auto-totem e auto-poção com horários/teclas configuráveis e bloqueio estrito durante Cast, Shake e Reel.
+- [ ] Deteção de desconexão e recuperação/reconexão segura.
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
+- [ ] Módulos independentes posteriores: Hunt Detection, Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest e Harpoon; cada um requer calibração, confirmação do alvo e testes isolados.
 
 ## Próximo bloqueio técnico
 
-O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e testes sintéticos. Os inputs automáticos continuam opt-in e exigem calibração manual. O último bloqueio para fechar a validação do produto é testar com frames reais do teu Fisch, confirmar o sentido do Reel e os tempos do medidor/prompt.
+O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e testes sintéticos. Os inputs automáticos continuam opt-in e exigem calibração manual. A nova opção de tentativas ilimitadas e os botões da janela já estão no código, mas ainda precisam de compilação/testes CI nesta revisão e validação prática com frames reais do Fisch, sobretudo a deteção da notificação de captura e os tempos do medidor/prompt.
 
 ## Funcionalidades que não fazem parte do plano
 
