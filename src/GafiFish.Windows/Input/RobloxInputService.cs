@@ -94,9 +94,38 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             throw new InvalidOperationException("Cannot issue a point click while the left mouse button is held.");
         }
 
+        if (!_windowCapture.IsRobloxForeground(frame.ProcessId))
+        {
+            Disarm();
+            throw new InvalidOperationException(
+                "The foreground Roblox process no longer matches the captured frame; input was released and disarmed.");
+        }
+
         var screenX = frame.ClientScreenX + clientX;
         var screenY = frame.ClientScreenY + clientY;
-        SendMouseClickAtScreen(screenX, screenY);
+        MoveMouseToScreen(screenX, screenY);
+
+        SetLeftButton(true);
+        try
+        {
+            SetLeftButton(false);
+        }
+        catch
+        {
+            // Keep the held-state flag until a release event is accepted. A
+            // second best-effort attempt is made here and again during Disarm.
+            _isArmed = false;
+            try
+            {
+                ReleaseLeftButton();
+            }
+            catch
+            {
+                // The input remains tracked for the next Disarm/Dispose attempt.
+            }
+
+            throw;
+        }
     }
 
     public void SetKey(ushort virtualKey, bool isDown)
@@ -235,7 +264,7 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
         Send(input);
     }
 
-    private static void SendMouseClickAtScreen(int screenX, int screenY)
+    private static void MoveMouseToScreen(int screenX, int screenY)
     {
         var virtualLeft = Native.GetSystemMetrics(76);
         var virtualTop = Native.GetSystemMetrics(77);
@@ -254,44 +283,21 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             (int)Math.Round((screenY - virtualTop) * 65535d / (virtualHeight - 1)),
             0, 65535);
 
-        Native.Input[] inputs =
-        [
-            new()
+        var move = new Native.Input
+        {
+            Type = InputMouse,
+            Data = new Native.InputUnion
             {
-                Type = InputMouse,
-                Data = new Native.InputUnion
+                Mouse = new Native.MouseInput
                 {
-                    Mouse = new Native.MouseInput
-                    {
-                        Dx = absoluteX,
-                        Dy = absoluteY,
-                        Flags = MouseMove | MouseAbsolute | MouseVirtualDesk
-                    }
-                }
-            },
-            new()
-            {
-                Type = InputMouse,
-                Data = new Native.InputUnion
-                {
-                    Mouse = new Native.MouseInput { Flags = MouseLeftDown }
-                }
-            },
-            new()
-            {
-                Type = InputMouse,
-                Data = new Native.InputUnion
-                {
-                    Mouse = new Native.MouseInput { Flags = MouseLeftUp }
+                    Dx = absoluteX,
+                    Dy = absoluteY,
+                    Flags = MouseMove | MouseAbsolute | MouseVirtualDesk
                 }
             }
-        ];
+        };
 
-        var sent = Native.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Native.Input>());
-        if (sent != inputs.Length)
-        {
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows rejected the point-click event.");
-        }
+        Send(move);
     }
 
     private static void SendKeyboard(ushort virtualKey, uint flags)
