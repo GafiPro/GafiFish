@@ -8,7 +8,7 @@ public sealed record ShakeInputSettings
     public TimeSpan MinimumClickInterval { get; init; } = TimeSpan.FromMilliseconds(400);
     public TimeSpan MaximumFrameAge { get; init; } = TimeSpan.FromMilliseconds(250);
     public int RequiredStableFrames { get; init; } = 2;
-    public int RequiredMissingFrames { get; init; } = 2;
+    public int RequiredMissingFrames { get; init; } = 4;
 
     public void Validate()
     {
