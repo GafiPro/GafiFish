@@ -10,10 +10,10 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Calibração visual por região e amostragem HSV dos marcadores.
 - Deteção dos marcadores do peixe e da barra, com estimativa curta de movimento.
 - Deteção do indicador e da zona-alvo do Perfect Cast, com decisão diagnóstica considerando a latência.
-- Deteção de prompts Shake e Auto-shake opcional: clique único após estabilidade, espera por movimento/desaparecimento antes de repetir.
-- Auto-cast opcional: segura o rato e liberta-o quando o medidor Perfect Cast calibrado entra na janela prevista, com timeout.
+- Deteção de prompts Shake e Auto-shake opcional: só clica após dois frames estáveis, evita repetir o mesmo prompt e reconhece o fim da sequência após quatro frames sem prompt.
+- Auto-cast opcional: segura e liberta o rato na janela Perfect Cast calibrada; após 30 segundos sem mordida, faz até dois recasts e pára se continuar sem mordida.
 - Deteção visual do botão Sell Anywhere e verificação de alterações estáveis na lista do inventário.
-- Reel assistido opt-in com F8/F9, controlador preditivo e libertação automática de input quando os marcadores desaparecem ou o Roblox perde o foco.
+- Reel assistido opt-in com F8/F9, controlador preditivo, limite de segurança de três minutos e libertação de input quando os marcadores desaparecem ou o Roblox perde o foco.
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
 - Histórico local SQLite, resumo de sessão com os 25 melhores peixes e exportação CSV/JSON.
@@ -21,9 +21,9 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 
 ## O que falta validar no jogo real
 
-- Auto-cast e Auto-shake estão disponíveis, mas desligados por defeito. Foram testados com frames simulados; ainda precisam de validação prática na tua interface do Fisch e com a tua cana/resolução.
-- O Reel assistido não faz recast nem inicia uma sessão de pesca sozinho; só controla o hold/release quando o minijogo e ambos os marcadores calibrados são detetados.
-- A venda real depende de calibração feita no teu ecrã, da gamepass Sell Anywhere e de uma notificação OCR de confiança elevada. O fluxo foi testado com frames simulados, mas ainda precisa de validação numa sessão real do Fisch.
+- Toda a lógica de controlo tem testes automatizados e frames sintéticos, mas ainda falta calibrar cores/regiões com capturas reais do teu Fisch e validar o timing numa sessão real. Não afirmamos que a visão esteja pronta para a tua resolução/cana sem esse passo.
+- Equipar a cana por hotbar é opcional: podes escolher um slot de 1 a 0; o GafiFish envia a tecla normal do Windows uma vez ao armar, mas não consegue garantir visualmente que a cana correta está nesse slot. Também podes deixar a cana equipada manualmente.
+- A venda real depende da gamepass Sell Anywhere, da lista/botão calibrados e de notificações OCR reconhecidas. O fluxo é testado por frames simulados; a calibração e o resultado real ainda precisam de confirmação no teu jogo.
 
 Não se assumem coordenadas, cores ou teclas para os prompts de Shake/lançamento.
 
