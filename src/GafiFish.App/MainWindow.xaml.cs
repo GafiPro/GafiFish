@@ -27,6 +27,7 @@ using GafiFish.Ocr.Installation;
 using GafiFish.Ocr.Parsing;
 using GafiFish.Core.Automation;
 using GafiFish.Core.Aquarium;
+using GafiFish.Core.Diagnostics;
 using GafiFish.Core.Control;
 using GafiFish.Core.Scheduling;
 using GafiFish.Core.Services;
@@ -67,6 +68,8 @@ public partial class MainWindow : Window
     private readonly AquariumScheduleStore _aquariumScheduleStore = new();
     private AquariumScheduleState _aquariumScheduleState = new();
     private readonly DispatcherTimer _aquariumTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _frameReplayTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
+    private FrameReplaySequence? _frameReplaySequence;
     private bool _isLoadingAquariumSchedule;
     private readonly ObservableCollection<string> _activityLog = [];
     private readonly ObservableCollection<string> _visibleActivityLog = [];
@@ -185,6 +188,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _dashboardSessionTimer.Tick += DashboardSessionTimer_Tick;
         _aquariumTimer.Tick += AquariumTimer_Tick;
+        _frameReplayTimer.Tick += FrameReplayTimer_Tick;
         PreviewOverlay.Children.Add(_fishMarkerOverlay);
         PreviewOverlay.Children.Add(_controlMarkerOverlay);
         PreviewOverlay.Children.Add(_castTargetOverlay);
@@ -2220,6 +2224,8 @@ public partial class MainWindow : Window
                     try
                     {
                         var frame = await Task.Run(_capture.CaptureForegroundClient, token);
+                        if (token.IsCancellationRequested)
+                            break;
                         DisplayFrame(frame);
                         StatusText.Text = "Observing Roblox. Alt+Tab here to inspect the latest frame.";
 
@@ -2274,7 +2280,225 @@ public partial class MainWindow : Window
         }
     }
 
-    private void DisplayFrame(ScreenCaptureFrame frame)
+
+    private void SaveCurrentFrame_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastFrame is null)
+        {
+            FrameReplayStatusText.Text = "Capture a Roblox frame with F6 before saving it.";
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Save current GafiFish frame",
+            Filter = "PNG image (*.png)|*.png",
+            DefaultExt = "png",
+            AddExtension = true,
+            FileName = $"GafiFish-frame-{DateTime.Now:yyyyMMdd-HHmmss-fff}.png",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var frame = _lastFrame;
+            var bitmap = BitmapSource.Create(
+                frame.Width, frame.Height, 96, 96,
+                PixelFormats.Bgra32, null, frame.BgraPixels, frame.Stride);
+            bitmap.Freeze();
+
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using var stream = File.Create(dialog.FileName);
+            encoder.Save(stream);
+            FrameReplayStatusText.Text =
+                $"Saved {frame.Width}×{frame.Height} frame to {Path.GetFileName(dialog.FileName)}.";
+        }
+        catch (Exception exception)
+        {
+            FrameReplayStatusText.Text = $"Could not save frame: {exception.Message}";
+        }
+    }
+
+    private void LoadFrameReplay_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Load ordered Fisch frame images",
+            Filter = "Frame images (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp",
+            Multiselect = true,
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var sequence = FrameReplaySequence.Create(dialog.FileNames);
+
+            StopFrameReplay();
+            if (_previewCancellation is not null)
+                StopPreviewLoop();
+            if (_automationEnabled)
+                StopAutomation("Offline frame replay started; all game inputs were released.");
+
+            _frameReplaySequence = sequence;
+            _motionTracker.Reset();
+            _lastDisplayedFrameAt = DateTimeOffset.MinValue;
+            _smoothedCaptureFps = 0;
+
+            if (DisplayCurrentReplayFrame())
+            {
+                AddActivityLog("INFO", "REPLAY",
+                    $"Loaded offline image sequence with {sequence.Count} frames.");
+            }
+            UpdateFrameReplayControls();
+        }
+        catch (Exception exception)
+        {
+            StopFrameReplay();
+            FrameReplayStatusText.Text = $"Could not load frame sequence: {exception.Message}";
+            UpdateFrameReplayControls();
+        }
+    }
+
+    private void ReplayPrevious_Click(object sender, RoutedEventArgs e)
+    {
+        StopFrameReplay();
+        if (_frameReplaySequence is null || !_frameReplaySequence.MovePrevious())
+            return;
+
+        _motionTracker.Reset();
+        _lastDisplayedFrameAt = DateTimeOffset.MinValue;
+        _smoothedCaptureFps = 0;
+        _ = DisplayCurrentReplayFrame();
+        UpdateFrameReplayControls();
+    }
+
+    private void ReplayNext_Click(object sender, RoutedEventArgs e)
+    {
+        StopFrameReplay();
+        if (_frameReplaySequence is null || !_frameReplaySequence.MoveNext())
+            return;
+
+        _ = DisplayCurrentReplayFrame();
+        UpdateFrameReplayControls();
+    }
+
+    private void ReplayPlay_Click(object sender, RoutedEventArgs e)
+    {
+        if (_frameReplaySequence is null)
+            return;
+
+        if (_frameReplayTimer.IsEnabled)
+        {
+            StopFrameReplay();
+            FrameReplayStatusText.Text += " · paused";
+            return;
+        }
+
+        if (!_frameReplaySequence.HasNext)
+        {
+            _frameReplaySequence.Restart();
+            _motionTracker.Reset();
+            _lastDisplayedFrameAt = DateTimeOffset.MinValue;
+            _smoothedCaptureFps = 0;
+            if (!DisplayCurrentReplayFrame())
+                return;
+        }
+
+        _frameReplayTimer.Start();
+        UpdateFrameReplayControls();
+    }
+
+    private void FrameReplayTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_frameReplaySequence is null || !_frameReplaySequence.MoveNext())
+        {
+            StopFrameReplay();
+            UpdateFrameReplayControls();
+            return;
+        }
+
+        if (!DisplayCurrentReplayFrame())
+        {
+            StopFrameReplay();
+            UpdateFrameReplayControls();
+            return;
+        }
+
+        if (!_frameReplaySequence.HasNext)
+            StopFrameReplay();
+
+        UpdateFrameReplayControls();
+    }
+
+    private void StopFrameReplay()
+    {
+        _frameReplayTimer.Stop();
+        if (ReplayPlayButton is not null)
+            ReplayPlayButton.Content = "Play";
+    }
+
+    private void UpdateFrameReplayControls()
+    {
+        var sequence = _frameReplaySequence;
+        ReplayPreviousButton.IsEnabled = sequence?.HasPrevious == true;
+        ReplayNextButton.IsEnabled = sequence?.HasNext == true;
+        ReplayPlayButton.IsEnabled = sequence is not null && sequence.Count > 1;
+        ReplayPlayButton.Content = _frameReplayTimer.IsEnabled ? "Pause" : "Play";
+    }
+
+    private bool DisplayCurrentReplayFrame()
+    {
+        if (_frameReplaySequence is null)
+            return false;
+
+        try
+        {
+            var path = _frameReplaySequence.CurrentPath;
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var decoder = BitmapDecoder.Create(
+                stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+            if (decoder.Frames.Count == 0)
+                throw new InvalidDataException("The selected image contains no frame.");
+
+            var source = decoder.Frames[0];
+            if (source.PixelWidth is < 64 or > 8192 || source.PixelHeight is < 64 or > 8192)
+                throw new InvalidDataException("Frame dimensions must be between 64 and 8192 pixels.");
+
+            BitmapSource bgra = source.Format == PixelFormats.Bgra32
+                ? source
+                : new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+            bgra.Freeze();
+
+            var stride = checked(bgra.PixelWidth * 4);
+            var pixels = new byte[checked(stride * bgra.PixelHeight)];
+            bgra.CopyPixels(pixels, stride, 0);
+            var frame = new ScreenCaptureFrame(
+                bgra.PixelWidth,
+                bgra.PixelHeight,
+                stride,
+                pixels,
+                DateTimeOffset.UtcNow,
+                $"Offline replay · {Path.GetFileName(path)}",
+                0);
+
+            DisplayFrame(frame, allowAutomation: false);
+            FrameReplayStatusText.Text =
+                $"Preview-only replay · {_frameReplaySequence.CurrentIndex + 1}/{_frameReplaySequence.Count} · {Path.GetFileName(path)}";
+            return true;
+        }
+        catch (Exception exception)
+        {
+            FrameReplayStatusText.Text = $"Could not decode replay frame: {exception.Message}";
+            return false;
+        }
+    }
+
+    private void DisplayFrame(ScreenCaptureFrame frame, bool allowAutomation = true)
     {
         var previousFrameAt = _lastDisplayedFrameAt;
         _lastDisplayedFrameAt = frame.CapturedAt;
@@ -2367,15 +2591,23 @@ public partial class MainWindow : Window
             : "Sell Anywhere: select the button region and sample its color.";
         DrawMarker(_sellButtonOverlay, sellResult.SellButton);
 
-        ProcessAutomationFrame(
-            frame,
-            visionResult.FishMarker,
-            visionResult.ControlMarker,
-            motion,
-            castObservation,
-            shakeResult.Prompts);
+        if (allowAutomation)
+        {
+            ProcessAutomationFrame(
+                frame,
+                visionResult.FishMarker,
+                visionResult.ControlMarker,
+                motion,
+                castObservation,
+                shakeResult.Prompts);
 
-        TryStartCatchRecognition(frame);
+            TryStartCatchRecognition(frame);
+        }
+        else
+        {
+            AutomationStatusText.Text =
+                "Offline replay active · game inputs and OCR session writes are disabled.";
+        }
     }
 
     private void DrawDetectedMarkers(

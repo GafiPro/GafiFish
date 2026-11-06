@@ -684,6 +684,32 @@
                                    Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
                     </StackPanel>
                 </Border>
+
+                <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
+                        CornerRadius="16" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Offline frame replay" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,5" />
+                        <TextBlock Text="Save real Fisch frames, then load a numbered PNG/JPG/BMP sequence to inspect detection and tune calibration without keeping the game open."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,9" />
+                        <WrapPanel>
+                            <Button Content="Save current frame" Click="SaveCurrentFrame_Click"
+                                    Height="32" Margin="0,0,7,7" Background="#294153" />
+                            <Button Content="Load image sequence" Click="LoadFrameReplay_Click"
+                                    Height="32" Margin="0,0,7,7" Background="#285B50" />
+                            <Button x:Name="ReplayPreviousButton" Content="Previous" Click="ReplayPrevious_Click"
+                                    Height="32" Margin="0,0,7,7" IsEnabled="False" />
+                            <Button x:Name="ReplayPlayButton" Content="Play" Click="ReplayPlay_Click"
+                                    Height="32" Margin="0,0,7,7" IsEnabled="False" />
+                            <Button x:Name="ReplayNextButton" Content="Next" Click="ReplayNext_Click"
+                                    Height="32" Margin="0,0,0,7" IsEnabled="False" />
+                        </WrapPanel>
+                        <TextBlock x:Name="FrameReplayStatusText"
+                                   Text="No replay loaded. Save frames with F6, then load a sequence named in order (for example frame_001.png, frame_002.png)."
+                                   Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" />
+                        <TextBlock Text="Replay is preview-only: it never sends game inputs and never records OCR catches or session data."
+                                   Foreground="#EACB80" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
+                    </StackPanel>
+                </Border>
 <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1" CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Text="Visual calibration" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />

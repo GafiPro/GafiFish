@@ -22,7 +22,7 @@
 - [x] Tracking horizontal com confiança e expiração de deteções antigas.
 - [x] Testes com frames sintéticos.
 - [x] Testes sintéticos de frames para cast e Shake coordinators.
-- [ ] Modo de reprodução de imagens/gravações para testar sem abrir o jogo.
+- [x] Replay offline de sequências de imagens PNG/JPG/BMP, com navegação/reprodução e execução apenas dos detetores visuais (sem inputs nem registos OCR).\n- [ ] Importação/reprodução de gravações de vídeo.
 - [ ] Validar a calibração com capturas reais do Fisch em diferentes resoluções.
 
 ## Fase 2 — Pesca e Perfect Cast
@@ -81,7 +81,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 
 - [x] Ajuste adaptativo da cadência de captura com perfis Economy, Balanced e Responsive.
 - [x] Limites de tempo e recuperação segura nos estados Cast, Shake, espera por mordida e Reel.
-- [ ] Reprodução de capturas/gravações reais para diagnóstico sem abrir o jogo.
+- [x] Reprodução offline de sequências de imagens reais para diagnóstico sem abrir o jogo.\n- [ ] Reprodução direta de gravações de vídeo para diagnóstico.
 - [x] Estatísticas acumuladas de todas as sessões: espécies mais capturadas, raridade alta, mutações, peso médio/máximo, valor estimado reconhecido por OCR e capturas por hora de sessões concluídas.
 - [ ] Relatórios de diagnóstico exportáveis.
 - [x] Alertas sonoros locais para espécies configuradas, raridade Legendary+ e mutações detetadas por OCR.
@@ -188,3 +188,12 @@ Appraise/Treasure Appraise, Auto Enchant, automação visual do Aquarium, Angler
 
 - [x] Pré-visualização pós-verificação com data, tamanho e lista dos conteúdos do backup, sem extrair nem restaurar ficheiros.
 - [x] Ignorar pastas/referências reparse-point ao percorrer dados locais, evitando seguir junctions/symlinks para fora da pasta de dados.
+
+
+## Replay offline de frames — novembro de 2026
+
+- [x] Guardar a captura atual como PNG para construir um conjunto de frames reais.
+- [x] Carregar sequências locais PNG/JPG/JPEG/BMP, com validação de formato, existência e limite de tamanho.
+- [x] Navegar frame a frame ou reproduzir a cerca de 8 FPS.
+- [x] O modo replay não envia inputs, não arma o macro e não grava resultados OCR na sessão.
+- [ ] Importação direta de gravações de vídeo continua pendente.
