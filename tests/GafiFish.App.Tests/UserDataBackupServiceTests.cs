@@ -79,6 +79,35 @@ public sealed class UserDataBackupServiceTests
     }
 
     [Fact]
+    public async Task VerifyBackup_ReturnsManifestForPreviewWithoutExtractingFiles()
+    {
+        var directory = CreateTemporaryDirectory();
+        var backupPath = Path.Combine(Path.GetTempPath(), $"gafifish-preview-{Guid.NewGuid():N}.zip");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "{ \"profile\": 2 }");
+            await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json"), "{ \"key\": \"F8\" }");
+
+            var service = new UserDataBackupService(directory);
+            var created = await service.CreateBackupAsync(backupPath);
+            var inspected = await service.VerifyBackupAsync(backupPath);
+
+            Assert.True(inspected.IsValid, inspected.Message);
+            Assert.NotNull(inspected.Manifest);
+            Assert.Equal(created.Files.Count, inspected.Manifest.Files.Count);
+            Assert.Contains(inspected.Manifest.Files, file => file.Path == "vision-profile.json");
+            Assert.Contains(inspected.Manifest.Files, file => file.Path == "app-settings.json");
+            Assert.False(File.Exists(Path.Combine(directory, "gafifish-backup-manifest.json")));
+        }
+        finally
+        {
+            if (File.Exists(backupPath))
+                File.Delete(backupPath);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task VerifyBackup_RejectsTamperedFileContents()
     {
         var directory = CreateTemporaryDirectory();

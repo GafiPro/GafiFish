@@ -18,7 +18,8 @@ public sealed record UserDataBackupVerification(
     bool IsValid,
     int FileCount,
     long TotalBytes,
-    string Message);
+    string Message,
+    UserDataBackupManifest? Manifest = null);
 
 /// <summary>
 /// Creates and verifies portable backups of GafiFish local data. SQLite is
@@ -72,7 +73,7 @@ public sealed class UserDataBackupService
                     await CreateDatabaseSnapshotAsync(sourceDatabase, stagedDatabase, cancellationToken);
                 }
 
-                foreach (var sourceFile in Directory.EnumerateFiles(_dataDirectory, "*", SearchOption.AllDirectories)
+                foreach (var sourceFile in EnumerateSafeFiles(_dataDirectory)
                              .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -235,12 +236,35 @@ public sealed class UserDataBackupService
                 true,
                 expectedFiles.Count,
                 totalBytes,
-                $"Backup valid · {expectedFiles.Count:N0} files · SHA-256 checks passed.");
+                $"Backup valid · {expectedFiles.Count:N0} files · SHA-256 checks passed.",
+                manifest);
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
         {
             return Invalid($"Could not verify backup: {exception.Message}");
+        }
+    }
+
+    private static IEnumerable<string> EnumerateSafeFiles(string rootDirectory)
+    {
+        var pendingDirectories = new Stack<string>();
+        pendingDirectories.Push(rootDirectory);
+
+        while (pendingDirectories.Count > 0)
+        {
+            var currentDirectory = pendingDirectories.Pop();
+            foreach (var entry in Directory.EnumerateFileSystemEntries(currentDirectory))
+            {
+                var attributes = File.GetAttributes(entry);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                    continue;
+
+                if ((attributes & FileAttributes.Directory) != 0)
+                    pendingDirectories.Push(entry);
+                else
+                    yield return entry;
+            }
         }
     }
 

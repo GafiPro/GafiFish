@@ -2806,6 +2806,11 @@ public partial class MainWindow : Window
         }
     }
 
+    private static string FormatBackupSize(long bytes) =>
+        bytes < 1024 ? $"{bytes} B"
+        : bytes < 1024 * 1024 ? $"{bytes / 1024d:F1} KB"
+        : $"{bytes / 1024d / 1024d:F1} MB";
+
     private async void CreateDataBackup_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new SaveFileDialog
@@ -2865,6 +2870,29 @@ public partial class MainWindow : Window
         {
             var result = await _userDataBackupService.VerifyBackupAsync(dialog.FileName);
             DataBackupStatusText.Text = result.Message;
+
+            if (result.IsValid && result.Manifest is not null)
+            {
+                var manifest = result.Manifest;
+                var previewLines = manifest.Files
+                    .OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+                    .Take(20)
+                    .Select(item => $"• {item.Path}  ({FormatBackupSize(item.SizeBytes)})")
+                    .ToList();
+                if (manifest.Files.Count > previewLines.Count)
+                    previewLines.Add($"… and {manifest.Files.Count - previewLines.Count:N0} more files");
+
+                DataBackupContentsText.Text =
+                    $"Created: {manifest.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}{Environment.NewLine}" +
+                    $"Total contents: {manifest.Files.Count:N0} files · {FormatBackupSize(result.TotalBytes)}{Environment.NewLine}" +
+                    string.Join(Environment.NewLine, previewLines) +
+                    $"{Environment.NewLine}{Environment.NewLine}Preview only: nothing has been extracted or restored.";
+            }
+            else
+            {
+                DataBackupContentsText.Text = "No contents preview is available because this backup did not pass verification.";
+            }
+
             AddActivityLog(result.IsValid ? "INFO" : "WARN", "BACKUP",
                 $"Backup verification: {result.Message}");
         }

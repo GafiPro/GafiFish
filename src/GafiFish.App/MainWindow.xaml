@@ -811,6 +811,14 @@
                                     <TextBlock x:Name="DataBackupStatusText"
                                                Text="Backups are local. Temporary files and older backup ZIPs are excluded."
                                                Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" />
+                                    <Border Background="#101A23" BorderBrush="#283B49" BorderThickness="1"
+                                            CornerRadius="9" Padding="10" Margin="0,10,0,0">
+                                        <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock x:Name="DataBackupContentsText"
+                                                       Text="Verify a backup to preview the files it contains. No data is extracted or restored."
+                                                       Foreground="#C8D5DE" FontSize="11" TextWrapping="Wrap" />
+                                        </ScrollViewer>
+                                    </Border>
                                 </StackPanel>
                             </Border>
 

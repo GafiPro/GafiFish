@@ -183,3 +183,6 @@ Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, dete�
 - [x] Gerar manifesto com versão do formato, data, tamanho e SHA-256 de cada ficheiro.
 - [x] Verificar backups sem extrair ficheiros, rejeitando caminhos inseguros, duplicados, ficheiros em falta ou conteúdo alterado.
 - [x] Testes para snapshot SQLite, conteúdo incluído/excluído, manifesto e integridade.
+
+- [x] Pré-visualização pós-verificação com data, tamanho e lista dos conteúdos do backup, sem extrair nem restaurar ficheiros.
+- [x] Ignorar pastas/referências reparse-point ao percorrer dados locais, evitando seguir junctions/symlinks para fora da pasta de dados.
