@@ -75,7 +75,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Exportação global de todas as capturas, com metadados da sessão, para CSV/JSON.
 - [x] Resumo com até 25 melhores peixes.
 - [ ] Afinação do parser com notificações reais do Fisch e nomes especiais.
-- [ ] Cópia direta do resumo para a área de transferência.
+- [x] Cópia direta do resumo para a área de transferência.
 
 ## Fase 5 — Robustez e melhorias
 
@@ -85,12 +85,12 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Estatísticas acumuladas de todas as sessões: espécies mais capturadas, raridade alta, mutações, peso médio/máximo, valor estimado reconhecido por OCR e capturas por hora de sessões concluídas.
 - [ ] Relatórios de diagnóstico exportáveis.
 - [x] Alertas sonoros locais para espécies configuradas, raridade Legendary+ e mutações detetadas por OCR.
-- [ ] HUD de telemetria com posição, erro, confiança, estado e motivo de cada decisão.
-- [ ] Perfis por cana com ajuste do controlador e cores próprios.
-- [ ] Auto-totem e auto-poção com horários/teclas configuráveis e bloqueio estrito durante Cast, Shake e Reel.
+- [x] HUD de telemetria com posição, erro, confiança, estado, FPS de captura e motivo das decisões.
+- [x] Perfis nomeados manualmente por cana, com calibração visual exportável/importável em JSON.\n- [ ] Seleção automática de perfil por cana e afinação do controlador com dados reais.
+- [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.\n- [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
 - [ ] Deteção de desconexão e recuperação/reconexão segura.
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
-- [ ] Módulos independentes posteriores: Hunt Detection, Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest e Harpoon; cada um requer calibração, confirmação do alvo e testes isolados.
+- [ ] Módulos posteriores: Hunt Detection, Appraise/Treasure Appraise, Auto Enchant, Angler Quest e outros minijogos por cana; dependem de frames reais e de validação isolada. Auto Aquarium já tem motor visual calibrável, mas continua por validar no Fisch real.
 
 ## Próximo bloqueio técnico
 
@@ -124,7 +124,7 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Ainda por implementar
 
-Appraise/Treasure Appraise, Auto Enchant, automação visual do Aquarium, Angler Quest, Harpoon, deteção de hunts e reconexão automática continuam fora da versão funcional. Exigem fluxos de interface e deteção visual próprios e validação real. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados não confirmam a ativação pelo jogo e podem gastar um item se o slot selecionado estiver errado.
+Appraise/Treasure Appraise, Auto Enchant, Angler Quest, deteção de hunts e reconexão automática continuam por implementar. O Auto Aquarium já tem automação visual calibrável para alimentação/reposição/claim, mas exige calibração das sete ações e validação com capturas reais do Fisch. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
 
 
 ## Inspiração ExoPanda — próximos módulos
@@ -133,7 +133,7 @@ Appraise/Treasure Appraise, Auto Enchant, automação visual do Aquarium, Angler
 - [x] Hotkeys globais configuráveis e persistentes, incluindo show/hide e auto-hide opcional.
 - [x] Quick Info para estado dos módulos.
 - [x] Aquarium Planner: registar alimentação e reposição independentes para as três comidas, acompanhar cooldowns horários e guardar horários localmente.
-- [ ] Auto Aquarium: detetar o painel, alimentar/comprar apenas quando os botões e cooldowns forem confirmados visualmente, e distinguir auto-claim.
+- [x] Auto Aquarium: motor visual calibrável para sete botões; ações independentes de alimentação/reposição/claim, cooldown registado, deteção estável, clique único e falha fechada.\n- [ ] Detetar automaticamente o painel e validar os botões/calibrações em frames reais do Fisch.
 - [ ] Auto Appraisal: calibrar as zonas de diálogo, selecionar um peixe pela hotbar, ler peso/mutação e limitar tentativas/custo antes de repetir.
 - [ ] Custom Rod handlers: implementar cada minijogo específico apenas após recolher e validar frames reais.
 - [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.
@@ -216,3 +216,10 @@ Appraise/Treasure Appraise, Auto Enchant, automação visual do Aquarium, Angler
 - [x] Opções independentes de alimentação, reposição e claim, todas desligadas por defeito.
 - [x] Reposição exige ativação explícita e a UI informa que pode gastar moeda do jogo.
 - [ ] Validar as sete calibrações com frames reais do Fisch e testar o fluxo completo no jogo.
+
+
+## Estado da versão publicada — 6 de novembro de 2026
+
+A revisão `acbcef3` passou Restore, Build, as cinco suites de testes, Publish Windows x64, Package e Upload do artefacto.
+
+A validação que falta nesta fase não pode ser provada por frames sintéticos: inclui calibração e teste no jogo real, em particular tempos do Reel/Perfect Cast/Shake, venda com a gamepass e as sete ações visuais do Aquarium. Até essa validação, estes módulos devem ser tratados como experimentais e testados um de cada vez.

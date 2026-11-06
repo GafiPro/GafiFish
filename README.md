@@ -2,7 +2,7 @@
 
 Aplicação Windows para observação visual, calibração, Reel assistido e registo de sessões de pesca no Roblox Fisch.
 
-**Estado: aplicação gráfica Windows com iniciar/parar, Reel assistido, Auto-cast/Auto-shake opcionais, modo de recast até à primeira captura confirmada, Sell Anywhere temporizado e histórico local; validação prática no Fisch ainda pendente.**
+**Estado: aplicação gráfica Windows com Reel assistido, Auto-cast/Auto-shake, recast por OCR, Sell Anywhere temporizado, sessão/Catchbook e Auto Aquarium visual calibrável; validação prática no Fisch ainda pendente.**
 
 ## O que já funciona
 
@@ -13,6 +13,8 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Deteção de prompts Shake e Auto-shake opcional: só clica após dois frames estáveis, evita repetir o mesmo prompt e reconhece o fim da sequência após quatro frames sem prompt.
 - Auto-cast opcional: segura e liberta o rato na janela Perfect Cast calibrada; por defeito, após 30 segundos sem mordida faz até dois recasts adicionais. O modo opcional “Keep fishing until the first fish is caught” remove esse limite e termina após uma notificação OCR de captura com confiança elevada. O modo “Fish until this exact target is caught” permite escrever um nome como “Wrath Scylla”; continua a tentar até todos os termos do alvo aparecerem numa notificação de captura reconhecida com confiança elevada.
 - Deteção visual do botão Sell Anywhere e verificação de alterações estáveis na lista do inventário.
+- Auto Aquarium visual calibrável para sete ações (feed/restock das três comidas e claim horário): cada botão tem região/cor próprias, clique único após deteção estável e cooldown atualizado apenas após mudança visual. Alimentação, reposição e claim são opções independentes e desligadas por defeito; a reposição pode gastar moeda do jogo e exige ativação explícita.
+- Aquarium Planner com registo manual, temporizadores horários persistentes e alerta sonoro opcional quando cada ação fica pronta.
 - Botões visíveis Start macro / Stop macro, além dos atalhos F8/F9. O modo de recast contínuo exige Auto-cast, sessão OCR ativa e região de notificação calibrada; o timeout de Reel liberta o controlo e reinicia o ciclo, sem eliminar os stops de emergência.
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
@@ -53,6 +55,17 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 8. Para iniciar, clica em **Start macro (F8)** e muda para a janela Roblox; o GafiFish arma-se assim que captura o primeiro fotograma do Roblox. Também podes usar F8 diretamente com o Roblox em primeiro plano. Para parar, clica em **Stop macro (F9)** ou usa F9. Para o modo ilimitado até à primeira captura, ativa **Keep fishing until the first fish is caught** — exige Auto-cast, sessão OCR e região de notificação calibrada. Para vender automaticamente, marca **Enable Sell Anywhere every 10 minutes**; a gamepass vende os itens não favoritos, por isso marca como favoritos os que pretendes guardar.
 9. Para procurar um peixe específico, ativa **Fish until this exact target is caught**, escreve o nome (por exemplo, **Wrath Scylla**) e inicia o macro. O modo exige Auto-cast, sessão OCR ativa e região de notificação calibrada. Só termina quando o texto da notificação incluir todos os termos do alvo e a confiança OCR for pelo menos 90%; capturas de outros peixes não terminam a procura. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
 10. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
+
+### Auto Aquarium
+
+1. Abre o Aquarium no Fisch e deixa o painel visível.
+2. Faz F6 para guardar um frame; mantém a resolução e escala de interface que vais usar durante a automação.
+3. Na página **Aquarium**, seleciona uma ação na lista (por exemplo, Feed · Guppies' Best), escolhe **Select button area** e desenha um retângulo apertado em redor do botão quando estiver ativo.
+4. Escolhe **Sample ready button colour** e clica num pixel limpo do mesmo botão ativo. Repete para todas as ações que pretendes ativar.
+5. Regista manualmente o último horário em que cada ação foi concluída; a automação só atua quando esse cooldown estiver vencido.
+6. Ativa apenas as opções pretendidas e prime **Arm Auto Aquarium**. Mantém o Aquarium aberto e o Roblox em primeiro plano. A perda de foco, erro de captura ou falha de confirmação desarma o módulo sem repetir o clique.
+
+O coordenador espera três frames estáveis, envia um clique e só regista a conclusão quando o botão ativo desaparece em dois frames. Se o estado não mudar no prazo definido, pára e não repete. Esta implementação ainda precisa de validação com imagens e interface reais do Fisch; não a trates como validada para outras resoluções/temas sem recalibrar.
 
 Sell Anywhere vende os peixes que não estejam marcados como favoritos. Marca previamente como favoritos todos os peixes que pretendes guardar. A venda só é armada por F8 quando a caixa Sell Anywhere está marcada, existe uma sessão OCR e as regiões do botão/inventário estão calibradas.
 
@@ -113,7 +126,7 @@ Projeto independente, sem afiliação ao Roblox ou aos criadores de Fisch.
 
 ### Melhorias adicionais e limites
 
-A aplicação inclui perfis de calibração nomeados manualmente por cana, telemetria, intervalo de captura adaptativo, ações temporizadas opcionais para totem/poção (slot escolhido pelo utilizador, clique único entre ciclos e reposição do slot da cana), cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. Appraise, Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, deteção de hunts e reconexão automática continuam não implementados.
+A aplicação inclui perfis de calibração nomeados manualmente por cana, telemetria, intervalo de captura adaptativo, ações temporizadas para dois slots de totem/poção, cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. Appraise/Treasure Appraise, Auto Enchant, Angler Quest, deteção de hunts e reconexão automática continuam por implementar. Auto Aquarium já tem motor visual calibrável, mas ainda exige calibração e validação prática no Fisch.
 
 
 ### Alertas e estatísticas
