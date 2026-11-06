@@ -1,6 +1,6 @@
 namespace GafiFish.Core.Scheduling;
 
-public enum TimedHotbarActionKind { Totem, Potion }
+public enum TimedHotbarActionKind { Totem, SecondaryTotem, Potion }
 
 public sealed record TimedHotbarAction(TimedHotbarActionKind Kind, int HotbarSlot, TimeSpan Interval)
 {

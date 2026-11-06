@@ -1195,6 +1195,9 @@ public partial class MainWindow : Window
             !enabled ? "OFF" : calibrated ? "READY" : "NEEDS CALIBRATION";
         static string TimedItem(bool enabled) => enabled ? "ON · SLOT NOT VERIFIED" : "OFF";
 
+        var configuredTotems =
+            (AutoTotemCheckBox.IsChecked == true ? 1 : 0)
+            + (AutoSecondTotemCheckBox.IsChecked == true ? 1 : 0);
         var sellStatus = SellAnywhereCheckBox.IsChecked == true
             ? (_activeSessionId.HasValue && _profile.IsSellButtonCalibrated && _profile.IsInventoryVerificationCalibrated
                 ? "READY" : "NEEDS SESSION / CALIBRATION")
@@ -1204,7 +1207,7 @@ public partial class MainWindow : Window
             $"Reel assist: {State(_automationEnabled)}{Environment.NewLine}" +
             $"Auto-cast: {Readiness(AutoCastCheckBox.IsChecked == true, _profile.IsCastCalibrated)}{Environment.NewLine}" +
             $"Auto-shake: {Readiness(AutoShakeCheckBox.IsChecked == true, _profile.IsShakeCalibrated)}{Environment.NewLine}" +
-            $"Auto-totem: {TimedItem(AutoTotemCheckBox.IsChecked == true)}{Environment.NewLine}" +
+            $"Auto-totem rotation: {configuredTotems}/2 slots configured{Environment.NewLine}" +
             $"Auto-potion: {TimedItem(AutoPotionCheckBox.IsChecked == true)}{Environment.NewLine}" +
             $"Sell Anywhere: {sellStatus}{Environment.NewLine}" +
             $"Local OCR session: {State(_activeSessionId.HasValue)}";
@@ -1303,9 +1306,12 @@ public partial class MainWindow : Window
     {
         var enabled = AutoCastCheckBox.IsChecked == true && !_automationEnabled;
         AutoTotemCheckBox.IsEnabled = enabled;
+        AutoSecondTotemCheckBox.IsEnabled = enabled;
         AutoPotionCheckBox.IsEnabled = enabled;
         TotemSlotComboBox.IsEnabled = enabled && AutoTotemCheckBox.IsChecked == true;
         TotemIntervalTextBox.IsEnabled = enabled && AutoTotemCheckBox.IsChecked == true;
+        SecondTotemSlotComboBox.IsEnabled = enabled && AutoSecondTotemCheckBox.IsChecked == true;
+        SecondTotemIntervalTextBox.IsEnabled = enabled && AutoSecondTotemCheckBox.IsChecked == true;
         PotionSlotComboBox.IsEnabled = enabled && AutoPotionCheckBox.IsChecked == true;
         PotionIntervalTextBox.IsEnabled = enabled && AutoPotionCheckBox.IsChecked == true;
         RefreshModuleQuickInfo();
@@ -1355,6 +1361,7 @@ public partial class MainWindow : Window
             KeepFishingUntilCatchCheckBox.IsChecked = false;
             TargetFishCheckBox.IsChecked = false;
             AutoTotemCheckBox.IsChecked = false;
+            AutoSecondTotemCheckBox.IsChecked = false;
             AutoPotionCheckBox.IsChecked = false;
         }
         UpdateTimedItemControls();
@@ -1399,6 +1406,7 @@ public partial class MainWindow : Window
         var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
         var autoShakeEnabled = AutoShakeCheckBox.IsChecked == true;
         var autoTotemEnabled = AutoTotemCheckBox.IsChecked == true;
+        var autoSecondTotemEnabled = AutoSecondTotemCheckBox.IsChecked == true;
         var autoPotionEnabled = AutoPotionCheckBox.IsChecked == true;
         var keepFishingUntilCatch = KeepFishingUntilCatchCheckBox.IsChecked == true;
         var targetFishEnabled = TargetFishCheckBox.IsChecked == true;
@@ -1425,12 +1433,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        if ((autoTotemEnabled || autoPotionEnabled) && !autoCastEnabled)
+        if ((autoTotemEnabled || autoSecondTotemEnabled || autoPotionEnabled) && !autoCastEnabled)
         {
             AutomationStatusText.Text = "Timed consumables require Auto-cast so they are only used between fishing cycles.";
             return;
         }
-        if ((autoTotemEnabled || autoPotionEnabled) && EquipRodCheckBox.IsChecked != true)
+        if ((autoTotemEnabled || autoSecondTotemEnabled || autoPotionEnabled) && EquipRodCheckBox.IsChecked != true)
         {
             AutomationStatusText.Text = "Timed consumables require Equip my rod so the rod slot can be restored afterwards.";
             return;
@@ -1514,11 +1522,21 @@ public partial class MainWindow : Window
                 if (slot == rodSlot) throw new InvalidOperationException("Totem slot and rod slot must be different.");
                 timedActions.Add(new TimedHotbarAction(TimedHotbarActionKind.Totem, slot, ReadItemInterval(TotemIntervalTextBox, "Totem")));
             }
+            if (autoSecondTotemEnabled)
+            {
+                var slot = ReadHotbarSlot(SecondTotemSlotComboBox, "second totem");
+                if (slot == rodSlot || timedActions.Any(action => action.HotbarSlot == slot))
+                    throw new InvalidOperationException("Each totem, potion and rod must use a different hotbar slot.");
+                timedActions.Add(new TimedHotbarAction(
+                    TimedHotbarActionKind.SecondaryTotem,
+                    slot,
+                    ReadItemInterval(SecondTotemIntervalTextBox, "Second totem")));
+            }
             if (autoPotionEnabled)
             {
                 var slot = ReadHotbarSlot(PotionSlotComboBox, "potion");
                 if (slot == rodSlot || timedActions.Any(action => action.HotbarSlot == slot))
-                    throw new InvalidOperationException("Potion, totem and rod must use different hotbar slots.");
+                    throw new InvalidOperationException("Each totem, potion and rod must use a different hotbar slot.");
                 timedActions.Add(new TimedHotbarAction(TimedHotbarActionKind.Potion, slot, ReadItemInterval(PotionIntervalTextBox, "Potion")));
             }
 

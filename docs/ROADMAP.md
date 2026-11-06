@@ -135,6 +135,7 @@ Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, dete�
 - [ ] Auto Aquarium: detetar o painel/temporizadores, alimentar apenas quando o cooldown permitir, confirmar a ação e distinguir auto-claim.
 - [ ] Auto Appraisal: calibrar as zonas de diálogo, selecionar um peixe pela hotbar, ler peso/mutação e limitar tentativas/custo antes de repetir.
 - [ ] Custom Rod handlers: implementar cada minijogo específico apenas após recolher e validar frames reais.
+- [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.
 - [ ] Rotação de Totems por fase do dia/noite, com deteção visual do ciclo e confirmação do uso.
 
 
