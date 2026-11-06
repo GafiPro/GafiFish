@@ -108,6 +108,18 @@ public sealed class FishingStateMachineTests
     }
 
     [Fact]
+    public void StateMachine_AllowsRecoveryToRestartFishingAfterReelTimeout()
+    {
+        var machine = new FishingStateMachine();
+
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Automation armed."));
+        Assert.True(machine.TryTransition(FishingState.Reeling, "Reel markers detected."));
+        Assert.True(machine.TryTransition(FishingState.Recovering, "Reel safety timeout."));
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Fresh cycle begins."));
+        Assert.Equal(FishingState.Preparing, machine.CurrentState);
+    }
+
+    [Fact]
     public void StateMachine_AllowsShakeSequenceToReturnToWaitingForBite()
     {
         var machine = new FishingStateMachine();
