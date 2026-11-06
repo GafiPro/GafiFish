@@ -131,7 +131,20 @@
                                   Content="Keep fishing until the first fish is caught (unlimited retries)"
                                   Foreground="#EAF0F5" IsChecked="False" IsEnabled="False"
                                   Margin="0,0,0,6" />
-                        <TextBlock Text="Requires Auto-cast, an active local OCR session and a calibrated catch-notification region. Stops when OCR confirms a catch with high confidence. F9, loss of Roblox focus and stopping F7 remain emergency stops."
+                        <TextBlock Text="Requires Auto-cast, an active local OCR session and a calibrated catch-notification region. F9, loss of Roblox focus and stopping F7 remain emergency stops."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <CheckBox x:Name="TargetFishCheckBox"
+                                  Content="Fish until this exact target is caught"
+                                  Foreground="#EAF0F5" IsChecked="False" IsEnabled="False"
+                                  Margin="0,0,0,6"
+                                  Checked="TargetFishCheckBox_Changed"
+                                  Unchecked="TargetFishCheckBox_Changed" />
+                        <TextBox x:Name="TargetFishTextBox"
+                                 Text="Wrath Scylla" IsEnabled="False"
+                                 Height="32" Padding="8,5" Margin="0,0,0,8"
+                                 Background="#263543" Foreground="#EAF0F5"
+                                 ToolTip="Example: Wrath Scylla" />
+                        <TextBlock Text="Target matching checks the catch notification text (case-insensitive, punctuation-insensitive). It does not stop for unrelated catches."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
                         <CheckBox x:Name="AutoShakeCheckBox"
                                   Content="Auto-shake (stable prompts; detects end of prompt sequence)"
