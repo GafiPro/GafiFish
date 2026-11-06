@@ -100,6 +100,20 @@
                                 Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button x:Name="PreviewButton" Content="Start observation (F7)" Click="TogglePreview_Click"
                                 Height="38" Background="#285B50" Foreground="White" BorderThickness="0" />
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="StartMacroButton" Grid.Column="0"
+                                    Content="Start macro (F8)" Click="StartMacro_Click"
+                                    Height="38" Background="#285B50" Foreground="White" BorderThickness="0" />
+                            <Button x:Name="StopMacroButton" Grid.Column="2"
+                                    Content="Stop macro (F9)" Click="StopMacro_Click"
+                                    Height="38" Background="#6B343D" Foreground="White" BorderThickness="0"
+                                    IsEnabled="False" />
+                        </Grid>
                         <TextBlock Text="F6 captures one frame. F7 starts or stops live observation. Use the keys while Roblox is the foreground window; Alt+Tab back here to inspect the latest frame."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,12,0,0" />
                         <Separator Margin="0,8,0,8" Background="#33414F" />
@@ -109,8 +123,16 @@
                                   Content="Invert hold/release mapping (test with a safe catch)"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8" />
                         <CheckBox x:Name="AutoCastCheckBox"
-                                  Content="Auto-cast + auto-recast (Perfect Cast; 2 missed-bite retries)"
-                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8" />
+                                  Content="Auto-cast + auto-recast (Perfect Cast; 2 missed-bite retries by default)"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,6"
+                                  Checked="AutoCastCheckBox_Changed"
+                                  Unchecked="AutoCastCheckBox_Changed" />
+                        <CheckBox x:Name="KeepFishingUntilCatchCheckBox"
+                                  Content="Keep fishing until the first fish is caught (unlimited retries)"
+                                  Foreground="#EAF0F5" IsChecked="False" IsEnabled="False"
+                                  Margin="0,0,0,6" />
+                        <TextBlock Text="Requires Auto-cast, an active local OCR session and a calibrated catch-notification region. Stops when OCR confirms a catch with high confidence. F9, loss of Roblox focus and stopping F7 remain emergency stops."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
                         <CheckBox x:Name="AutoShakeCheckBox"
                                   Content="Auto-shake (stable prompts; detects end of prompt sequence)"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8" />
