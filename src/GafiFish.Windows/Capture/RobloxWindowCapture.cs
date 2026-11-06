@@ -150,28 +150,27 @@ public sealed class RobloxWindowCapture
         }
     }
 
-    public bool IsRobloxForeground() => IsRobloxForeground(expectedProcessId: null);
+    public bool IsRobloxForeground() => GetForegroundRobloxProcessId().HasValue;
 
     /// <summary>
-    /// Verifies both the Roblox process and, when supplied, the exact process
-    /// that produced the screen frame. This prevents a stale frame from driving
-    /// clicks in another Roblox client window.
+    /// Verifies that the foreground Roblox process is the expected client.
     /// </summary>
     public bool IsRobloxForeground(int expectedProcessId) =>
-        IsRobloxForeground((int?)expectedProcessId);
+        GetForegroundRobloxProcessId() == expectedProcessId;
 
-    private static bool IsRobloxForeground(int? expectedProcessId)
+    /// <summary>Returns the foreground Roblox PID, or null when another app is active.</summary>
+    public int? GetForegroundRobloxProcessId()
     {
         var hwnd = Native.GetForegroundWindow();
         if (hwnd == IntPtr.Zero)
         {
-            return false;
+            return null;
         }
 
         Native.GetWindowThreadProcessId(hwnd, out var processId);
-        return processId != 0
-            && (!expectedProcessId.HasValue || processId == expectedProcessId.Value)
-            && IsRobloxProcess((int)processId, out _);
+        return processId != 0 && IsRobloxProcess((int)processId, out _)
+            ? (int)processId
+            : null;
     }
 
     private static bool IsRobloxProcess(int processId, out string processName)
