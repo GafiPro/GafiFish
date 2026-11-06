@@ -140,7 +140,8 @@ public sealed class UserDataBackupServiceTests
         var builder = new SqliteConnectionStringBuilder
         {
             DataSource = databasePath,
-            Mode = SqliteOpenMode.ReadWriteCreate
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false
         };
         await using var connection = new SqliteConnection(builder.ToString());
         await connection.OpenAsync();
