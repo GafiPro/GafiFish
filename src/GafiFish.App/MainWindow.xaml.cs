@@ -104,6 +104,8 @@ public partial class MainWindow : Window
     private ShakeInputCoordinator? _shakeCoordinator;
     private bool _autoCastEnabled;
     private bool _autoShakeEnabled;
+    private int _missedBiteRetryCount;
+    private const int MaximumMissedBiteRetries = 2;
     private bool _automationEnabled;
     private LocalTesseractOcr? _ocr;
     private Guid? _activeSessionId;
@@ -295,6 +297,20 @@ public partial class MainWindow : Window
             var reelCoordinator = new ReelInputCoordinator(input, controller);
             reelCoordinator.Arm();
 
+            if (EquipRodCheckBox.IsChecked == true)
+            {
+                var slotText = (RodSlotComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+                if (string.IsNullOrWhiteSpace(slotText) || slotText.Length != 1
+                    || !char.IsDigit(slotText[0]))
+                {
+                    throw new InvalidOperationException("Choose a valid hotbar slot from 0 to 9.");
+                }
+
+                var virtualKey = (ushort)(0x30 + (slotText[0] - '0'));
+                input.SetKey(virtualKey, isDown: true);
+                input.SetKey(virtualKey, isDown: false);
+            }
+
             var castCoordinator = autoCastEnabled
                 ? new CastInputCoordinator(input, _perfectCast)
                 : null;
@@ -330,11 +346,14 @@ public partial class MainWindow : Window
             _shakeCoordinator = shakeCoordinator;
             _autoCastEnabled = autoCastEnabled;
             _autoShakeEnabled = autoShakeEnabled;
+            _missedBiteRetryCount = 0;
             _automationEnabled = true;
             InvertReelDirectionCheckBox.IsEnabled = false;
             AutoCastCheckBox.IsEnabled = false;
             AutoShakeCheckBox.IsEnabled = false;
             SellAnywhereCheckBox.IsEnabled = false;
+            EquipRodCheckBox.IsEnabled = false;
+            RodSlotComboBox.IsEnabled = false;
 
             var enabledModes = new List<string> { "Reel assist" };
             if (autoCastEnabled) enabledModes.Add("Auto-cast");
@@ -344,7 +363,7 @@ public partial class MainWindow : Window
                 enabledModes.Add("Sell Anywhere unavailable (session/calibration missing)");
 
             AutomationStatusText.Text =
-                $"Armed: {string.Join(" + ", enabledModes)}. Equip the rod manually; F9 stops and releases all inputs.";
+                $"Armed: {string.Join(" + ", enabledModes)}. F9 stops and releases all inputs.";
         }
         catch (Exception exception)
         {
@@ -429,6 +448,9 @@ public partial class MainWindow : Window
         AutoCastCheckBox.IsEnabled = true;
         AutoShakeCheckBox.IsEnabled = true;
         SellAnywhereCheckBox.IsEnabled = true;
+        EquipRodCheckBox.IsEnabled = true;
+        RodSlotComboBox.IsEnabled = EquipRodCheckBox.IsChecked == true;
+        _missedBiteRetryCount = 0;
 
         AutomationStatusText.Text = releaseFailed
             ? $"{reason} Warning: Windows rejected an input-release event; check the mouse/keyboard state."
@@ -498,13 +520,14 @@ public partial class MainWindow : Window
                     FishingState.Preparing or FishingState.WaitingForBite or FishingState.Shaking))
             {
                 _shakeCoordinator?.Reset();
+                _missedBiteRetryCount = 0;
                 _ = _runtimeStateMachine.TryTransition(
                     FishingState.Reeling,
                     "Both calibrated reel markers are visible with sufficient confidence.",
                     frame.CapturedAt);
             }
 
-            // Auto-cast is opt-in. The user must equip the rod manually first.
+            // Auto-cast is opt-in. The rod remains in the selected hotbar slot.
             if (_autoCastEnabled
                 && _castCoordinator is not null
                 && _runtimeStateMachine.CurrentState == FishingState.Preparing
@@ -554,25 +577,61 @@ public partial class MainWindow : Window
                 }
             }
 
-            // Auto-shake clicks only a high-confidence prompt that remains
-            // stable across frames. A second click requires it to move/disappear.
+            // A missed bite is retried a bounded number of times. This avoids
+            // both a dead session after one quiet cast and endless blind recasting.
             if (_autoCastEnabled
                 && _runtimeStateMachine.CurrentState == FishingState.WaitingForBite
                 && _runtimeStateMachine.HasTimedOut(TimeSpan.FromSeconds(30), frame.CapturedAt))
             {
-                StopAutomation("No bite/reel markers appeared within 30 seconds after casting; all inputs released.");
-                return;
+                if (_missedBiteRetryCount < MaximumMissedBiteRetries)
+                {
+                    _missedBiteRetryCount++;
+                    _castVision.Reset();
+                    if (!_runtimeStateMachine.TryTransition(
+                            FishingState.Preparing,
+                            $"No bite after 30 seconds; starting bounded recast retry {_missedBiteRetryCount}/{MaximumMissedBiteRetries}.",
+                            frame.CapturedAt))
+                    {
+                        throw new InvalidOperationException("Could not return to Preparing after a missed bite.");
+                    }
+
+                    AutomationStatusText.Text =
+                        $"No bite detected. Recasting ({_missedBiteRetryCount}/{MaximumMissedBiteRetries} retries used).";
+                }
+                else
+                {
+                    StopAutomation("No bite was detected after the initial cast and two retries; all inputs released.");
+                    return;
+                }
             }
 
-            if (_autoShakeEnabled && _shakeCoordinator is not null)
+            // Process only high-confidence prompts. The state machine enters
+            // Shaking after the detector/coordinator confirms an actionable candidate.
+            if (_autoShakeEnabled
+                && _shakeCoordinator is not null
+                && (_runtimeStateMachine.CurrentState is
+                    FishingState.Preparing or FishingState.WaitingForBite or FishingState.Shaking))
             {
-                if (shakePrompts.Count > 0
-                    && (_runtimeStateMachine.CurrentState is
-                        FishingState.Preparing or FishingState.WaitingForBite))
+                var stateBeforeShake = _runtimeStateMachine.CurrentState;
+                var shakeResult = _shakeCoordinator.ProcessFrame(frame, shakePrompts);
+
+                if ((stateBeforeShake is FishingState.Preparing or FishingState.WaitingForBite)
+                    && shakeResult.Kind is (ShakeInputResultKind.Stabilising
+                        or ShakeInputResultKind.Clicked
+                        or ShakeInputResultKind.WaitingForPromptChange
+                        or ShakeInputResultKind.Cooldown))
                 {
                     _ = _runtimeStateMachine.TryTransition(
                         FishingState.Shaking,
-                        "A calibrated Shake prompt candidate appeared.",
+                        "A high-confidence Shake prompt remained stable enough to act on.",
+                        frame.CapturedAt);
+                }
+                else if (stateBeforeShake == FishingState.Shaking
+                    && shakeResult.Kind == ShakeInputResultKind.PromptSequenceEnded)
+                {
+                    _ = _runtimeStateMachine.TryTransition(
+                        FishingState.WaitingForBite,
+                        "Shake prompt sequence ended; waiting for the reel minigame.",
                         frame.CapturedAt);
                 }
 
@@ -584,9 +643,15 @@ public partial class MainWindow : Window
                         return;
                     }
 
-                    var shakeResult = _shakeCoordinator.ProcessFrame(frame, shakePrompts);
                     AutomationStatusText.Text = $"Auto-shake: {shakeResult.Kind} · {shakeResult.Reason}";
                 }
+            }
+
+            if (_runtimeStateMachine.CurrentState == FishingState.Reeling
+                && _runtimeStateMachine.HasTimedOut(TimeSpan.FromMinutes(3), frame.CapturedAt))
+            {
+                StopAutomation("The reel minigame exceeded the 3-minute safety limit; all inputs released.");
+                return;
             }
 
             // Casting owns the left mouse button while it is charging. Reel
@@ -982,6 +1047,14 @@ public partial class MainWindow : Window
     {
         SetCalibrationAction(CalibrationAction.SelectCatchNotificationRegion,
             "Drag a rectangle around the fish-caught notification. Keep the rectangle tight around the notification text.");
+    }
+
+    private void EquipRodCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_automationEnabled)
+        {
+            RodSlotComboBox.IsEnabled = EquipRodCheckBox.IsChecked == true;
+        }
     }
 
     private void SetCalibrationAction(CalibrationAction action, string instruction)
