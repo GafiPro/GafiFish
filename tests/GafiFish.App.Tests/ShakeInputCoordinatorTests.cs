@@ -94,14 +94,17 @@ public sealed class ShakeInputCoordinatorTests
 
         _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(600)), []);
         _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(700)), []);
+        _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(800)), []);
+        var ended = ProcessAt(coordinator, Frame(start.AddMilliseconds(900)), []);
+        Assert.Equal(ShakeInputResultKind.PromptSequenceEnded, ended.Kind);
 
         var firstAfterReturn = ProcessAt(coordinator,
-            Frame(start.AddMilliseconds(800)),
+            Frame(start.AddMilliseconds(1000)),
             [Prompt(30, 30)]);
         Assert.Equal(ShakeInputResultKind.Stabilising, firstAfterReturn.Kind);
 
         var secondAfterReturn = ProcessAt(coordinator,
-            Frame(start.AddMilliseconds(900)),
+            Frame(start.AddMilliseconds(1100)),
             [Prompt(31, 30)]);
 
         Assert.Equal(ShakeInputResultKind.Clicked, secondAfterReturn.Kind);
@@ -120,6 +123,39 @@ public sealed class ShakeInputCoordinatorTests
             [Prompt(50, 50)]);
 
         Assert.Equal(ShakeInputResultKind.StaleFrame, result.Kind);
+        Assert.Equal(0, input.Clicks);
+    }
+
+
+    [Fact]
+    public void ProcessFrame_RejectsOutOfOrderFrames()
+    {
+        var input = new FakeRobloxInput();
+        input.Arm();
+        var coordinator = new ShakeInputCoordinator(input);
+        var start = DateTimeOffset.UtcNow.AddSeconds(-2);
+
+        _ = ProcessAt(coordinator, Frame(start.AddMilliseconds(100)), [Prompt(40, 40)]);
+        var result = ProcessAt(coordinator, Frame(start), [Prompt(40, 40)]);
+
+        Assert.Equal(ShakeInputResultKind.StaleFrame, result.Kind);
+        Assert.Equal(0, input.Clicks);
+    }
+
+    [Fact]
+    public void ProcessFrame_LowConfidencePromptNeverTriggersClick()
+    {
+        var input = new FakeRobloxInput();
+        input.Arm();
+        var coordinator = new ShakeInputCoordinator(input);
+        var start = DateTimeOffset.UtcNow.AddSeconds(-2);
+        var lowConfidence = Prompt(40, 40) with { Confidence = 0.20 };
+
+        var first = ProcessAt(coordinator, Frame(start), [lowConfidence]);
+        var second = ProcessAt(coordinator, Frame(start.AddMilliseconds(100)), [lowConfidence]);
+
+        Assert.Equal(ShakeInputResultKind.LowConfidence, first.Kind);
+        Assert.Equal(ShakeInputResultKind.LowConfidence, second.Kind);
         Assert.Equal(0, input.Clicks);
     }
 
