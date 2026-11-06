@@ -12,6 +12,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using GafiFish.Vision.Calibration;
 using GafiFish.Vision.Detection;
 using GafiFish.Core.Casting;
@@ -144,6 +145,9 @@ public partial class MainWindow : Window
     private Task? _catchRecognitionTask;
     private bool _isEndingSession;
     private bool _isRefreshingSessionHistory;
+    private DateTimeOffset? _dashboardSessionStartedAt;
+    private IReadOnlyList<FishCatch> _dashboardSessionCatches = Array.Empty<FishCatch>();
+    private readonly DispatcherTimer _dashboardSessionTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private CatchGoalProgress? _targetCatchProgress;
     private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
@@ -174,6 +178,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _dashboardSessionTimer.Tick += DashboardSessionTimer_Tick;
         PreviewOverlay.Children.Add(_fishMarkerOverlay);
         PreviewOverlay.Children.Add(_controlMarkerOverlay);
         PreviewOverlay.Children.Add(_castTargetOverlay);
@@ -614,6 +619,184 @@ public partial class MainWindow : Window
 
     private static string EscapeCsvCell(string value) =>
         "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+
+    private async Task RefreshDashboardSessionAsync()
+    {
+        try
+        {
+            if (_activeSessionId is not Guid sessionId)
+            {
+                _dashboardSessionTimer.Stop();
+                _dashboardSessionStartedAt = null;
+                _dashboardSessionCatches = Array.Empty<FishCatch>();
+                DashboardSessionStatusText.Text =
+                    "No active OCR session. Start one in Fishing to monitor live results.";
+                DashboardSessionDurationText.Text = "—";
+                DashboardSessionCatchesText.Text = "—";
+                DashboardSessionRateText.Text = "—";
+                DashboardSessionValueText.Text = "—";
+                DashboardRecentCatchesText.Text = "Recent recognised catches will appear here.";
+                RenderDashboardCatchActivity(DateTimeOffset.UtcNow);
+                return;
+            }
+
+            var session = await _sessionStore.GetSessionAsync(sessionId);
+            if (session is null)
+            {
+                DashboardSessionStatusText.Text = "The active session record could not be found.";
+                return;
+            }
+
+            _dashboardSessionStartedAt = session.StartedAt;
+            _dashboardSessionCatches = await _sessionStore.GetCatchesAsync(sessionId);
+            _dashboardSessionTimer.Start();
+            UpdateDashboardSessionDisplay(DateTimeOffset.UtcNow);
+            RenderDashboardCatchActivity(DateTimeOffset.UtcNow);
+        }
+        catch (Exception exception)
+        {
+            DashboardSessionStatusText.Text = $"Could not refresh live session data: {exception.Message}";
+        }
+    }
+
+    private void DashboardSessionTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_dashboardSessionStartedAt.HasValue)
+            UpdateDashboardSessionDisplay(DateTimeOffset.UtcNow);
+    }
+
+    private void UpdateDashboardSessionDisplay(DateTimeOffset now)
+    {
+        if (_dashboardSessionStartedAt is not DateTimeOffset startedAt)
+            return;
+
+        var duration = now >= startedAt ? now - startedAt : TimeSpan.Zero;
+        var catches = _dashboardSessionCatches.Count;
+        var catchRate = duration.TotalHours > 0
+            ? catches / duration.TotalHours
+            : 0d;
+        var estimatedValue = _dashboardSessionCatches
+            .Where(fish => fish.EstimatedValue.HasValue)
+            .Sum(fish => fish.EstimatedValue!.Value);
+
+        var durationText = duration.TotalHours >= 1
+            ? $"{(int)duration.TotalHours}h {duration.Minutes:00}m"
+            : $"{duration.Minutes}m {duration.Seconds:00}s";
+
+        DashboardSessionStatusText.Text =
+            $"SESSION ACTIVE · started {startedAt.ToLocalTime():HH:mm}";
+        DashboardSessionDurationText.Text = durationText;
+        DashboardSessionCatchesText.Text = catches.ToString("N0");
+        DashboardSessionRateText.Text = $"{catchRate:F1}/h";
+        DashboardSessionValueText.Text = $"~{estimatedValue:N0}";
+
+        var latestCatches = _dashboardSessionCatches
+            .OrderByDescending(fish => fish.CaughtAt)
+            .Take(5)
+            .Select(fish =>
+            {
+                var species = string.IsNullOrWhiteSpace(fish.Species)
+                    ? "Unidentified fish"
+                    : fish.Species;
+                var rarity = fish.Rarity?.ToString() ?? "Unknown";
+                var mutation = string.IsNullOrWhiteSpace(fish.Mutation)
+                    ? string.Empty
+                    : $" · {fish.Mutation}";
+                var weight = fish.WeightKg.HasValue
+                    ? $" · {fish.WeightKg.Value:F2} kg"
+                    : string.Empty;
+                return $"{fish.CaughtAt.ToLocalTime():HH:mm:ss} · {species} · {rarity}{mutation}{weight}";
+            });
+
+        DashboardRecentCatchesText.Text = catches == 0
+            ? "Waiting for the first recognised catch."
+            : string.Join(Environment.NewLine, latestCatches);
+    }
+
+    private void RenderDashboardCatchActivity(DateTimeOffset now)
+    {
+        if (DashboardActivityChart is null)
+            return;
+
+        DashboardActivityChart.Children.Clear();
+        const int binCount = 6;
+        var counts = new int[binCount];
+
+        foreach (var fish in _dashboardSessionCatches)
+        {
+            var age = now - fish.CaughtAt;
+            if (age < TimeSpan.Zero || age >= TimeSpan.FromMinutes(30))
+                continue;
+
+            var index = binCount - 1 - Math.Min(binCount - 1, (int)(age.TotalMinutes / 5));
+            counts[index]++;
+        }
+
+        var width = DashboardActivityChart.ActualWidth;
+        if (width <= 1)
+            return;
+
+        const double gap = 8;
+        const double chartBottom = 52;
+        const double maxBarHeight = 38;
+        var barWidth = (width - gap * (binCount - 1)) / binCount;
+        if (barWidth <= 2)
+            return;
+
+        var maxCount = Math.Max(1, counts.Max());
+        var bucketLabels = new[] { "−30m", "−25m", "−20m", "−15m", "−10m", "NOW" };
+        for (var index = 0; index < binCount; index++)
+        {
+            var left = index * (barWidth + gap);
+            var barHeight = counts[index] == 0
+                ? 2
+                : Math.Max(5, counts[index] / (double)maxCount * maxBarHeight);
+
+            var bar = new Rectangle
+            {
+                Width = barWidth,
+                Height = barHeight,
+                RadiusX = 4,
+                RadiusY = 4,
+                Fill = new SolidColorBrush(Color.FromRgb(103, 213, 181))
+            };
+            Canvas.SetLeft(bar, left);
+            Canvas.SetTop(bar, chartBottom - barHeight);
+            DashboardActivityChart.Children.Add(bar);
+
+            if (counts[index] > 0)
+            {
+                var countLabel = new TextBlock
+                {
+                    Text = counts[index].ToString(),
+                    Width = barWidth,
+                    FontSize = 9,
+                    Foreground = Brushes.White,
+                    TextAlignment = TextAlignment.Center
+                };
+                Canvas.SetLeft(countLabel, left);
+                Canvas.SetTop(countLabel, Math.Max(0, chartBottom - barHeight - 14));
+                DashboardActivityChart.Children.Add(countLabel);
+            }
+
+            var timeLabel = new TextBlock
+            {
+                Text = bucketLabels[index],
+                Width = barWidth,
+                FontSize = 8,
+                Foreground = new SolidColorBrush(Color.FromRgb(142, 164, 181)),
+                TextAlignment = TextAlignment.Center
+            };
+            Canvas.SetLeft(timeLabel, left);
+            Canvas.SetTop(timeLabel, 60);
+            DashboardActivityChart.Children.Add(timeLabel);
+        }
+    }
+
+    private void DashboardActivityChart_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        RenderDashboardCatchActivity(DateTimeOffset.UtcNow);
+    }
 
     private async Task RefreshLifetimeStatisticsAsync()
     {
@@ -2707,6 +2890,7 @@ public partial class MainWindow : Window
             RefreshModuleQuickInfo();
             await RefreshLifetimeStatisticsAsync();
             await RefreshSessionHistoryAsync(sessionId);
+            await RefreshDashboardSessionAsync();
         }
         catch (Exception exception)
         {
@@ -2743,6 +2927,7 @@ public partial class MainWindow : Window
             await _sessionStore.FinishSessionAsync(sessionId, DateTimeOffset.UtcNow);
             _activeSessionId = null;
             _lastCompletedSessionId = sessionId;
+            await RefreshDashboardSessionAsync();
             ExportCsvButton.IsEnabled = true;
             ExportJsonButton.IsEnabled = true;
 
@@ -3325,6 +3510,7 @@ public partial class MainWindow : Window
             }
 
             await _sessionStore.SaveCatchAsync(sessionId, fishCatch);
+            await RefreshDashboardSessionAsync();
             AlertForCatchIfNeeded(fishCatch);
             await RefreshLifetimeStatisticsAsync();
             await RefreshSessionHistoryAsync(sessionId);
@@ -3365,6 +3551,7 @@ public partial class MainWindow : Window
 
     private async void Window_Closed(object? sender, EventArgs e)
     {
+        _dashboardSessionTimer.Stop();
         StopAutomation("Application closing; all inputs released.");
         StopPreviewLoop();
         _isEndingSession = true;
