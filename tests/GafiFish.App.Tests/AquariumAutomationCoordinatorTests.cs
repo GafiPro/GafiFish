@@ -117,7 +117,7 @@ public sealed class AquariumAutomationCoordinatorTests
                 new AquariumAutomationOptions(true, false, false));
 
         Assert.Equal(1, input.Clicks);
-        Assert.Equal(AquariumActionKind.FeedGuppiesBest, coordinator.PendingAction);
+        Assert.Equal(AquariumActionKind.FeedGuppiesBest, coordinator.PendingKind);
     }
 
     private static VisionProfile CreateProfile(AquariumActionKind action = AquariumActionKind.FeedGuppiesBest) => new()

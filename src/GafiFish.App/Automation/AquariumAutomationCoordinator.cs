@@ -62,7 +62,7 @@ public sealed class AquariumAutomationCoordinator
 
     public bool IsStarted => _started;
     public string LastStatus => _lastStatus;
-    public AquariumActionKind? PendingAction => _pending?.Kind;
+    public AquariumActionKind? PendingKind => _pending?.Kind;
 
     public void Start()
     {
