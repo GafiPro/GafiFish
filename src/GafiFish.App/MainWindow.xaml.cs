@@ -616,10 +616,7 @@ public partial class MainWindow : Window
                 var shakeResult = _shakeCoordinator.ProcessFrame(frame, shakePrompts);
 
                 if ((stateBeforeShake is FishingState.Preparing or FishingState.WaitingForBite)
-                    && shakeResult.Kind is (ShakeInputResultKind.Stabilising
-                        or ShakeInputResultKind.Clicked
-                        or ShakeInputResultKind.WaitingForPromptChange
-                        or ShakeInputResultKind.Cooldown))
+                    && shakeResult.Kind == ShakeInputResultKind.Clicked)
                 {
                     _ = _runtimeStateMachine.TryTransition(
                         FishingState.Shaking,
