@@ -123,3 +123,8 @@ A página **Catchbook** permite consultar o arquivo completo de capturas reconhe
 - **Refresh** volta a consultar a base SQLite local.
 
 Os campos que o OCR não conseguiu reconhecer aparecem como desconhecidos ou vazios; o Catchbook não tenta inferir esses valores.
+
+
+## Preferências de alertas de capturas
+
+Na página **Sessions**, define as espécies prioritárias (separadas por vírgulas ou ponto e vírgula) e escolhe se queres alertas para raridades Legendary+ e/ou mutações. Usa **Save alert preferences** para guardar as opções em `%LOCALAPPDATA%\\GafiFish\\catch-alert-settings.json`. As preferências são carregadas automaticamente quando a aplicação inicia.

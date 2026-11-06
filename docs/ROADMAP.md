@@ -155,3 +155,11 @@ Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, dete�
 - [x] Ordenação por colunas, virtualização de linhas e cópia dos detalhes da captura selecionada.
 - [x] Exportação CSV apenas dos resultados atualmente filtrados.
 - [x] Testes para filtros combinados, valores OCR desconhecidos, pesquisa e ordenação.
+
+
+## Preferências de alertas persistentes
+
+- [x] Guardar espécies prioritárias e opções de alertas Legendary+/mutação em JSON local.
+- [x] Carregar preferências automaticamente no arranque.
+- [x] Gravação atómica e validação do tamanho da lista de espécies.
+- [x] Testes de valores por defeito, round-trip, JSON inválido e validação.

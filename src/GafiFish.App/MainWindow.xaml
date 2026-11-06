@@ -643,6 +643,11 @@
                         <TextBlock x:Name="CatchAlertStatusText"
                                    Text="Alerts ready · Legendary+ enabled."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,5,0,0" />
+                        <Button Content="Save alert preferences" Click="SaveCatchAlertSettings_Click"
+                                Height="32" Margin="0,8,0,0" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <TextBlock x:Name="CatchAlertSettingsStatusText"
+                                   Text="Alert preferences are loaded when GafiFish starts."
+                                   Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
                         <Separator Margin="0,14,0,10" Background="#33414F" />
                         <TextBlock Text="Lifetime statistics" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8" />
                         <Button Content="Refresh lifetime statistics" Click="RefreshLifetimeStats_Click"

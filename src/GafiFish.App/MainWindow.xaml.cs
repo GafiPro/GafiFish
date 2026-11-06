@@ -59,6 +59,7 @@ public partial class MainWindow : Window
     private readonly FishSessionStore _sessionStore = new();
     private readonly FishCatchTextParser _catchParser = new();
     private readonly AppHotkeySettingsStore _hotkeySettingsStore = new();
+    private readonly CatchAlertSettingsStore _catchAlertSettingsStore = new();
     private readonly ObservableCollection<string> _activityLog = [];
     private readonly ObservableCollection<string> _visibleActivityLog = [];
     private readonly List<CatchHistoryRow> _allCatchHistoryRows = [];
@@ -195,6 +196,11 @@ public partial class MainWindow : Window
         RodProfileNameTextBox.Text = _activeProfileName;
         _profile = await _profileStore.LoadOrDefaultAsync();
         _hotkeySettings = await _hotkeySettingsStore.LoadAsync();
+        var catchAlertSettings = await _catchAlertSettingsStore.LoadAsync();
+        WatchSpeciesTextBox.Text = catchAlertSettings.WatchedSpecies;
+        AlertLegendaryCheckBox.IsChecked = catchAlertSettings.AlertOnLegendaryOrHigher;
+        AlertMutationCheckBox.IsChecked = catchAlertSettings.AlertOnMutation;
+        CatchAlertSettingsStatusText.Text = "Saved alert preferences loaded from this computer.";
         ApplyHotkeySettingsToControls();
         RegisterGlobalHotkeys();
         try
@@ -594,6 +600,27 @@ public partial class MainWindow : Window
     private async void RefreshLifetimeStats_Click(object sender, RoutedEventArgs e)
     {
         await RefreshLifetimeStatisticsAsync();
+    }
+
+    private async void SaveCatchAlertSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var settings = new CatchAlertSettings
+        {
+            WatchedSpecies = WatchSpeciesTextBox.Text.Trim(),
+            AlertOnLegendaryOrHigher = AlertLegendaryCheckBox.IsChecked == true,
+            AlertOnMutation = AlertMutationCheckBox.IsChecked == true
+        };
+
+        try
+        {
+            await _catchAlertSettingsStore.SaveAsync(settings);
+            CatchAlertSettingsStatusText.Text = "Alert preferences saved locally.";
+            AddActivityLog("INFO", "SETTINGS", "Catch alert preferences saved.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            CatchAlertSettingsStatusText.Text = $"Could not save alert preferences: {exception.Message}";
+        }
     }
 
     private void AlertForCatchIfNeeded(FishCatch fishCatch)
