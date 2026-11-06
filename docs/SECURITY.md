@@ -24,7 +24,7 @@ Referência: https://about.roblox.com/community-standards
 O Reel assistido, Auto-cast e Auto-shake estão desligados até o utilizador armar o assistente com F8 e ativar as opções pretendidas. Auto-cast e Auto-shake exigem calibração própria; as opções são bloqueadas enquanto a automação está armada.
 
 - Auto-cast mantém o botão esquerdo premido por um máximo de 8 segundos e liberta-o apenas quando o medidor calibrado indica a zona-alvo. Se o medidor desaparecer, ficar desatualizado ou a previsão for inválida, o cast é cancelado e o input é libertado.
-- Auto-shake exige deteção acima do limiar e estabilidade em dois frames. Depois de um clique, não volta a clicar até o prompt desaparecer em vários frames ou se mover uma distância mínima.
+- Auto-shake exige deteção acima do limiar e estabilidade em dois frames. Depois de um clique, não volta a clicar no mesmo prompt; considera a sequência terminada após quatro frames sem candidato válido.
 - Os testes destes controlos usam inputs simulados e frames sintéticos; ainda é necessária validação no Fisch real. Não se deve armar estas opções numa sessão importante sem confirmar a calibração e a direção do Reel.
 
 ## Venda com Sell Anywhere
@@ -66,7 +66,7 @@ O motor de input deve libertar o rato e o teclado e parar quando:
 - ocorre uma exceção não recuperável;
 - o utilizador fecha a aplicação.
 
-F9 está registado como hotkey global quando o Windows permite o registo. A paragem também é acionada quando F7 pára, a janela Roblox perde o foco ou uma captura falha. O tratamento atual corre no dispatcher WPF; uma paragem durante um bloqueio total da interface ainda não está garantida.
+F9 está registado como hotkey global quando o Windows permite o registo. A paragem também é acionada quando F7 pára, a janela Roblox perde o foco ou uma captura falha. Os cliques de ponto são associados ao PID que originou o frame e usam estados de rato rastreados para tentar libertar o botão mesmo após falha parcial do Windows. O tratamento da paragem global continua dependente do dispatcher WPF; um bloqueio total da interface ainda não garante F9.
 
 ## Privacidade
 
