@@ -84,3 +84,39 @@ Pesquisa consultada em 5 de novembro de 2026. As licenças e os repositórios po
 ## Conclusão
 
 Não há código oficial do Bloomfisching que possamos reutilizar licitamente. O projeto independente V13-4 também não fornece uma licença de reutilização e não está demonstrado que seja o código original. Vamos implementar o GafiFish de raiz em C#/.NET, aplicando os padrões documentados de visão, calibração e controlo, e acrescentando Perfect Cast e venda periódica desde a primeira versão funcional.
+
+
+## 9. Levantamento adicional de funcionalidades — 6 de novembro de 2026
+
+Esta secção compara funcionalidades publicamente anunciadas ou documentadas; não é uma auditoria exaustiva de todos os programas existentes, nem prova que cada função funciona em todas as versões do Fisch.
+
+### FemPoof / fisch-macro — v2.4.x
+
+- A documentação atual descreve deteção em cascata por cor, contornos, indicador lateral, correspondência de templates e tracking temporário.
+- Inclui amostragem da tonalidade dinâmica da barra, controlador PWM-PD com previsão e amortecimento, ajuste adaptativo à taxa de captura de imagem e HUD com posição da barra/peixe e erro.
+- Inclui perfis independentes por cana, auto-totem e auto-poção condicionados a estados seguros, deteção visual do slot da cana para a voltar a equipar e recuperação de desconexões.
+- O Perfect Cast é marcado como experimental e requer afinação por configuração.
+- Decisão: adotar como referências para uma futura melhoria da deteção, telemetria e perfis por cana. Não reutilizar código: o repositório declara licença proprietária.
+
+### OpenMacro / Swift — funcionalidades públicas adicionais
+
+- A página do produto anuncia Auto Totem para os totens suportados, Auto Appraise por mutação/peso, Auto Harpoon, suporte alargado a canas e automação de recarga Sovereign.
+- A lista comparativa pública também anuncia Hunt Detection, Auto Treasure Appraise, Auto Enchant, Auto Aquarium e Auto Angler Quest.
+- O changelog público acrescenta exemplos de robustez de produto: reconexão após falhas de rede, acompanhamento do jogador após reconectar, definições centralizadas para modo/hotkeys/slot de cana, mensagens de estado e correções para não clicar em itens ocultos ou fora da janela.
+- Estas afirmações são do próprio fornecedor; não foram testadas independentemente. O Swift é fechado e comercial. Não copiar código nem tentar reconstruir componentes internos.
+- Decisão: estudar os conceitos, mas implementar qualquer ação de inventário, appraisal, encantamento, aquário, quest ou Harpoon apenas com deteção visual específica, pré-visualização do alvo e salvaguardas contra cliques ou consumo de itens não pretendidos.
+
+### Macros antigos e projetos complementares
+
+- [freew-w/Fisch-Macro](https://github.com/freew-w/Fisch-Macro) lista Auto Shake, minijogo da barra e venda automática; o repositório está arquivado desde março de 2025.
+- Um projeto macOS independente descreve perfis por cana, recarga de totens, Sovereign Recharge, Angler Quest, Aquarium, Hunt Detect, Appraise e Enchant. Serve como inventário de ideias, não como validação de compatibilidade com Windows ou com a versão atual do jogo.
+- Alguns hubs de scripts apresentam teleporte e automação através de executores/injeção. Essas funções não serão incorporadas no GafiFish: o projeto continuará limitado a captura de ecrã local e eventos normais de teclado/rato.
+
+### Prioridades para o GafiFish
+
+1. **Base de pesca e experiência de utilização:** botões Start/Stop na janela, perfis de configuração persistentes, tentativa contínua opcional até à primeira captura confirmada, estado/log em direto e paragem de emergência.
+2. **Qualidade de deteção:** perfis por cana, amostragem de cor adaptativa, alternativas de tracking e HUD de telemetria, sempre com testes sintéticos antes de qualquer validação prática.
+3. **Acessórios de pesca:** deteção visual de cana equipada, auto-re-equip apenas se o slot errado for confirmado, e ativação de totem/poção apenas entre ciclos e com opt-in explícito.
+4. **Módulos independentes:** deteção de hunts e alertas primeiro; reconexão, quests, aquário, appraisal, encantamento e Harpoon ficam para uma fase separada, porque têm fluxos de interface e consequências diferentes.
+
+O GafiFish não promete equivalência completa com Swift ou outros produtos. Cada módulo tem de ser implementado de raiz, ter testes próprios, limites de tempo e um caminho de cancelamento que liberte todos os inputs.
