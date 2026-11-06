@@ -111,6 +111,8 @@ public partial class MainWindow : Window
     private Guid? _activeSessionId;
     private Guid? _lastCompletedSessionId;
     private bool _ocrInProgress;
+    private Task? _catchRecognitionTask;
+    private bool _isEndingSession;
     private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
     private string? _lastCatchFingerprint;
@@ -1360,6 +1362,9 @@ public partial class MainWindow : Window
             var sessionId = await _sessionStore.StartSessionAsync(DateTimeOffset.UtcNow);
 
             _activeSessionId = sessionId;
+            _isEndingSession = false;
+            _ocrInProgress = false;
+            _catchRecognitionTask = null;
             _lastCompletedSessionId = null;
             ExportCsvButton.IsEnabled = false;
             ExportJsonButton.IsEnabled = false;
@@ -1392,11 +1397,17 @@ public partial class MainWindow : Window
             return;
         }
 
+        _isEndingSession = true;
         EndSessionButton.IsEnabled = false;
-        SessionStatusText.Text = "Saving session…";
+        SessionStatusText.Text = "Finishing pending OCR recognition and saving session…";
 
         try
         {
+            if (_catchRecognitionTask is Task pendingRecognition)
+            {
+                await pendingRecognition;
+            }
+
             await _sessionStore.FinishSessionAsync(sessionId, DateTimeOffset.UtcNow);
             _activeSessionId = null;
             _lastCompletedSessionId = sessionId;
@@ -1434,6 +1445,10 @@ public partial class MainWindow : Window
         {
             SessionStatusText.Text = $"Could not finish the session cleanly: {exception.Message}";
             StartSessionButton.IsEnabled = true;
+        }
+        finally
+        {
+            _isEndingSession = false;
         }
     }
 
@@ -1500,10 +1515,12 @@ public partial class MainWindow : Window
 
     private void TryStartCatchRecognition(ScreenCaptureFrame frame)
     {
-        if (_activeSessionId is not Guid sessionId
+        if (_isEndingSession
+            || _activeSessionId is not Guid sessionId
             || _ocr is null
             || !_profile.IsCatchNotificationCalibrated
             || _ocrInProgress
+            || _catchRecognitionTask is not null
             || frame.CapturedAt - _lastOcrAt < TimeSpan.FromMilliseconds(900))
         {
             return;
@@ -1512,7 +1529,7 @@ public partial class MainWindow : Window
         _lastOcrAt = frame.CapturedAt;
         _ocrInProgress = true;
 
-        _ = ProcessCatchRecognitionAsync(
+        _catchRecognitionTask = ProcessCatchRecognitionAsync(
             frame,
             sessionId,
             _ocr,
@@ -1594,6 +1611,7 @@ public partial class MainWindow : Window
         finally
         {
             _ocrInProgress = false;
+            _catchRecognitionTask = null;
         }
     }
 
@@ -1601,6 +1619,19 @@ public partial class MainWindow : Window
     {
         StopAutomation("Application closing; all inputs released.");
         StopPreviewLoop();
+        _isEndingSession = true;
+
+        if (_catchRecognitionTask is Task pendingRecognition)
+        {
+            try
+            {
+                await pendingRecognition;
+            }
+            catch
+            {
+                // A failed OCR operation must not prevent input release or application shutdown.
+            }
+        }
 
         if (_activeSessionId is Guid sessionId)
         {
