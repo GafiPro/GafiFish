@@ -2188,6 +2188,7 @@ public partial class MainWindow : Window
         _previewCancellation = new CancellationTokenSource();
         PreviewButton.Content = "Stop observation";
         StatusText.Text = "Observation active. Bring Roblox to the foreground.";
+        UpdateFrameReplayControls();
         AddActivityLog("INFO", "CAPTURE", "Continuous observation started.");
         _ = RunPreviewLoopAsync(_previewCancellation);
     }
