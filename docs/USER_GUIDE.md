@@ -106,6 +106,16 @@ O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake us
 No modo **Fish until this exact target is caught**, o campo de quantidade aceita de 1 a 100 capturas. O contador avança apenas quando o nome do peixe corresponde à notificação OCR, a confiança é pelo menos 90% e a deteção passa a deduplicação. A automação termina quando o número pedido é atingido. O modo **Keep fishing until the first fish is caught** continua a ser uma opção independente.
 
 
+## 10. Aquarium Planner
+
+A página **Aquarium** acompanha os ciclos horários das três comidas do Personal Aquarium: Guppies' Best, Fish Chow e Splash Snacks.
+
+Depois de alimentares ou comprares uma comida no jogo, seleciona **Mark fed** ou **Mark restocked** na respetiva secção. O GafiFish guarda o momento localmente e mostra quanto falta até a próxima janela horária. Os registos de cada comida e de cada ação são independentes e continuam disponíveis depois de fechares a aplicação.
+
+A opção **Enable hourly reward-claim reminder** mostra o tempo desde a última recolha de recompensas. Depois de recolheres no jogo, seleciona **Mark reward claimed** para iniciar o próximo contador. A opção controla apenas o lembrete; não recolhe recompensas automaticamente.
+
+O Aquarium Planner não abre o painel, não compra comida, não alimenta peixes nem clica no jogo. É um contador persistente para acompanhar os tempos sem fazer ações não confirmadas.
+
 ## 9. Hotkeys, janela e logs
 
 - **Hotkeys globais**: em Settings, escolhe uma tecla de função diferente (F2–F12) para capturar um frame, observar, iniciar, parar e mostrar/ocultar a janela. As teclas são guardadas em `%LOCALAPPDATA%\GafiFish\app-settings.json`.

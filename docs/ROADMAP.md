@@ -124,7 +124,7 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Ainda por implementar
 
-Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, deteção de hunts e reconexão automática continuam fora da versão funcional. Exigem fluxos de interface e deteção visual próprios e validação real. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados não confirmam a ativação pelo jogo e podem gastar um item se o slot selecionado estiver errado.
+Appraise/Treasure Appraise, Auto Enchant, automação visual do Aquarium, Angler Quest, Harpoon, deteção de hunts e reconexão automática continuam fora da versão funcional. Exigem fluxos de interface e deteção visual próprios e validação real. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados não confirmam a ativação pelo jogo e podem gastar um item se o slot selecionado estiver errado.
 
 
 ## Inspiração ExoPanda — próximos módulos
@@ -132,7 +132,8 @@ Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, dete�
 - [x] Logs locais de atividade/engine persistentes, com rotação automática, pesquisa, filtro por nível, copy/export e limite de 500 entradas visíveis.
 - [x] Hotkeys globais configuráveis e persistentes, incluindo show/hide e auto-hide opcional.
 - [x] Quick Info para estado dos módulos.
-- [ ] Auto Aquarium: detetar o painel/temporizadores, alimentar apenas quando o cooldown permitir, confirmar a ação e distinguir auto-claim.
+- [x] Aquarium Planner: registar alimentação e reposição independentes para as três comidas, acompanhar cooldowns horários e guardar horários localmente.
+- [ ] Auto Aquarium: detetar o painel, alimentar/comprar apenas quando os botões e cooldowns forem confirmados visualmente, e distinguir auto-claim.
 - [ ] Auto Appraisal: calibrar as zonas de diálogo, selecionar um peixe pela hotbar, ler peso/mutação e limitar tentativas/custo antes de repetir.
 - [ ] Custom Rod handlers: implementar cada minijogo específico apenas após recolher e validar frames reais.
 - [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.

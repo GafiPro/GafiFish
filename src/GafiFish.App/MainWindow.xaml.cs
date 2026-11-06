@@ -26,6 +26,7 @@ using GafiFish.Ocr.Engine;
 using GafiFish.Ocr.Installation;
 using GafiFish.Ocr.Parsing;
 using GafiFish.Core.Automation;
+using GafiFish.Core.Aquarium;
 using GafiFish.Core.Control;
 using GafiFish.Core.Scheduling;
 using GafiFish.Core.Services;
@@ -63,6 +64,10 @@ public partial class MainWindow : Window
     private readonly FishCatchTextParser _catchParser = new();
     private readonly AppHotkeySettingsStore _hotkeySettingsStore = new();
     private readonly CatchAlertSettingsStore _catchAlertSettingsStore = new();
+    private readonly AquariumScheduleStore _aquariumScheduleStore = new();
+    private AquariumScheduleState _aquariumScheduleState = new();
+    private readonly DispatcherTimer _aquariumTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private bool _isLoadingAquariumSchedule;
     private readonly ObservableCollection<string> _activityLog = [];
     private readonly ObservableCollection<string> _visibleActivityLog = [];
     private readonly List<CatchHistoryRow> _allCatchHistoryRows = [];
@@ -179,6 +184,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _dashboardSessionTimer.Tick += DashboardSessionTimer_Tick;
+        _aquariumTimer.Tick += AquariumTimer_Tick;
         PreviewOverlay.Children.Add(_fishMarkerOverlay);
         PreviewOverlay.Children.Add(_controlMarkerOverlay);
         PreviewOverlay.Children.Add(_castTargetOverlay);
@@ -204,6 +210,12 @@ public partial class MainWindow : Window
         RodProfileNameTextBox.Text = _activeProfileName;
         _profile = await _profileStore.LoadOrDefaultAsync();
         _hotkeySettings = await _hotkeySettingsStore.LoadAsync();
+        _aquariumScheduleState = await _aquariumScheduleStore.LoadAsync();
+        _isLoadingAquariumSchedule = true;
+        AquariumClaimReminderCheckBox.IsChecked = _aquariumScheduleState.ClaimReminderEnabled;
+        _isLoadingAquariumSchedule = false;
+        RefreshAquariumPlannerDisplay(DateTimeOffset.UtcNow);
+        _aquariumTimer.Start();
         var catchAlertSettings = await _catchAlertSettingsStore.LoadAsync();
         WatchSpeciesTextBox.Text = catchAlertSettings.WatchedSpecies;
         AlertLegendaryCheckBox.IsChecked = catchAlertSettings.AlertOnLegendaryOrHigher;
@@ -797,6 +809,135 @@ public partial class MainWindow : Window
     {
         RenderDashboardCatchActivity(DateTimeOffset.UtcNow);
     }
+
+    private void AquariumTimer_Tick(object? sender, EventArgs e)
+    {
+        RefreshAquariumPlannerDisplay(DateTimeOffset.UtcNow);
+    }
+
+    private void RefreshAquariumPlannerDisplay(DateTimeOffset now)
+    {
+        AquariumGuppiesFeedStatusText.Text =
+            FormatAquariumCooldown("Feed", _aquariumScheduleState.GuppiesBest.LastFedAt, now);
+        AquariumGuppiesRestockStatusText.Text =
+            FormatAquariumCooldown("Restock", _aquariumScheduleState.GuppiesBest.LastRestockedAt, now);
+        AquariumFishChowFeedStatusText.Text =
+            FormatAquariumCooldown("Feed", _aquariumScheduleState.FishChow.LastFedAt, now);
+        AquariumFishChowRestockStatusText.Text =
+            FormatAquariumCooldown("Restock", _aquariumScheduleState.FishChow.LastRestockedAt, now);
+        AquariumSplashFeedStatusText.Text =
+            FormatAquariumCooldown("Feed", _aquariumScheduleState.SplashSnacks.LastFedAt, now);
+        AquariumSplashRestockStatusText.Text =
+            FormatAquariumCooldown("Restock", _aquariumScheduleState.SplashSnacks.LastRestockedAt, now);
+
+        AquariumClaimStatusText.Text = !_aquariumScheduleState.ClaimReminderEnabled
+            ? "Claim reminder is disabled."
+            : FormatAquariumCooldown("Reward claim", _aquariumScheduleState.LastClaimedAt, now);
+    }
+
+    private static string FormatAquariumCooldown(
+        string action,
+        DateTimeOffset? lastCompletedAt,
+        DateTimeOffset now)
+    {
+        var evaluation = AquariumCooldownPolicy.Evaluate(lastCompletedAt, now);
+        return evaluation.Status switch
+        {
+            AquariumCooldownStatus.NotTracked =>
+                $"{action}: not recorded yet — mark it after completing the action in Fisch.",
+            AquariumCooldownStatus.Ready =>
+                $"{action}: READY · available since {evaluation.NextEligibleAt!.Value.ToLocalTime():HH:mm}.",
+            AquariumCooldownStatus.CoolingDown =>
+                $"{action}: {FormatAquariumCountdown(evaluation.Remaining!.Value)} remaining · " +
+                $"ready at {evaluation.NextEligibleAt!.Value.ToLocalTime():HH:mm}.",
+            _ => $"{action}: status unavailable."
+        };
+    }
+
+    private static string FormatAquariumCountdown(TimeSpan remaining)
+    {
+        var totalMinutes = Math.Max(0, (int)Math.Floor(remaining.TotalMinutes));
+        return $"{totalMinutes:00}:{remaining.Seconds:00}";
+    }
+
+    private async void AquariumFoodAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string tag)
+            return;
+
+        var parts = tag.Split('.', StringSplitOptions.TrimEntries);
+        if (parts.Length != 2
+            || !Enum.TryParse<AquariumFoodType>(parts[0], ignoreCase: true, out var foodType))
+        {
+            AquariumPlannerStatusText.Text = "Unknown aquarium action.";
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        _aquariumScheduleState = parts[1].ToLowerInvariant() switch
+        {
+            "feed" => _aquariumScheduleState.MarkFed(foodType, now),
+            "restock" => _aquariumScheduleState.MarkRestocked(foodType, now),
+            _ => _aquariumScheduleState
+        };
+
+        if (parts[1].ToLowerInvariant() is not ("feed" or "restock"))
+        {
+            AquariumPlannerStatusText.Text = "Unknown aquarium action.";
+            return;
+        }
+
+        await SaveAquariumScheduleAsync(
+            $"{GetAquariumFoodLabel(foodType)} · {parts[1].ToLowerInvariant()} time recorded.");
+    }
+
+    private async void AquariumMarkClaimed_Click(object sender, RoutedEventArgs e)
+    {
+        _aquariumScheduleState = _aquariumScheduleState.MarkClaimed(DateTimeOffset.UtcNow);
+        await SaveAquariumScheduleAsync("Aquarium reward claim time recorded.");
+    }
+
+    private async void AquariumClaimReminderCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingAquariumSchedule)
+            return;
+
+        _aquariumScheduleState = _aquariumScheduleState with
+        {
+            ClaimReminderEnabled = AquariumClaimReminderCheckBox.IsChecked == true
+        };
+        await SaveAquariumScheduleAsync(
+            _aquariumScheduleState.ClaimReminderEnabled
+                ? "Hourly aquarium claim reminder enabled."
+                : "Hourly aquarium claim reminder disabled.");
+    }
+
+    private async Task SaveAquariumScheduleAsync(string activity)
+    {
+        try
+        {
+            await _aquariumScheduleStore.SaveAsync(_aquariumScheduleState);
+            AquariumPlannerStatusText.Text = $"{activity} Saved locally.";
+            AddActivityLog("INFO", "AQUARIUM", activity);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            AquariumPlannerStatusText.Text = $"Could not save aquarium schedule: {exception.Message}";
+            AddActivityLog("ERROR", "AQUARIUM", $"Could not save aquarium schedule: {exception.Message}");
+        }
+
+        RefreshAquariumPlannerDisplay(DateTimeOffset.UtcNow);
+    }
+
+    private static string GetAquariumFoodLabel(AquariumFoodType foodType) =>
+        foodType switch
+        {
+            AquariumFoodType.GuppiesBest => "Guppies' Best",
+            AquariumFoodType.FishChow => "Fish Chow",
+            AquariumFoodType.SplashSnacks => "Splash Snacks",
+            _ => foodType.ToString()
+        };
 
     private async Task RefreshLifetimeStatisticsAsync()
     {
@@ -3570,6 +3711,7 @@ public partial class MainWindow : Window
     private async void Window_Closed(object? sender, EventArgs e)
     {
         _dashboardSessionTimer.Stop();
+        _aquariumTimer.Stop();
         StopAutomation("Application closing; all inputs released.");
         StopPreviewLoop();
         _isEndingSession = true;
