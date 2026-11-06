@@ -19,13 +19,14 @@ O Reel assistido é opcional e só deve ser armado depois de calibrares:
 
 Com o Roblox em primeiro plano e a observação F7 ativa:
 
-- **F8** arma o controlador preditivo hold/release.
-- **F9** pára o controlador e liberta imediatamente o rato e as teclas.
+- **Start macro (F8)** na janela ou F8 arma o controlador hold/release e as opções selecionadas.
+- **Stop macro (F9)** na janela ou F9 pára a automação e liberta imediatamente o rato e as teclas.
 - Se o Roblox perder o foco ou F7 for parado, o GafiFish também desarma e liberta os inputs.
 
 O controlador só atua quando ambos os marcadores estão presentes e acima do limiar de confiança. Se um desaparecer, o botão esquerdo é libertado. A opção **Invert hold/release mapping** permite inverter o sentido do controlo; testa-a apenas numa situação segura. Antes de pressionar F8, podes ativar duas opções desligadas por defeito:
 - **Equipar cana** (opcional): marca a caixa e escolhe o slot de hotbar que contém a cana (1–9 ou 0). Ao pressionar F8, o GafiFish envia essa tecla uma vez através do input normal do Windows. Se não ativares a opção, deixa a cana equipada manualmente.
-- **Auto-cast e auto-recast**: exige medidor Cast calibrado. Segura o botão esquerdo e liberta-o quando o Perfect Cast prevê a janela-alvo; cancela se a leitura ficar inválida ou ultrapassar 8 segundos. Se não surgirem marcadores de Reel em 30 segundos, tenta novamente até duas vezes; depois pára em segurança.
+- **Auto-cast e auto-recast**: exige medidor Cast calibrado. Segura o botão esquerdo e liberta-o quando o Perfect Cast prevê a janela-alvo; cancela se a leitura ficar inválida ou ultrapassar 8 segundos. Por defeito, se não surgirem marcadores de Reel em 30 segundos, tenta novamente até duas vezes; depois pára em segurança.
+- **Keep fishing until the first fish is caught**: opção desligada por defeito. Exige Auto-cast, sessão OCR ativa e região da notificação calibrada. Repete os lançamentos sem limite de tentativas em falta de mordida e termina quando uma notificação de captura é reconhecida com confiança igual ou superior a 90% durante o estado Reel. Se um Reel durar mais de três minutos, liberta o controlo e reinicia o ciclo. F9, perda de foco do Roblox ou paragem de F7 continuam a parar a automação.
 - **Auto-shake**: exige região e cor Shake calibradas. Clica só após dois frames estáveis acima do limiar, não repete o mesmo prompt e termina a sequência depois de quatro frames sem candidatos.
 
 A direção e o timing do Reel/Cast/Shake foram testados com inputs simulados e frames sintéticos, não numa sessão real do Fisch. A calibração visual e a resposta da tua cana/resolução ainda precisam de validação prática.
@@ -75,4 +76,4 @@ O fluxo verifica primeiro se o botão já está visível. Se o inventário estiv
 
 Sell Anywhere vende o que não estiver marcado como favorito. A opção está desligada por defeito e exige confirmação explícita na caixa da interface. Marca como favorito tudo o que pretendes guardar antes de a ativares. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
 
-O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake usa os candidatos de cor/forma na região calibrada. Ambos são opções na interface, desligadas por defeito, e ainda precisam de ser validados com uma captura real. O GafiFish pode equipar a cana no slot escolhido e faz recast automático após uma captura; se não houver mordida, limita-se a duas tentativas adicionais. A deteção visual ainda requer calibração real. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
+O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake usa os candidatos de cor/forma na região calibrada. Ambos são opções na interface, desligadas por defeito, e ainda precisam de ser validados com uma captura real. O GafiFish pode equipar a cana no slot escolhido e fazer recast automático. O modo normal limita-se a duas tentativas adicionais sem mordida; o modo “Keep fishing until the first fish is caught” remove esse limite e pára após uma captura confirmada por OCR. A deteção visual ainda requer calibração real. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
