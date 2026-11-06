@@ -173,3 +173,13 @@ Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, dete�
 - [x] Os campos não reconhecidos pelo OCR nunca disparam alertas quantitativos.
 - [x] Exportação JSON dos resultados atualmente filtrados no Catchbook, em paralelo com CSV.
 - [x] Testes para limites atingidos/não atingidos, campos OCR desconhecidos e validação das preferências.
+
+
+## Cópias de segurança portáteis — novembro de 2026
+
+- [x] Exportar a base de dados SQLite através da API de backup online, sem cópia insegura do ficheiro ativo.
+- [x] Incluir perfis/calibrações, preferências, logs e modelo OCR local.
+- [x] Excluir ficheiros temporários, sidecars SQLite e backups ZIP antigos para evitar cópias recursivas.
+- [x] Gerar manifesto com versão do formato, data, tamanho e SHA-256 de cada ficheiro.
+- [x] Verificar backups sem extrair ficheiros, rejeitando caminhos inseguros, duplicados, ficheiros em falta ou conteúdo alterado.
+- [x] Testes para snapshot SQLite, conteúdo incluído/excluído, manifesto e integridade.

@@ -30,6 +30,7 @@ using GafiFish.Core.Services;
 using GafiFish.App.Automation;
 using GafiFish.App.Settings;
 using GafiFish.App.Logging;
+using GafiFish.App.Backup;
 using GafiFish.App.Models;
 using GafiFish.Windows.Input;
 
@@ -65,6 +66,7 @@ public partial class MainWindow : Window
     private readonly List<CatchHistoryRow> _allCatchHistoryRows = [];
     private readonly ObservableCollection<CatchHistoryRow> _visibleCatchHistoryRows = [];
     private readonly ActivityLogStore _activityLogStore = new();
+    private readonly UserDataBackupService _userDataBackupService = new();
     private AppHotkeySettings _hotkeySettings = new();
     private bool _toggleUiHotkeyRegistered;
     private bool _isUiHidden;
@@ -2801,6 +2803,80 @@ public partial class MainWindow : Window
             exception is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
         {
             SessionStatusText.Text = $"Could not copy summary: {exception.Message}";
+        }
+    }
+
+    private async void CreateDataBackup_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Create GafiFish data backup",
+            Filter = "GafiFish backup (*.zip)|*.zip",
+            DefaultExt = "zip",
+            AddExtension = true,
+            FileName = $"GafiFish-backup-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        CreateDataBackupButton.IsEnabled = false;
+        VerifyDataBackupButton.IsEnabled = false;
+        DataBackupStatusText.Text = "Creating a consistent local data backup…";
+
+        try
+        {
+            var manifest = await _userDataBackupService.CreateBackupAsync(dialog.FileName);
+            var sizeBytes = new FileInfo(dialog.FileName).Length;
+            DataBackupStatusText.Text =
+                $"Backup created · {manifest.Files.Count:N0} files · {sizeBytes / 1024d / 1024d:F1} MB · {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
+            AddActivityLog("INFO", "BACKUP",
+                $"Created local data backup with {manifest.Files.Count} files ({sizeBytes:N0} bytes).");
+        }
+        catch (Exception exception)
+        {
+            DataBackupStatusText.Text = $"Backup failed: {exception.Message}";
+            AddActivityLog("ERROR", "BACKUP", $"Could not create backup: {exception.Message}");
+        }
+        finally
+        {
+            CreateDataBackupButton.IsEnabled = true;
+            VerifyDataBackupButton.IsEnabled = true;
+        }
+    }
+
+    private async void VerifyDataBackup_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Verify a GafiFish data backup",
+            Filter = "GafiFish backup (*.zip)|*.zip|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        CreateDataBackupButton.IsEnabled = false;
+        VerifyDataBackupButton.IsEnabled = false;
+        DataBackupStatusText.Text = "Checking the backup manifest and SHA-256 hashes…";
+
+        try
+        {
+            var result = await _userDataBackupService.VerifyBackupAsync(dialog.FileName);
+            DataBackupStatusText.Text = result.Message;
+            AddActivityLog(result.IsValid ? "INFO" : "WARN", "BACKUP",
+                $"Backup verification: {result.Message}");
+        }
+        catch (Exception exception)
+        {
+            DataBackupStatusText.Text = $"Backup verification failed: {exception.Message}";
+            AddActivityLog("ERROR", "BACKUP", $"Could not verify backup: {exception.Message}");
+        }
+        finally
+        {
+            CreateDataBackupButton.IsEnabled = true;
+            VerifyDataBackupButton.IsEnabled = true;
         }
     }
 

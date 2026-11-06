@@ -793,6 +793,27 @@
                 <TabItem Header="Settings">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="0,2,4,12">
+                            <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
+                                    CornerRadius="16" Padding="18" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Data backup" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                    <TextBlock Text="Create a portable ZIP containing your fishing database, calibration profiles, hotkeys, alert preferences, logs and local OCR model. SQLite is captured using its online backup mechanism."
+                                               Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,12" />
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button x:Name="CreateDataBackupButton" Grid.Column="0" Content="Create backup ZIP"
+                                                Click="CreateDataBackup_Click" Height="38" Background="#285B50" />
+                                        <Button x:Name="VerifyDataBackupButton" Grid.Column="2" Content="Verify backup ZIP"
+                                                Click="VerifyDataBackup_Click" Height="38" Background="#294153" />
+                                    </Grid>
+                                    <TextBlock x:Name="DataBackupStatusText"
+                                               Text="Backups are local. Temporary files and older backup ZIPs are excluded."
+                                               Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
 <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
                         CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>

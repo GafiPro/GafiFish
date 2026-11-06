@@ -124,6 +124,7 @@ Inclui alertas sonoros locais para espécies prioritárias, raridades Legendary+
 - Logs de atividade persistentes (últimos 500 eventos visíveis), com rotação automática de ficheiros, pesquisa, filtro por nível, cópia/exportação TXT e registo de avisos/erros.
 - Hotkeys globais F2–F12 configuráveis, validadas para serem únicas e guardadas localmente; tecla dedicada para mostrar/ocultar a janela.
 - Pasta de dados local acessível diretamente a partir do painel de logs.
+- Cópias de segurança portáteis ZIP dos dados locais, com snapshot SQLite online, manifesto e verificação de integridade SHA-256.
 - Catchbook com pesquisa global do histórico completo, filtros combinados por raridade/identificação/mutação, ordenação por colunas e exportação CSV/JSON dos resultados filtrados.
 - Ocultação opcional da janela enquanto o macro está armado, sem desativar a hotkey de emergência.
 - Dashboard com estatísticas de sessões/capturas/Legendary+/capturas por hora e Quick Info que distingue módulos prontos de módulos ainda sem calibração.
