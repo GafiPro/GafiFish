@@ -921,7 +921,8 @@ public partial class MainWindow : Window
         if (ActivityLogStatusText is not null)
             ActivityLogStatusText.Text = $"Showing {_visibleActivityLog.Count} of {_activityLog.Count} recent events · saved locally with automatic log rotation.";
 
-        if (scrollToNewest && ActivityLogList is not null && _visibleActivityLog.Count > 0)
+        if (scrollToNewest && ActivityLogFollowNewestCheckBox?.IsChecked == true
+            && ActivityLogList is not null && _visibleActivityLog.Count > 0)
             ActivityLogList.ScrollIntoView(_visibleActivityLog[0]);
     }
 

@@ -902,7 +902,9 @@
                                                Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,5,0,12" />
                                     <Grid Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="140" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="140" /><ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBox x:Name="ActivityLogSearchTextBox" Grid.Column="0" Height="34" Padding="9,6"
                                                  Background="#20313E" Foreground="#EAF0F5" BorderBrush="#405363"
@@ -911,6 +913,9 @@
                                         <ComboBox x:Name="ActivityLogLevelComboBox" Grid.Column="2" Height="34"
                                                   Background="#20313E" Foreground="#EAF0F5"
                                                   SelectionChanged="ActivityLogLevel_SelectionChanged" />
+                                        <CheckBox x:Name="ActivityLogFollowNewestCheckBox" Grid.Column="4"
+                                                  Content="Follow newest" IsChecked="True" VerticalAlignment="Center"
+                                                  Foreground="#A9B8C5" ToolTip="Automatically scroll to new events. Turn off to inspect older entries." />
                                     </Grid>
                                     <Grid Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>
