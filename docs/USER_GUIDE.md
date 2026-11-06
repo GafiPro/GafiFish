@@ -78,3 +78,11 @@ O fluxo verifica primeiro se o botão já está visível. Se o inventário estiv
 Sell Anywhere vende o que não estiver marcado como favorito. A opção está desligada por defeito e exige confirmação explícita na caixa da interface. Marca como favorito tudo o que pretendes guardar antes de a ativares. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
 
 O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake usa os candidatos de cor/forma na região calibrada. Ambos são opções na interface, desligadas por defeito, e ainda precisam de ser validados com uma captura real. O GafiFish pode equipar a cana no slot escolhido e fazer recast automático. O modo normal limita-se a duas tentativas adicionais sem mordida; o modo “Keep fishing until the first fish is caught” remove esse limite e pára após uma captura confirmada por OCR. A deteção visual ainda requer calibração real. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
+
+
+## 6. Perfis, consumíveis e diagnóstico
+
+- **Perfis por cana**: escreve um nome no campo Rod calibration profile e usa Load profile ou Save profile. O perfil Default mantém a calibração antiga; os outros são guardados em `%LOCALAPPDATA%\GafiFish\rod-profiles`. A seleção é manual: o programa não identifica automaticamente a cana equipada.
+- **Auto-totem / Auto-potion**: desligados por defeito. Exigem Auto-cast e Equip my rod. Escolhe o slot do consumível e o intervalo entre 1 e 720 minutos. A ação só corre em Preparing, entre ciclos: seleciona o slot, envia um clique normal único e repõe o slot da cana. Cada uso pode consumir um item e não existe confirmação visual de sucesso; verifica os slots antes de ativar.
+- **Telemetria**: mostra estado, posição do peixe e barra, erro estimado, confiança e FPS aproximado da captura.
+- **Diagnóstico**: Export diagnostics guarda um JSON com sistema, perfil, resolução, estado e calibrações, sem imagens nem credenciais. Copy session summary copia o resumo concluído.

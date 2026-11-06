@@ -105,3 +105,8 @@ A utilização de automação pode estar sujeita às regras do Roblox e do Fisch
 - [Segurança e tolerância a falhas](docs/SECURITY.md)
 
 Projeto independente, sem afiliação ao Roblox ou aos criadores de Fisch.
+
+
+### Melhorias adicionais e limites
+
+A aplicação inclui perfis de calibração nomeados manualmente por cana, telemetria, intervalo de captura adaptativo, ações temporizadas opcionais para totem/poção (slot escolhido pelo utilizador, clique único entre ciclos e reposição do slot da cana), cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. Appraise, Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, deteção de hunts e reconexão automática continuam não implementados.

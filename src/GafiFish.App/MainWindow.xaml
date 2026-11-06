@@ -86,6 +86,9 @@
                         <TextBlock x:Name="OcrStatusText"
                                    Text="Local OCR: not initialised."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        <TextBlock x:Name="TelemetryText"
+                                   Text="Telemetry: waiting for the first frame."
+                                   Foreground="#67D5B5" TextWrapping="Wrap" Margin="0,8,0,0" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -94,7 +97,21 @@
             <StackPanel>
                 <Border Background="#19232E" CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>
-                        <TextBlock Text="Capture controls" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <TextBlock Text="Capture controls" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />                        <TextBlock Text="Rod calibration profile" Foreground="#9BAAB8" Margin="0,0,0,5" />
+                        <TextBox x:Name="RodProfileNameTextBox" Text="Default" Height="32"
+                                 Padding="8,5" Margin="0,0,0,7"
+                                 Background="#263543" Foreground="#EAF0F5" />
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="Load profile" Click="LoadRodProfile_Click"
+                                    Height="32" Background="#294153" Foreground="White" BorderThickness="0" />
+                            <Button Grid.Column="2" Content="Save profile" Click="SaveRodProfile_Click"
+                                    Height="32" Background="#294153" Foreground="White" BorderThickness="0" />
+                        </Grid>
+                        <TextBlock Text="Create a named visual-calibration profile for each rod. Select the profile manually before fishing."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
                         <Button Content="Capture frame (F6)" Click="CaptureOnce_Click"
                                 Height="38" Margin="0,0,0,8"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
@@ -175,7 +192,46 @@
                         <TextBlock Text="Without hotbar selection, keep the fishing rod equipped before F8. If enabled, choose the slot containing your rod. The slot is pressed once using normal keyboard input."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
                         <TextBlock Text="Sell Anywhere also requires an active OCR session and calibrated button and inventory-list regions."
-                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />                        <Separator Margin="0,12,0,10" Background="#33414F" />
+                        <TextBlock Text="Timed consumables (optional)" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <CheckBox x:Name="AutoTotemCheckBox" Content="Use a totem periodically"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,6"
+                                  Checked="TimedItemCheckBox_Changed" Unchecked="TimedItemCheckBox_Changed" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="78" /><ColumnDefinition Width="48" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="TotemSlotComboBox" SelectedIndex="2" Height="30"
+                                      Background="#263543" Foreground="#EAF0F5" IsEnabled="False">
+                                <ComboBoxItem Content="1" /><ComboBoxItem Content="2" /><ComboBoxItem Content="3" />
+                                <ComboBoxItem Content="4" /><ComboBoxItem Content="5" /><ComboBoxItem Content="6" />
+                                <ComboBoxItem Content="7" /><ComboBoxItem Content="8" /><ComboBoxItem Content="9" />
+                                <ComboBoxItem Content="0" />
+                            </ComboBox>
+                            <TextBox x:Name="TotemIntervalTextBox" Grid.Column="1" Text="10" Height="30"
+                                     Padding="6,4" Background="#263543" Foreground="#EAF0F5" IsEnabled="False" />
+                            <TextBlock Grid.Column="2" Text="min" VerticalAlignment="Center" Foreground="#9BAAB8" Margin="6,0,0,0" />
+                        </Grid>
+                        <CheckBox x:Name="AutoPotionCheckBox" Content="Use a potion periodically"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,6"
+                                  Checked="TimedItemCheckBox_Changed" Unchecked="TimedItemCheckBox_Changed" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="78" /><ColumnDefinition Width="48" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="PotionSlotComboBox" SelectedIndex="4" Height="30"
+                                      Background="#263543" Foreground="#EAF0F5" IsEnabled="False">
+                                <ComboBoxItem Content="1" /><ComboBoxItem Content="2" /><ComboBoxItem Content="3" />
+                                <ComboBoxItem Content="4" /><ComboBoxItem Content="5" /><ComboBoxItem Content="6" />
+                                <ComboBoxItem Content="7" /><ComboBoxItem Content="8" /><ComboBoxItem Content="9" />
+                                <ComboBoxItem Content="0" />
+                            </ComboBox>
+                            <TextBox x:Name="PotionIntervalTextBox" Grid.Column="1" Text="10" Height="30"
+                                     Padding="6,4" Background="#263543" Foreground="#EAF0F5" IsEnabled="False" />
+                            <TextBlock Grid.Column="2" Text="min" VerticalAlignment="Center" Foreground="#9BAAB8" Margin="6,0,0,0" />
+                        </Grid>
+                        <TextBlock Text="Requires Auto-cast and Equip my rod. Each item is selected and clicked once only while Preparing; the rod slot is then restored. Every use may consume an item and is not verified by the game."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,4" />
                         <TextBlock x:Name="HotkeyStatusText" Text="Global hotkeys: registering…"
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
                     </StackPanel>
@@ -250,7 +306,10 @@
                         <TextBlock x:Name="SessionStatusText" Text="No session running."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
                         <TextBlock x:Name="SessionSummaryText" Text=""
-                                   Foreground="#EAF0F5" TextWrapping="Wrap" Margin="0,10,0,0" />
+                                   Foreground="#EAF0F5" TextWrapping="Wrap" Margin="0,10,0,0" />                        <Button Content="Copy session summary" Click="CopySessionSummary_Click"
+                                Height="32" Margin="0,8,0,0" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Export diagnostics" Click="ExportDiagnostics_Click"
+                                Height="32" Margin="0,7,0,0" Background="#294153" Foreground="White" BorderThickness="0" />
                         <TextBlock Text="OCR runs locally on the selected notification region. The first session downloads the English language model once."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
                     </StackPanel>

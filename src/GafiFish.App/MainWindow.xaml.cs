@@ -1,4 +1,6 @@
 using System.IO;
+using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -47,7 +49,8 @@ public partial class MainWindow : Window
     private readonly SellAnywhereVisionDetector _sellVision = new();
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
-    private readonly VisionProfileStore _profileStore = new();
+    private VisionProfileStore _profileStore = new();
+    private string _activeProfileName = "Default";
     private readonly FishSessionStore _sessionStore = new();
     private readonly FishCatchTextParser _catchParser = new();
     private readonly Rectangle _fishMarkerOverlay = new()
@@ -102,6 +105,12 @@ public partial class MainWindow : Window
     private SellAnywhereCoordinator? _sellCoordinator;
     private CastInputCoordinator? _castCoordinator;
     private ShakeInputCoordinator? _shakeCoordinator;
+    private HotbarItemCoordinator? _hotbarItemCoordinator;
+    private TimedHotbarActionSchedule? _timedItemSchedule;
+    private int? _activeRodSlot;
+    private DateTimeOffset _resumeCastingAfter = DateTimeOffset.MinValue;
+    private bool _autoTotemEnabled;
+    private bool _autoPotionEnabled;
     private bool _autoCastEnabled;
     private bool _autoShakeEnabled;
     private bool _keepFishingUntilCatchEnabled;
@@ -119,6 +128,8 @@ public partial class MainWindow : Window
     private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
     private string? _lastCatchFingerprint;
+    private DateTimeOffset _lastDisplayedFrameAt = DateTimeOffset.MinValue;
+    private double _smoothedCaptureFps;
     private CalibrationAction _calibrationAction;
     private Point? _selectionStartPixel;
     private Point? _selectionStartOverlay;
@@ -153,6 +164,7 @@ public partial class MainWindow : Window
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        RodProfileNameTextBox.Text = _activeProfileName;
         _profile = await _profileStore.LoadOrDefaultAsync();
         try
         {
@@ -181,6 +193,8 @@ public partial class MainWindow : Window
         OcrStatusText.Text = _profile.IsCatchNotificationCalibrated
             ? "Local OCR: catch notification region loaded; start a session to initialise the engine."
             : "Local OCR: select the catch notification region before starting a session.";
+        TelemetryText.Text = $"Profile: {_activeProfileName} · waiting for the first frame.";
+        UpdateTimedItemControls();
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -276,6 +290,35 @@ public partial class MainWindow : Window
     }
 
     private void TargetFishCheckBox_Changed(object sender, RoutedEventArgs e)
+    {    private void TimedItemCheckBox_Changed(object sender, RoutedEventArgs e) => UpdateTimedItemControls();
+
+    private void UpdateTimedItemControls()
+    {
+        var enabled = AutoCastCheckBox.IsChecked == true && !_automationEnabled;
+        AutoTotemCheckBox.IsEnabled = enabled;
+        AutoPotionCheckBox.IsEnabled = enabled;
+        TotemSlotComboBox.IsEnabled = enabled && AutoTotemCheckBox.IsChecked == true;
+        TotemIntervalTextBox.IsEnabled = enabled && AutoTotemCheckBox.IsChecked == true;
+        PotionSlotComboBox.IsEnabled = enabled && AutoPotionCheckBox.IsChecked == true;
+        PotionIntervalTextBox.IsEnabled = enabled && AutoPotionCheckBox.IsChecked == true;
+    }
+
+    private static int ReadHotbarSlot(ComboBox comboBox, string label)
+    {
+        var text = (comboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+        if (text is null || text.Length != 1 || !char.IsDigit(text[0]))
+            throw new InvalidOperationException($"Choose a valid hotbar slot for {label}.");
+        return text[0] - '0';
+    }
+
+    private static TimeSpan ReadItemInterval(TextBox textBox, string label)
+    {
+        if (!int.TryParse(textBox.Text.Trim(), out var minutes) || minutes is < 1 or > 720)
+            throw new InvalidOperationException($"{label} interval must be between 1 and 720 minutes.");
+        return TimeSpan.FromMinutes(minutes);
+    }
+
+    private void TargetFishCheckBox_Changed(object sender, RoutedEventArgs e)
     {
         TargetFishTextBox.IsEnabled =
             AutoCastCheckBox.IsChecked == true
@@ -298,7 +341,10 @@ public partial class MainWindow : Window
         {
             KeepFishingUntilCatchCheckBox.IsChecked = false;
             TargetFishCheckBox.IsChecked = false;
+            AutoTotemCheckBox.IsChecked = false;
+            AutoPotionCheckBox.IsChecked = false;
         }
+        UpdateTimedItemControls();
     }
 
     private void StartAutomation()
@@ -333,6 +379,8 @@ public partial class MainWindow : Window
 
         var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
         var autoShakeEnabled = AutoShakeCheckBox.IsChecked == true;
+        var autoTotemEnabled = AutoTotemCheckBox.IsChecked == true;
+        var autoPotionEnabled = AutoPotionCheckBox.IsChecked == true;
         var keepFishingUntilCatch = KeepFishingUntilCatchCheckBox.IsChecked == true;
         var targetFishEnabled = TargetFishCheckBox.IsChecked == true;
         var targetFishName = TargetFishTextBox.Text.Trim();
@@ -349,7 +397,18 @@ public partial class MainWindow : Window
             return;
         }
 
-        if ((keepFishingUntilCatch || targetFishEnabled) && !autoCastEnabled)
+        if ((keepFishingUntilCatch || targetFishEnabled) && !autoCastEnabled)        if ((autoTotemEnabled || autoPotionEnabled) && !autoCastEnabled)
+        {
+            AutomationStatusText.Text = "Timed consumables require Auto-cast so they are only used between fishing cycles.";
+            return;
+        }
+        if ((autoTotemEnabled || autoPotionEnabled) && EquipRodCheckBox.IsChecked != true)
+        {
+            AutomationStatusText.Text = "Timed consumables require Equip my rod so the rod slot can be restored afterwards.";
+            return;
+        }
+
+
         {
             AutomationStatusText.Text = "Keep-fishing mode requires Auto-cast.";
             return;
@@ -417,6 +476,31 @@ public partial class MainWindow : Window
                 ? new ShakeInputCoordinator(input)
                 : null;
 
+            SellAnywhereCoordinator? sellCoordinator = null;            var castCoordinator = autoCastEnabled
+                ? new CastInputCoordinator(input, _perfectCast)
+                : null;
+            var shakeCoordinator = autoShakeEnabled
+                ? new ShakeInputCoordinator(input)
+                : null;
+
+            var rodSlot = EquipRodCheckBox.IsChecked == true
+                ? ReadHotbarSlot(RodSlotComboBox, "rod")
+                : (int?)null;
+            var timedActions = new List<TimedHotbarAction>();
+            if (autoTotemEnabled)
+            {
+                var slot = ReadHotbarSlot(TotemSlotComboBox, "totem");
+                if (slot == rodSlot) throw new InvalidOperationException("Totem slot and rod slot must be different.");
+                timedActions.Add(new TimedHotbarAction(TimedHotbarActionKind.Totem, slot, ReadItemInterval(TotemIntervalTextBox, "Totem")));
+            }
+            if (autoPotionEnabled)
+            {
+                var slot = ReadHotbarSlot(PotionSlotComboBox, "potion");
+                if (slot == rodSlot || timedActions.Any(action => action.HotbarSlot == slot))
+                    throw new InvalidOperationException("Potion, totem and rod must use different hotbar slots.");
+                timedActions.Add(new TimedHotbarAction(TimedHotbarActionKind.Potion, slot, ReadItemInterval(PotionIntervalTextBox, "Potion")));
+            }
+
             SellAnywhereCoordinator? sellCoordinator = null;
             PeriodicSellSchedule? sellSchedule = null;
             var canScheduleSales =
@@ -443,6 +527,12 @@ public partial class MainWindow : Window
             _sellSchedule = sellSchedule;
             _castCoordinator = castCoordinator;
             _shakeCoordinator = shakeCoordinator;
+            _hotbarItemCoordinator = timedActions.Count > 0 ? new HotbarItemCoordinator(input) : null;
+            _timedItemSchedule = timedActions.Count > 0 ? new TimedHotbarActionSchedule(timedActions, DateTimeOffset.UtcNow) : null;
+            _activeRodSlot = rodSlot;
+            _resumeCastingAfter = DateTimeOffset.MinValue;
+            _autoTotemEnabled = autoTotemEnabled;
+            _autoPotionEnabled = autoPotionEnabled;
             _autoCastEnabled = autoCastEnabled;
             _autoShakeEnabled = autoShakeEnabled;
             _keepFishingUntilCatchEnabled = keepFishingUntilCatch;
@@ -457,6 +547,12 @@ public partial class MainWindow : Window
             KeepFishingUntilCatchCheckBox.IsEnabled = false;
             TargetFishCheckBox.IsEnabled = false;
             TargetFishTextBox.IsEnabled = false;
+            AutoTotemCheckBox.IsEnabled = false;
+            AutoPotionCheckBox.IsEnabled = false;
+            TotemSlotComboBox.IsEnabled = false;
+            TotemIntervalTextBox.IsEnabled = false;
+            PotionSlotComboBox.IsEnabled = false;
+            PotionIntervalTextBox.IsEnabled = false;
             AutoShakeCheckBox.IsEnabled = false;
             SellAnywhereCheckBox.IsEnabled = false;
             EquipRodCheckBox.IsEnabled = false;
@@ -466,6 +562,8 @@ public partial class MainWindow : Window
             if (autoCastEnabled) enabledModes.Add("Auto-cast");
             if (keepFishingUntilCatch) enabledModes.Add("until first confirmed catch");
             if (targetFishEnabled) enabledModes.Add($"target: {targetFishName}");
+            if (autoTotemEnabled) enabledModes.Add("Auto-totem");
+            if (autoPotionEnabled) enabledModes.Add("Auto-potion");
             if (autoShakeEnabled) enabledModes.Add("Auto-shake");
             if (sellCoordinator is not null) enabledModes.Add("Sell Anywhere / 10 min");
             else if (SellAnywhereCheckBox.IsChecked == true)
@@ -552,6 +650,12 @@ public partial class MainWindow : Window
         _sellSchedule = null;
         _castCoordinator = null;
         _shakeCoordinator = null;
+        _hotbarItemCoordinator = null;
+        _timedItemSchedule = null;
+        _activeRodSlot = null;
+        _resumeCastingAfter = DateTimeOffset.MinValue;
+        _autoTotemEnabled = false;
+        _autoPotionEnabled = false;
         _autoCastEnabled = false;
         _autoShakeEnabled = false;
         _keepFishingUntilCatchEnabled = false;
@@ -564,6 +668,7 @@ public partial class MainWindow : Window
         KeepFishingUntilCatchCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
         TargetFishCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
         TargetFishTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true && TargetFishCheckBox.IsChecked == true;
+        UpdateTimedItemControls();
         AutoShakeCheckBox.IsEnabled = true;
         SellAnywhereCheckBox.IsEnabled = true;
         EquipRodCheckBox.IsEnabled = true;
@@ -645,7 +750,30 @@ public partial class MainWindow : Window
                     frame.CapturedAt);
             }
 
-            // Auto-cast is opt-in. The rod remains in the selected hotbar slot.
+            // Auto-cast is opt-in. The rod remains in the selected hotbar slot.            // Timed consumables run only in Preparing, between completed cycles.
+            // One click selects the requested item; the configured rod slot is restored.
+            if (_runtimeStateMachine.CurrentState == FishingState.Preparing
+                && _timedItemSchedule is not null
+                && _hotbarItemCoordinator is not null
+                && _activeRodSlot.HasValue)
+            {
+                if (DateTimeOffset.UtcNow < _resumeCastingAfter)
+                    return;
+
+                var dueAction = _timedItemSchedule.TryGetDue(DateTimeOffset.UtcNow, isSafeState: true);
+                if (dueAction is not null)
+                {
+                    _hotbarItemCoordinator.UseItem(dueAction.HotbarSlot, _activeRodSlot.Value);
+                    var executedAt = DateTimeOffset.UtcNow;
+                    _timedItemSchedule.MarkExecuted(dueAction, executedAt);
+                    _resumeCastingAfter = executedAt.AddSeconds(2);
+                    AutomationStatusText.Text =
+                        $"{dueAction.Kind} clicked from slot {dueAction.HotbarSlot}; rod slot {_activeRodSlot.Value} restored.";
+                    return;
+                }
+            }
+
+
             if (_autoCastEnabled
                 && _castCoordinator is not null
                 && _runtimeStateMachine.CurrentState == FishingState.Preparing
@@ -890,6 +1018,7 @@ public partial class MainWindow : Window
         {
             while (!token.IsCancellationRequested)
             {
+                var loopStartedAt = Stopwatch.GetTimestamp();
                 if (_capture.IsRobloxForeground())
                 {
                     try
@@ -927,7 +1056,9 @@ public partial class MainWindow : Window
                     StopAutomation("Roblox lost foreground focus; all Reel inputs were released.");
                 }
 
-                await Task.Delay(120, token);
+                var processingMilliseconds = Stopwatch.GetElapsedTime(loopStartedAt).TotalMilliseconds;
+                var adaptiveDelayMilliseconds = (int)Math.Clamp(120 - processingMilliseconds, 15, 120);
+                await Task.Delay(adaptiveDelayMilliseconds, token);
             }
         }
         catch (OperationCanceledException)
@@ -947,6 +1078,19 @@ public partial class MainWindow : Window
 
     private void DisplayFrame(ScreenCaptureFrame frame)
     {
+        var previousFrameAt = _lastDisplayedFrameAt;
+        _lastDisplayedFrameAt = frame.CapturedAt;
+        if (previousFrameAt != DateTimeOffset.MinValue)
+        {
+            var delta = (frame.CapturedAt - previousFrameAt).TotalSeconds;
+            if (delta > 0 && double.IsFinite(delta))
+            {
+                var instantFps = 1d / delta;
+                _smoothedCaptureFps = _smoothedCaptureFps <= 0
+                    ? instantFps
+                    : (_smoothedCaptureFps * 0.8) + (instantFps * 0.2);
+            }
+        }
         _lastFrame = frame;
 
         var bitmap = BitmapSource.Create(
@@ -972,6 +1116,15 @@ public partial class MainWindow : Window
         VisionStatusText.Text = motion is not null && visionResult.FishMarker is not null
             ? $"Vision: {visionResult.Status} Fish X={motion.PositionX:F0}px · {motion.VelocityPixelsPerSecond:+0.0;-0.0;0} px/s · confidence {motion.Confidence:P0}"
             : $"Vision: {visionResult.Status}";
+        var fishX = motion is null ? "—" : $"{motion.PositionX:F0}px";
+        var controlX = visionResult.ControlMarker is null ? "—" : $"{visionResult.ControlMarker.CenterX:F0}px";
+        var error = motion is null || visionResult.ControlMarker is null
+            ? "—"
+            : $"{motion.PositionX - visionResult.ControlMarker.CenterX:+0;-0;0}px";
+        var state = _runtimeStateMachine?.CurrentState.ToString() ?? "Disarmed";
+        TelemetryText.Text =
+            $"Telemetry · {state} · Fish {fishX} · Control {controlX} · Error {error} · " +
+            $"Confidence {(motion?.Confidence ?? 0):P0} · Capture {_smoothedCaptureFps:F1} FPS · Profile {_activeProfileName}";
 
         var castObservation = _castVision.Detect(frame, _profile);
         if (castObservation is null)
@@ -1134,6 +1287,78 @@ public partial class MainWindow : Window
             Math.Clamp(localX / scale, 0, bitmap.PixelWidth - 1),
             Math.Clamp(localY / scale, 0, bitmap.PixelHeight - 1));
         return true;
+    }
+
+    private void SelectRegion_Click(object sender, RoutedEventArgs e)
+    {    private static string ProfileSlug(string name)
+    {
+        var slug = new string(name.Trim().ToLowerInvariant()
+            .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-').ToArray());
+        while (slug.Contains("--", StringComparison.Ordinal))
+            slug = slug.Replace("--", "-", StringComparison.Ordinal);
+        slug = slug.Trim('-');
+        if (slug.Length is < 2 or > 48)
+            throw new InvalidOperationException("Profile name must contain 2–48 letters or numbers.");
+        return slug;
+    }
+
+    private static VisionProfileStore CreateProfileStore(string name)
+    {
+        if (string.Equals(name.Trim(), "Default", StringComparison.OrdinalIgnoreCase))
+            return new VisionProfileStore();
+        var path = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "GafiFish", "rod-profiles", $"{ProfileSlug(name)}.json");
+        return new VisionProfileStore(path);
+    }
+
+    private async void SaveRodProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled)
+        {
+            CalibrationModeText.Text = "Stop the macro before saving a profile.";
+            return;
+        }
+        try
+        {
+            _activeProfileName = RodProfileNameTextBox.Text.Trim();
+            _profileStore = CreateProfileStore(_activeProfileName);
+            await SaveProfileAsync($"Calibration saved to profile '{_activeProfileName}'.");
+            TelemetryText.Text = $"Profile: {_activeProfileName} · saved.";
+        }
+        catch (Exception exception)
+        {
+            CalibrationModeText.Text = $"Could not save profile: {exception.Message}";
+        }
+    }
+
+    private async void LoadRodProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled)
+        {
+            CalibrationModeText.Text = "Stop the macro before loading a profile.";
+            return;
+        }
+        try
+        {
+            _activeProfileName = RodProfileNameTextBox.Text.Trim();
+            _profileStore = CreateProfileStore(_activeProfileName);
+            _profile = await _profileStore.LoadOrDefaultAsync();
+            _motionTracker.Reset();
+            _castVision.Reset();
+            _shakeVision.Reset();
+            CalibrationModeText.Text = $"Loaded profile '{_activeProfileName}'.";
+            VisionStatusText.Text = _profile.IsFishingCalibrated ? "Vision: profile calibration loaded." : "Vision: profile needs fishing calibration.";
+            CastStatusText.Text = _profile.IsCastCalibrated ? "Perfect Cast: profile calibration loaded." : "Perfect Cast: awaiting meter calibration.";
+            ShakeStatusText.Text = _profile.IsShakeCalibrated ? "Shake: profile calibration loaded." : "Shake: awaiting prompt calibration.";
+            SellStatusText.Text = _profile.IsSellButtonCalibrated ? "Sell Anywhere: profile calibration loaded." : "Sell Anywhere: awaiting button calibration.";
+            OcrStatusText.Text = _profile.IsCatchNotificationCalibrated ? "Local OCR: catch notification region loaded." : "Local OCR: select the catch notification region before starting a session.";
+            TelemetryText.Text = $"Profile: {_activeProfileName} · loaded.";
+        }
+        catch (Exception exception)
+        {
+            CalibrationModeText.Text = $"Could not load profile: {exception.Message}";
+        }
     }
 
     private void SelectRegion_Click(object sender, RoutedEventArgs e)
@@ -1606,6 +1831,99 @@ public partial class MainWindow : Window
         finally
         {
             _isEndingSession = false;
+        }
+    }
+
+    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
+    {    private void CopySessionSummary_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(SessionSummaryText.Text))
+        {
+            SessionStatusText.Text = "There is no completed session summary to copy.";
+            return;
+        }
+        try
+        {
+            Clipboard.SetText(SessionSummaryText.Text);
+            SessionStatusText.Text = "Session summary copied.";
+        }
+        catch (Exception exception) when (
+            exception is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
+        {
+            SessionStatusText.Text = $"Could not copy summary: {exception.Message}";
+        }
+    }
+
+    private void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export GafiFish diagnostics",
+            Filter = "JSON diagnostics (*.json)|*.json",
+            DefaultExt = "json",
+            AddExtension = true,
+            FileName = $"GafiFish-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.json",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        var report = new
+        {
+            GeneratedAtUtc = DateTimeOffset.UtcNow,
+            Application = "GafiFish",
+            Runtime = Environment.Version.ToString(),
+            OperatingSystem = Environment.OSVersion.ToString(),
+            Profile = _activeProfileName,
+            Capture = new
+            {
+                IsObserving = _previewCancellation is not null,
+                Width = _lastFrame?.Width,
+                Height = _lastFrame?.Height,
+                FramesPerSecond = _smoothedCaptureFps
+            },
+            Calibration = new
+            {
+                Fishing = _profile.IsFishingCalibrated,
+                PerfectCast = _profile.IsCastCalibrated,
+                Shake = _profile.IsShakeCalibrated,
+                SellButton = _profile.IsSellButtonCalibrated,
+                Inventory = _profile.IsInventoryVerificationCalibrated,
+                CatchNotification = _profile.IsCatchNotificationCalibrated
+            },
+            Automation = new
+            {
+                Enabled = _automationEnabled,
+                State = _runtimeStateMachine?.CurrentState.ToString() ?? "Disarmed",
+                AutoCast = _autoCastEnabled,
+                AutoShake = _autoShakeEnabled,
+                AutoTotem = _autoTotemEnabled,
+                AutoPotion = _autoPotionEnabled,
+                TargetFish = _targetFishEnabled ? _targetFishName : null
+            },
+            Status = new
+            {
+                Vision = VisionStatusText.Text,
+                Cast = CastStatusText.Text,
+                Shake = ShakeStatusText.Text,
+                Sell = SellStatusText.Text,
+                Automation = AutomationStatusText.Text,
+                OCR = OcrStatusText.Text,
+                Session = SessionStatusText.Text,
+                Telemetry = TelemetryText.Text
+            }
+        };
+
+        try
+        {
+            File.WriteAllText(dialog.FileName,
+                JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+            SessionStatusText.Text = $"Diagnostics exported to {Path.GetFileName(dialog.FileName)}.";
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            SessionStatusText.Text = $"Diagnostics export failed: {exception.Message}";
         }
     }
 

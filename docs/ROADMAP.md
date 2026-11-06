@@ -109,3 +109,16 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 - Dependências e licenças são revistas.
 - Bugs de input, foco errado e vendas sem confirmação têm prioridade sobre novas funcionalidades.
 - Uma melhoria nunca pode reduzir a segurança da paragem.
+
+
+## Melhorias integradas nesta revisão
+
+- [x] Perfis de calibração com nomes manuais por cana.
+- [x] Telemetria ao vivo (posição do peixe/barra, erro, confiança, estado e FPS aproximado).
+- [x] Intervalo de captura adaptativo ao tempo de processamento.
+- [x] Auto-totem e auto-poção opcionais, com slot/intervalo e execução só no estado Preparing; o slot da cana é reposto após o clique.
+- [x] Copiar resumo e exportar diagnóstico JSON sem capturas de ecrã nem credenciais.
+
+## Ainda por implementar
+
+Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, deteção de hunts e reconexão automática continuam fora da versão funcional. Exigem fluxos de interface e deteção visual próprios e validação real. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados não confirmam a ativação pelo jogo e podem gastar um item se o slot selecionado estiver errado.
