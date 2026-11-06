@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     private readonly CatchAlertSettingsStore _catchAlertSettingsStore = new();
     private readonly AquariumScheduleStore _aquariumScheduleStore = new();
     private AquariumScheduleState _aquariumScheduleState = new();
+    private readonly AquariumReadyAlertTracker _aquariumReadyAlertTracker = new();
     private readonly DispatcherTimer _aquariumTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _frameReplayTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
     private FrameReplaySequence? _frameReplaySequence;
@@ -217,6 +218,7 @@ public partial class MainWindow : Window
         _aquariumScheduleState = await _aquariumScheduleStore.LoadAsync();
         _isLoadingAquariumSchedule = true;
         AquariumClaimReminderCheckBox.IsChecked = _aquariumScheduleState.ClaimReminderEnabled;
+        AquariumReadySoundCheckBox.IsChecked = _aquariumScheduleState.ReadySoundEnabled;
         _isLoadingAquariumSchedule = false;
         RefreshAquariumPlannerDisplay(DateTimeOffset.UtcNow);
         _aquariumTimer.Start();
@@ -816,7 +818,28 @@ public partial class MainWindow : Window
 
     private void AquariumTimer_Tick(object? sender, EventArgs e)
     {
-        RefreshAquariumPlannerDisplay(DateTimeOffset.UtcNow);
+        var now = DateTimeOffset.UtcNow;
+        RefreshAquariumPlannerDisplay(now);
+
+        if (!_aquariumScheduleState.ReadySoundEnabled)
+            return;
+
+        var readyActions = _aquariumReadyAlertTracker.Evaluate(_aquariumScheduleState, now);
+        if (readyActions.Count == 0)
+            return;
+
+        try
+        {
+            System.Media.SystemSounds.Asterisk.Play();
+        }
+        catch (Exception exception)
+        {
+            AddActivityLog("WARN", "AQUARIUM", $"Ready sound could not be played: {exception.Message}");
+        }
+
+        var summary = string.Join(", ", readyActions);
+        AquariumPlannerStatusText.Text = $"Ready now: {summary}";
+        AddActivityLog("INFO", "AQUARIUM", $"Cooldown ready: {summary}");
     }
 
     private void RefreshAquariumPlannerDisplay(DateTimeOffset now)
@@ -914,6 +937,21 @@ public partial class MainWindow : Window
             _aquariumScheduleState.ClaimReminderEnabled
                 ? "Hourly aquarium claim reminder enabled."
                 : "Hourly aquarium claim reminder disabled.");
+    }
+
+    private async void AquariumReadySoundCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingAquariumSchedule)
+            return;
+
+        _aquariumScheduleState = _aquariumScheduleState with
+        {
+            ReadySoundEnabled = AquariumReadySoundCheckBox.IsChecked == true
+        };
+        await SaveAquariumScheduleAsync(
+            _aquariumScheduleState.ReadySoundEnabled
+                ? "Aquarium ready sounds enabled."
+                : "Aquarium ready sounds disabled.");
     }
 
     private async Task SaveAquariumScheduleAsync(string activity)

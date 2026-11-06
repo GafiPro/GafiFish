@@ -460,6 +460,11 @@
                                     <TextBlock x:Name="AquariumClaimStatusText"
                                                Text="Claim reminder is disabled."
                                                Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <CheckBox x:Name="AquariumReadySoundCheckBox"
+                                              Content="Play a sound when an aquarium action becomes ready"
+                                              Foreground="#EAF0F5" IsChecked="False" Margin="0,8,0,8"
+                                              Checked="AquariumReadySoundCheckBox_Changed"
+                                              Unchecked="AquariumReadySoundCheckBox_Changed" />
                                     <Button Content="Mark reward claimed"
                                             Click="AquariumMarkClaimed_Click" Height="34"
                                             HorizontalAlignment="Left" />

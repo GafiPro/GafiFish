@@ -17,7 +17,8 @@ public sealed class AquariumScheduleStoreTests
             GuppiesBest = new AquariumFoodProgress(fedAt, fedAt.AddMinutes(2)),
             FishChow = new AquariumFoodProgress(fedAt.AddMinutes(5), null),
             LastClaimedAt = claimedAt,
-            ClaimReminderEnabled = true
+            ClaimReminderEnabled = true,
+            ReadySoundEnabled = true
         };
 
         try

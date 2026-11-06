@@ -145,3 +145,8 @@ Na página **Sessions**, define as espécies prioritárias (separadas por vírgu
 Na página **Calibration**, usa **Save current frame** para guardar uma captura PNG feita com F6. Junta várias imagens numa sequência com nomes ordenados e preenchidos com zeros (por exemplo, `frame_001.png`, `frame_002.png`, `frame_003.png`) e carrega-as com **Load image sequence**. Podes avançar, recuar ou reproduzir a sequência a cerca de 8 frames por segundo.
 
 O replay executa apenas a apresentação e os detetores visuais para inspeção/calibração. Não envia cliques nem teclas para o Roblox, não arma a automação e não escreve capturas OCR no histórico da sessão. Formatos aceites: PNG, JPG/JPEG e BMP; máximo de 2500 imagens por sequência. Os ficheiros são lidos localmente e não são enviados para lado nenhum.
+
+
+## Alertas de cooldown do Aquarium
+
+Na página **Aquarium**, ativa **Play a sound when an aquarium action becomes ready** para receber um som local quando um dos cooldowns registados terminar. Cada alimentação/reposição é alertada independentemente; o claim só gera alerta quando o respetivo lembrete horário está ativo. Cada conclusão só gera um alerta por timestamp, sem repetir o som a cada segundo. Os alertas funcionam enquanto o GafiFish estiver aberto e não executam ações dentro do jogo.

@@ -197,3 +197,11 @@ Appraise/Treasure Appraise, Auto Enchant, automação visual do Aquarium, Angler
 - [x] Navegar frame a frame ou reproduzir a cerca de 8 FPS.
 - [x] O modo replay não envia inputs, não arma o macro e não grava resultados OCR na sessão.
 - [ ] Importação direta de gravações de vídeo continua pendente.
+
+
+## Alertas de cooldown do Aquarium — novembro de 2026
+
+- [x] Alertas sonoros locais quando cada cooldown de alimentação/reposição passa a READY.
+- [x] Alerta do claim condicionado ao lembrete horário.
+- [x] Deduplicação por ação e timestamp para evitar spam a cada atualização do temporizador.
+- [x] Preferência persistente e testes de ações independentes, novas conclusões e estados não registados.

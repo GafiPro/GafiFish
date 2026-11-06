@@ -18,6 +18,7 @@ public sealed record AquariumScheduleState
     public AquariumFoodProgress SplashSnacks { get; init; } = new();
     public DateTimeOffset? LastClaimedAt { get; init; }
     public bool ClaimReminderEnabled { get; init; }
+    public bool ReadySoundEnabled { get; init; }
 
     public AquariumFoodProgress GetProgress(AquariumFoodType foodType) =>
         foodType switch
