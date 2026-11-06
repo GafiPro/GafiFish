@@ -9,7 +9,7 @@ public sealed class AppHotkeySettingsStoreTests
     public async Task LoadAsync_ReturnsDefaultsWhenFileDoesNotExist()
     {
         var path = Path.Combine(Path.GetTempPath(), $"gafifish-settings-{Guid.NewGuid():N}.json");
-        var settings = await new AppHotkeySettingsStore(path).LoadAsync();
+        var settings = await new AppHotkeySettingsStore(path).LoadAsync(TestContext.Current.CancellationToken);
         Assert.Equal("F6", settings.CaptureKey);
         Assert.Equal("F7", settings.ObserveKey);
         Assert.Equal("F8", settings.StartKey);
@@ -30,8 +30,8 @@ public sealed class AppHotkeySettingsStoreTests
         };
         try
         {
-            await store.SaveAsync(expected);
-            Assert.Equal(expected, await store.LoadAsync());
+            await store.SaveAsync(expected, TestContext.Current.CancellationToken);
+            Assert.Equal(expected, await store.LoadAsync(TestContext.Current.CancellationToken));
         }
         finally
         {

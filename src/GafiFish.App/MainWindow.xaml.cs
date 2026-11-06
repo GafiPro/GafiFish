@@ -430,7 +430,7 @@ public partial class MainWindow : Window
 
     private static uint GetVirtualKey(string key)
     {
-        if (key.Length is not 2 or 3 || key[0] != 'F'
+        if (key.Length < 2 || key.Length > 3 || key[0] != 'F'
             || !int.TryParse(key.AsSpan(1), out var number) || number is < 2 or > 12)
             throw new ArgumentException("A function key between F2 and F12 is required.", nameof(key));
         return (uint)(0x70 + number - 1);
