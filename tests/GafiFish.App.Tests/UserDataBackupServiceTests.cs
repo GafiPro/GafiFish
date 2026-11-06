@@ -13,19 +13,19 @@ public sealed class UserDataBackupServiceTests
         var directory = CreateTemporaryDirectory();
         try
         {
-            await CreateDatabaseAsync(Path.Combine(directory, "sessions.db"));
-            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "{ \"profile\": 1 }");
-            await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json"), "{ \"hotkey\": \"F8\" }");
-            await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json.tmp"), "temporary");
-            await File.WriteAllTextAsync(Path.Combine(directory, "old-backup.zip"), "do not nest old backups");
+            await CreateDatabaseAsync(Path.Combine(directory, "sessions.db"), TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "{ \"profile\": 1 }", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json"), "{ \"hotkey\": \"F8\" }", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json.tmp"), "temporary", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(directory, "old-backup.zip"), "do not nest old backups", TestContext.Current.CancellationToken);
             Directory.CreateDirectory(Path.Combine(directory, "logs"));
-            await File.WriteAllTextAsync(Path.Combine(directory, "logs", "activity.log"), "INFO saved");
+            await File.WriteAllTextAsync(Path.Combine(directory, "logs", "activity.log"), "INFO saved", TestContext.Current.CancellationToken);
 
             var backupPath = Path.Combine(Path.GetTempPath(), $"gafifish-backup-{Guid.NewGuid():N}.zip");
             try
             {
                 var service = new UserDataBackupService(directory);
-                var manifest = await service.CreateBackupAsync(backupPath);
+                var manifest = await service.CreateBackupAsync(backupPath, TestContext.Current.CancellationToken);
 
                 Assert.Contains(manifest.Files, item => item.Path == "sessions.db");
                 Assert.Contains(manifest.Files, item => item.Path == "vision-profile.json");
@@ -44,7 +44,7 @@ public sealed class UserDataBackupServiceTests
                     await using (var source = archive.GetEntry("sessions.db")!.Open())
                     await using (var destination = new FileStream(extractedDatabase, FileMode.Create, FileAccess.Write))
                     {
-                        await source.CopyToAsync(destination);
+                        await source.CopyToAsync(destination, TestContext.Current.CancellationToken);
                     }
 
                     var connectionString = new SqliteConnectionStringBuilder
@@ -55,14 +55,14 @@ public sealed class UserDataBackupServiceTests
                     }.ToString();
                     await using (var connection = new SqliteConnection(connectionString))
                     {
-                        await connection.OpenAsync();
+                        await connection.OpenAsync(TestContext.Current.CancellationToken);
                         await using var command = connection.CreateCommand();
                         command.CommandText = "SELECT Value FROM BackupTest;";
-                        Assert.Equal("snapshot-value", (string?)await command.ExecuteScalarAsync());
+                        Assert.Equal("snapshot-value", (string?)await command.ExecuteScalarAsync(TestContext.Current.CancellationToken));
                     }
                 }
 
-                var verification = await service.VerifyBackupAsync(backupPath);
+                var verification = await service.VerifyBackupAsync(backupPath, TestContext.Current.CancellationToken);
                 Assert.True(verification.IsValid, verification.Message);
                 Assert.Equal(manifest.Files.Count, verification.FileCount);
             }
@@ -85,12 +85,12 @@ public sealed class UserDataBackupServiceTests
         var backupPath = Path.Combine(Path.GetTempPath(), $"gafifish-preview-{Guid.NewGuid():N}.zip");
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "{ \"profile\": 2 }");
-            await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json"), "{ \"key\": \"F8\" }");
+            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "{ \"profile\": 2 }", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json"), "{ \"key\": \"F8\" }", TestContext.Current.CancellationToken);
 
             var service = new UserDataBackupService(directory);
-            var created = await service.CreateBackupAsync(backupPath);
-            var inspected = await service.VerifyBackupAsync(backupPath);
+            var created = await service.CreateBackupAsync(backupPath, TestContext.Current.CancellationToken);
+            var inspected = await service.VerifyBackupAsync(backupPath, TestContext.Current.CancellationToken);
 
             Assert.True(inspected.IsValid, inspected.Message);
             Assert.NotNull(inspected.Manifest);
@@ -114,9 +114,9 @@ public sealed class UserDataBackupServiceTests
         var backupPath = Path.Combine(Path.GetTempPath(), $"gafifish-tampered-{Guid.NewGuid():N}.zip");
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "original-text");
+            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "original-text", TestContext.Current.CancellationToken);
             var service = new UserDataBackupService(directory);
-            await service.CreateBackupAsync(backupPath);
+            await service.CreateBackupAsync(backupPath, TestContext.Current.CancellationToken);
 
             using (var archive = ZipFile.Open(backupPath, ZipArchiveMode.Update))
             {
@@ -124,10 +124,10 @@ public sealed class UserDataBackupServiceTests
                 var tampered = archive.CreateEntry("vision-profile.json");
                 await using var stream = tampered.Open();
                 await using var writer = new StreamWriter(stream);
-                await writer.WriteAsync("tampered-text");
+                await writer.WriteAsync("tampered-text".AsMemory(), TestContext.Current.CancellationToken);
             }
 
-            var verification = await service.VerifyBackupAsync(backupPath);
+            var verification = await service.VerifyBackupAsync(backupPath, TestContext.Current.CancellationToken);
             Assert.False(verification.IsValid);
             Assert.Contains("SHA-256", verification.Message);
         }
@@ -150,10 +150,10 @@ public sealed class UserDataBackupServiceTests
                 var entry = archive.CreateEntry("some-file.txt");
                 await using var stream = entry.Open();
                 await using var writer = new StreamWriter(stream);
-                await writer.WriteAsync("not a GafiFish backup");
+                await writer.WriteAsync("not a GafiFish backup".AsMemory(), TestContext.Current.CancellationToken);
             }
 
-            var verification = await new UserDataBackupService().VerifyBackupAsync(backupPath);
+            var verification = await new UserDataBackupService().VerifyBackupAsync(backupPath, TestContext.Current.CancellationToken);
             Assert.False(verification.IsValid);
             Assert.Contains("manifest", verification.Message, StringComparison.OrdinalIgnoreCase);
         }
@@ -164,7 +164,7 @@ public sealed class UserDataBackupServiceTests
         }
     }
 
-    private static async Task CreateDatabaseAsync(string databasePath)
+    private static async Task CreateDatabaseAsync(string databasePath, CancellationToken cancellationToken)
     {
         var builder = new SqliteConnectionStringBuilder
         {
@@ -173,10 +173,10 @@ public sealed class UserDataBackupServiceTests
             Pooling = false
         };
         await using var connection = new SqliteConnection(builder.ToString());
-        await connection.OpenAsync();
+        await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText = "CREATE TABLE BackupTest (Value TEXT NOT NULL); INSERT INTO BackupTest(Value) VALUES ('snapshot-value');";
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static string CreateTemporaryDirectory()
