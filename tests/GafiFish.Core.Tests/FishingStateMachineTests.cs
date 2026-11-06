@@ -94,6 +94,29 @@ public sealed class FishingStateMachineTests
         Assert.Equal(FishingState.Preparing, machine.CurrentState);
     }
 
+
+    [Fact]
+    public void StateMachine_AllowsRecastAfterMissedBite()
+    {
+        var machine = new FishingStateMachine();
+
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Automation armed."));
+        Assert.True(machine.TryTransition(FishingState.Casting, "Cast started."));
+        Assert.True(machine.TryTransition(FishingState.WaitingForBite, "Cast released."));
+        Assert.True(machine.TryTransition(FishingState.Preparing, "No bite; bounded retry."));
+        Assert.True(machine.TryTransition(FishingState.Casting, "Retry cast started."));
+    }
+
+    [Fact]
+    public void StateMachine_AllowsShakeSequenceToReturnToWaitingForBite()
+    {
+        var machine = new FishingStateMachine();
+
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Automation armed."));
+        Assert.True(machine.TryTransition(FishingState.Shaking, "Stable prompt detected."));
+        Assert.True(machine.TryTransition(FishingState.WaitingForBite, "Prompt sequence ended."));
+    }
+
     [Fact]
     public void StateMachine_RequiresStoppingBeforeStopped()
     {
