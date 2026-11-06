@@ -85,6 +85,9 @@ O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake us
 ## 6. Perfis, consumíveis e diagnóstico
 
 - **Perfis por cana**: escreve um nome no campo Rod calibration profile e usa Load profile ou Save profile. O perfil Default mantém a calibração antiga; os outros são guardados em `%LOCALAPPDATA%\GafiFish\rod-profiles`. A seleção é manual: o programa não identifica automaticamente a cana equipada.
+- **Capture performance**: Economy reduz a frequência de análise para diminuir o uso esperado de CPU; Balanced é a opção recomendada; Responsive tenta analisar mais frequentemente e pode aumentar o uso de CPU. A cadência continua adaptativa ao tempo de processamento de cada fotograma.
+- **Perfis transferíveis**: usa Import profile JSON / Export profile JSON para mover calibrações entre PCs. O ficheiro contém apenas parâmetros de calibração, não imagens nem credenciais.
+- **Arquivo completo**: Export all CSV / Export all JSON exporta todas as capturas locais, incluindo o identificador e as horas de início/fim da sessão associada. Export session continua limitado à sessão selecionada.
 - **Auto-totem / Auto-potion**: desligados por defeito. Exigem Auto-cast e Equip my rod. Escolhe o slot do consumível e o intervalo entre 1 e 720 minutos. A ação só corre em Preparing, entre ciclos: seleciona o slot, envia um clique normal único e repõe o slot da cana. Cada uso pode consumir um item e não existe confirmação visual de sucesso; verifica os slots antes de ativar.
 - **Telemetria**: mostra estado, posição do peixe e barra, erro estimado, confiança e FPS aproximado da captura.
 - **Diagnóstico**: Export diagnostics guarda um JSON com sistema, perfil, resolução, estado e calibrações, sem imagens nem credenciais. Copy session summary copia o resumo concluído.
@@ -96,3 +99,8 @@ O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake us
 - **Raridade alta**: a opção Legendary+ está ligada por defeito e alerta para Legendary, Mythical, Exotic, Secret e Apex.
 - **Mutações**: ativa a caixa correspondente para receber um som quando o OCR reconhecer uma mutação.
 - **Lifetime statistics**: agrega o histórico SQLite local: sessões, capturas, espécies mais capturadas, mutações, raridades Legendary+, pesos médio/máximo, valor estimado reconhecido no texto e capturas por hora de sessões concluídas. O valor é uma estimativa lida pelo OCR, não o saldo real da conta.
+
+
+## 8. Objetivo de capturas do peixe-alvo
+
+No modo **Fish until this exact target is caught**, o campo de quantidade aceita de 1 a 100 capturas. O contador avança apenas quando o nome do peixe corresponde à notificação OCR, a confiança é pelo menos 90% e a deteção passa a deduplicação. A automação termina quando o número pedido é atingido. O modo **Keep fishing until the first fish is caught** continua a ser uma opção independente.

@@ -72,13 +72,14 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Histórico de sessões e capturas em SQLite.
 - [x] Explorador das 20 sessões mais recentes, com detalhes das últimas 15 capturas por sessão.
 - [x] Exportação CSV/JSON da sessão concluída selecionada, incluindo sessões anteriores.
+- [x] Exportação global de todas as capturas, com metadados da sessão, para CSV/JSON.
 - [x] Resumo com até 25 melhores peixes.
 - [ ] Afinação do parser com notificações reais do Fisch e nomes especiais.
 - [ ] Cópia direta do resumo para a área de transferência.
 
 ## Fase 5 — Robustez e melhorias
 
-- [ ] Ajuste adaptativo à taxa de frames.
+- [x] Ajuste adaptativo da cadência de captura com perfis Economy, Balanced e Responsive.
 - [x] Limites de tempo e recuperação segura nos estados Cast, Shake, espera por mordida e Reel.
 - [ ] Reprodução de capturas/gravações reais para diagnóstico sem abrir o jogo.
 - [x] Estatísticas acumuladas de todas as sessões: espécies mais capturadas, raridade alta, mutações, peso médio/máximo, valor estimado reconhecido por OCR e capturas por hora de sessões concluídas.
@@ -114,7 +115,8 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Melhorias integradas nesta revisão
 
-- [x] Perfis de calibração com nomes manuais por cana.
+- [x] Perfis de calibração com nomes manuais por cana e transferência por ficheiros JSON.
+- [x] Objetivo configurável de 1–100 capturas do peixe-alvo, com contador OCR e paragem ao completar o objetivo.
 - [x] Telemetria ao vivo (posição do peixe/barra, erro, confiança, estado e FPS aproximado).
 - [x] Intervalo de captura adaptativo ao tempo de processamento.
 - [x] Auto-totem e auto-poção opcionais, com slot/intervalo e execução só no estado Preparing; o slot da cana é reposto após o clique.

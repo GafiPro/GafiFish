@@ -128,6 +128,7 @@ public partial class MainWindow : Window
     private Task? _catchRecognitionTask;
     private bool _isEndingSession;
     private bool _isRefreshingSessionHistory;
+    private CatchGoalProgress? _targetCatchProgress;
     private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
     private string? _lastCatchFingerprint;
@@ -162,6 +163,7 @@ public partial class MainWindow : Window
         PreviewOverlay.Children.Add(_castTargetOverlay);
         PreviewOverlay.Children.Add(_castIndicatorOverlay);
         PreviewOverlay.Children.Add(_sellButtonOverlay);
+        CapturePerformanceModeComboBox.SelectionChanged += CapturePerformanceMode_SelectionChanged;
         Loaded += Window_Loaded;
     }
 
@@ -198,8 +200,28 @@ public partial class MainWindow : Window
             : "Local OCR: select the catch notification region before starting a session.";
         TelemetryText.Text = $"Profile: {_activeProfileName} · waiting for the first frame.";
         UpdateTimedItemControls();
+        CapturePerformanceMode_SelectionChanged(CapturePerformanceModeComboBox, null!);
         await RefreshLifetimeStatisticsAsync();
         await RefreshSessionHistoryAsync();
+    }
+
+    private CapturePerformanceMode GetSelectedCapturePerformanceMode() =>
+        CapturePerformanceModeComboBox.SelectedIndex switch
+        {
+            0 => CapturePerformanceMode.Economy,
+            2 => CapturePerformanceMode.Responsive,
+            _ => CapturePerformanceMode.Balanced
+        };
+
+    private void CapturePerformanceMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var mode = GetSelectedCapturePerformanceMode();
+        PerformanceModeStatusText.Text = mode switch
+        {
+            CapturePerformanceMode.Economy => "Economy · lower CPU use · slower visual refresh.",
+            CapturePerformanceMode.Responsive => "Responsive · more frequent capture · higher CPU use.",
+            _ => "Balanced · adaptive capture cadence · recommended starting point."
+        };
     }
 
     private async Task RefreshSessionHistoryAsync(Guid? preferredSessionId = null)
@@ -486,10 +508,12 @@ public partial class MainWindow : Window
 
     private void TargetFishCheckBox_Changed(object sender, RoutedEventArgs e)
     {
-        TargetFishTextBox.IsEnabled =
-            AutoCastCheckBox.IsChecked == true
+        var enabled = AutoCastCheckBox.IsChecked == true
             && TargetFishCheckBox.IsChecked == true
             && !_automationEnabled;
+        TargetFishTextBox.IsEnabled = enabled;
+        TargetFishCatchGoalTextBox.IsEnabled = enabled;
+        TargetFishProgressText.Text = $"Target progress · 0 / {ReadTargetCatchGoalOrDefault()}";
     }
 
     private void AutoCastCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -502,7 +526,9 @@ public partial class MainWindow : Window
         var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
         KeepFishingUntilCatchCheckBox.IsEnabled = autoCastEnabled;
         TargetFishCheckBox.IsEnabled = autoCastEnabled;
-        TargetFishTextBox.IsEnabled = autoCastEnabled && TargetFishCheckBox.IsChecked == true;
+        var targetModeEnabled = autoCastEnabled && TargetFishCheckBox.IsChecked == true;
+        TargetFishTextBox.IsEnabled = targetModeEnabled;
+        TargetFishCatchGoalTextBox.IsEnabled = targetModeEnabled;
         if (!autoCastEnabled)
         {
             KeepFishingUntilCatchCheckBox.IsChecked = false;
@@ -512,6 +538,11 @@ public partial class MainWindow : Window
         }
         UpdateTimedItemControls();
     }
+
+    private int ReadTargetCatchGoalOrDefault() =>
+        int.TryParse(TargetFishCatchGoalTextBox.Text.Trim(), out var goal) && goal is >= 1 and <= 100
+            ? goal
+            : 1;
 
     private void StartAutomation()
     {
@@ -550,6 +581,15 @@ public partial class MainWindow : Window
         var keepFishingUntilCatch = KeepFishingUntilCatchCheckBox.IsChecked == true;
         var targetFishEnabled = TargetFishCheckBox.IsChecked == true;
         var targetFishName = TargetFishTextBox.Text.Trim();
+        var targetCatchGoal = ReadTargetCatchGoalOrDefault();
+
+        if (targetFishEnabled
+            && (!int.TryParse(TargetFishCatchGoalTextBox.Text.Trim(), out targetCatchGoal)
+                || targetCatchGoal is < 1 or > 100))
+        {
+            AutomationStatusText.Text = "Target catch goal must be a whole number between 1 and 100.";
+            return;
+        }
 
         if (targetFishEnabled && string.IsNullOrWhiteSpace(targetFishName))
         {
@@ -697,6 +737,8 @@ public partial class MainWindow : Window
             _keepFishingUntilCatchEnabled = keepFishingUntilCatch;
             _targetFishEnabled = targetFishEnabled;
             _targetFishName = targetFishEnabled ? targetFishName : null;
+            _targetCatchProgress = targetFishEnabled ? new CatchGoalProgress(targetCatchGoal) : null;
+            TargetFishProgressText.Text = $"Target progress · 0 / {targetCatchGoal}";
             _missedBiteRetries = new MissedBiteRetryPolicy(unlimitedRetries: keepFishingUntilCatch || targetFishEnabled);
             _automationEnabled = true;
             StartMacroButton.IsEnabled = false;
@@ -706,6 +748,7 @@ public partial class MainWindow : Window
             KeepFishingUntilCatchCheckBox.IsEnabled = false;
             TargetFishCheckBox.IsEnabled = false;
             TargetFishTextBox.IsEnabled = false;
+            TargetFishCatchGoalTextBox.IsEnabled = false;
             AutoTotemCheckBox.IsEnabled = false;
             AutoPotionCheckBox.IsEnabled = false;
             TotemSlotComboBox.IsEnabled = false;
@@ -1216,7 +1259,9 @@ public partial class MainWindow : Window
                 }
 
                 var processingMilliseconds = Stopwatch.GetElapsedTime(loopStartedAt).TotalMilliseconds;
-                var adaptiveDelayMilliseconds = (int)Math.Clamp(120 - processingMilliseconds, 15, 120);
+                var adaptiveDelayMilliseconds = CaptureCadencePolicy.CalculateDelayMilliseconds(
+                    GetSelectedCapturePerformanceMode(),
+                    processingMilliseconds);
                 await Task.Delay(adaptiveDelayMilliseconds, token);
             }
         }
@@ -1468,6 +1513,95 @@ public partial class MainWindow : Window
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GafiFish", "rod-profiles", $"{ProfileSlug(name)}.json");
         return new VisionProfileStore(path);
+    }
+
+    private async void ExportRodProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled)
+        {
+            CalibrationModeText.Text = "Stop the macro before exporting a calibration profile.";
+            return;
+        }
+
+        var profileName = RodProfileNameTextBox.Text.Trim();
+        var safeName = string.IsNullOrWhiteSpace(profileName) ? "Default" : profileName;
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export GafiFish calibration profile",
+            Filter = "GafiFish calibration profile (*.json)|*.json",
+            DefaultExt = "json",
+            AddExtension = true,
+            FileName = $"GafiFish-{ProfileSlug(safeName)}-profile.json",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            await new VisionProfileStore(dialog.FileName).SaveAsync(_profile);
+            CalibrationModeText.Text = $"Profile exported to {System.IO.Path.GetFileName(dialog.FileName)}.";
+        }
+        catch (Exception exception)
+        {
+            CalibrationModeText.Text = $"Could not export profile: {exception.Message}";
+        }
+    }
+
+    private async void ImportRodProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled)
+        {
+            CalibrationModeText.Text = "Stop the macro before importing a calibration profile.";
+            return;
+        }
+
+        var dialog = new OpenFileDialog
+        {
+            Title = "Import GafiFish calibration profile",
+            Filter = "GafiFish calibration profile (*.json)|*.json",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var importedProfile = await new VisionProfileStore(dialog.FileName).LoadOrDefaultAsync();
+            var hasCalibration = importedProfile.IsFishingCalibrated
+                || importedProfile.IsCastCalibrated
+                || importedProfile.IsShakeCalibrated
+                || importedProfile.IsSellButtonCalibrated
+                || importedProfile.IsInventoryVerificationCalibrated
+                || importedProfile.IsCatchNotificationCalibrated;
+            if (!hasCalibration)
+                throw new InvalidDataException("The selected JSON does not contain a usable GafiFish calibration profile.");
+
+            var profileName = RodProfileNameTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(profileName))
+                profileName = System.IO.Path.GetFileNameWithoutExtension(dialog.FileName);
+
+            _activeProfileName = profileName;
+            _profileStore = CreateProfileStore(_activeProfileName);
+            _profile = importedProfile;
+            await _profileStore.SaveAsync(_profile);
+            RodProfileNameTextBox.Text = _activeProfileName;
+
+            _motionTracker.Reset();
+            _castVision.Reset();
+            CalibrationModeText.Text = $"Imported and saved profile '{_activeProfileName}'.";
+            VisionStatusText.Text = _profile.IsFishingCalibrated ? "Vision: profile calibration loaded." : "Vision: profile needs fishing calibration.";
+            CastStatusText.Text = _profile.IsCastCalibrated ? "Perfect Cast: profile calibration loaded." : "Perfect Cast: awaiting meter calibration.";
+            ShakeStatusText.Text = _profile.IsShakeCalibrated ? "Shake: profile calibration loaded." : "Shake: awaiting prompt calibration.";
+            SellStatusText.Text = _profile.IsSellButtonCalibrated ? "Sell Anywhere: profile calibration loaded." : "Sell Anywhere: awaiting button calibration.";
+            OcrStatusText.Text = _profile.IsCatchNotificationCalibrated ? "Local OCR: catch notification region loaded." : "Local OCR: select the catch notification region before starting a session.";
+            TelemetryText.Text = $"Profile: {_activeProfileName} · imported.";
+        }
+        catch (Exception exception)
+        {
+            CalibrationModeText.Text = $"Could not import profile: {exception.Message}";
+        }
     }
 
     private async void SaveRodProfile_Click(object sender, RoutedEventArgs e)
@@ -2039,7 +2173,8 @@ public partial class MainWindow : Window
                 IsObserving = _previewCancellation is not null,
                 Width = _lastFrame?.Width,
                 Height = _lastFrame?.Height,
-                FramesPerSecond = _smoothedCaptureFps
+                FramesPerSecond = _smoothedCaptureFps,
+                PerformanceMode = GetSelectedCapturePerformanceMode().ToString()
             },
             Calibration = new
             {
@@ -2097,6 +2232,48 @@ public partial class MainWindow : Window
     private async void ExportJson_Click(object sender, RoutedEventArgs e)
     {
         await ExportCompletedSessionAsync(exportJson: true);
+    }
+
+    private async void ExportAllHistoryCsv_Click(object sender, RoutedEventArgs e)
+    {
+        await ExportAllHistoryAsync(exportJson: false);
+    }
+
+    private async void ExportAllHistoryJson_Click(object sender, RoutedEventArgs e)
+    {
+        await ExportAllHistoryAsync(exportJson: true);
+    }
+
+    private async Task ExportAllHistoryAsync(bool exportJson)
+    {
+        var extension = exportJson ? "json" : "csv";
+        var dialog = new SaveFileDialog
+        {
+            Title = exportJson ? "Export all GafiFish catches as JSON" : "Export all GafiFish catches as CSV",
+            Filter = exportJson ? "JSON files (*.json)|*.json" : "CSV files (*.csv)|*.csv",
+            DefaultExt = extension,
+            AddExtension = true,
+            FileName = $"GafiFish-all-catches-{DateTime.Now:yyyyMMdd-HHmmss}.{extension}",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var history = await _sessionStore.GetAllCatchHistoryAsync();
+            if (exportJson)
+                await CatchHistoryExportService.ExportJsonAsync(history, dialog.FileName);
+            else
+                await CatchHistoryExportService.ExportCsvAsync(history, dialog.FileName);
+
+            SessionStatusText.Text =
+                $"Exported {history.Count} catches from the local archive to {System.IO.Path.GetFileName(dialog.FileName)}.";
+        }
+        catch (Exception exception)
+        {
+            SessionStatusText.Text = $"Full history export failed: {exception.Message}";
+        }
     }
 
     private async Task ExportCompletedSessionAsync(bool exportJson)
@@ -2239,38 +2416,6 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var targetFishCaught = _automationEnabled
-                && _targetFishEnabled
-                && !string.IsNullOrWhiteSpace(_targetFishName)
-                && FishCatchTargetMatcher.Matches(result.Text, _targetFishName)
-                && result.Confidence >= 0.90
-                && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
-
-            var stopAfterFirstCatch = _automationEnabled
-                && _keepFishingUntilCatchEnabled
-                && result.Confidence >= 0.90
-                && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
-
-            if (targetFishCaught || stopAfterFirstCatch)
-            {
-                if (!_runtimeStateMachine!.TryTransition(
-                        FishingState.CatchDetected,
-                        targetFishCaught
-                            ? $"A high-confidence local OCR notification matched target '{_targetFishName}'."
-                            : "A high-confidence local OCR notification confirmed the first caught fish.",
-                        frame.CapturedAt))
-                {
-                    StopAutomation("The catch was recognised but the fishing state could not confirm it; all inputs released.");
-                    return;
-                }
-
-                // Stop before the database write so no later frame can start a new
-                // cycle or trigger a periodic inventory action after the first catch.
-                StopAutomation(targetFishCaught
-                    ? $"Target fish confirmed ({_targetFishName}); target-fishing mode completed."
-                    : $"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
-            }
-
             var fingerprint = string.Join(
                 "|",
                 fishCatch.Species,
@@ -2282,6 +2427,46 @@ public partial class MainWindow : Window
                 && frame.CapturedAt - _lastCatchAt < TimeSpan.FromSeconds(6))
             {
                 return;
+            }
+
+            var targetFishMatched = _automationEnabled
+                && _targetFishEnabled
+                && !string.IsNullOrWhiteSpace(_targetFishName)
+                && FishCatchTargetMatcher.Matches(result.Text, _targetFishName)
+                && result.Confidence >= 0.90
+                && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
+
+            var targetGoalReached = false;
+            if (targetFishMatched && _targetCatchProgress is not null)
+            {
+                targetGoalReached = _targetCatchProgress.RecordMatch();
+                TargetFishProgressText.Text =
+                    $"Target progress · {_targetCatchProgress.Caught} / {_targetCatchProgress.Goal}";
+            }
+
+            var stopAfterFirstCatch = _automationEnabled
+                && _keepFishingUntilCatchEnabled
+                && result.Confidence >= 0.90
+                && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
+
+            if (targetGoalReached || stopAfterFirstCatch)
+            {
+                if (!_runtimeStateMachine!.TryTransition(
+                        FishingState.CatchDetected,
+                        targetGoalReached
+                            ? $"The target '{_targetFishName}' reached its catch goal ({_targetCatchProgress!.Caught}/{_targetCatchProgress.Goal})."
+                            : "A high-confidence local OCR notification confirmed the first caught fish.",
+                        frame.CapturedAt))
+                {
+                    StopAutomation("The catch was recognised but the fishing state could not confirm it; all inputs released.");
+                    return;
+                }
+
+                // Stop on the final requested target catch before another cast or
+                // timed inventory action can begin. The catch is still saved below.
+                StopAutomation(targetGoalReached
+                    ? $"Target goal completed: {_targetFishName} ({_targetCatchProgress!.Caught}/{_targetCatchProgress.Goal})."
+                    : $"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
             }
 
             await _sessionStore.SaveCatchAsync(sessionId, fishCatch);

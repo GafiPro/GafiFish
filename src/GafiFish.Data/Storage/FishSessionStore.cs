@@ -242,6 +242,48 @@ public sealed class FishSessionStore
         return catches;
     }
 
+    public async Task<IReadOnlyList<FishCatchHistoryRecord>> GetAllCatchHistoryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var history = new List<FishCatchHistoryRecord>();
+
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT sessions.Id, sessions.StartedAt, sessions.EndedAt,
+                   catches.Id, catches.CaughtAt, catches.Species, catches.Rarity,
+                   catches.Mutation, catches.WeightKg, catches.EstimatedValue,
+                   catches.RecognitionConfidence
+            FROM FishCatches AS catches
+            INNER JOIN Sessions AS sessions ON sessions.Id = catches.SessionId
+            ORDER BY catches.CaughtAt ASC, catches.Id ASC;
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var fishCatch = new FishCatch(
+                Guid.Parse(reader.GetString(3)),
+                ParseDate(reader.GetString(4)),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.IsDBNull(6) ? null : (FishRarity)reader.GetInt32(6),
+                reader.IsDBNull(7) ? null : reader.GetString(7),
+                reader.IsDBNull(8) ? null : reader.GetDouble(8),
+                reader.IsDBNull(9) ? null : (decimal)reader.GetDouble(9),
+                reader.GetDouble(10));
+
+            history.Add(new FishCatchHistoryRecord(
+                Guid.Parse(reader.GetString(0)),
+                ParseDate(reader.GetString(1)),
+                reader.IsDBNull(2) ? null : ParseDate(reader.GetString(2)),
+                fishCatch));
+        }
+
+        return history;
+    }
+
     public async Task<SessionSummary?> GetSessionSummaryAsync(
         Guid sessionId,
         DateTimeOffset? now = null,

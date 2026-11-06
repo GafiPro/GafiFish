@@ -173,6 +173,84 @@ public sealed class FishSessionStoreTests
         }
     }
 
+    [Fact]
+    public async Task GetAllCatchHistory_ReturnsEveryCatchWithItsSessionMetadata()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gafifish-{Guid.NewGuid():N}.db");
+        var store = new FishSessionStore(path);
+        var startedAt = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+
+        try
+        {
+            await store.InitializeAsync(TestContext.Current.CancellationToken);
+            var firstSession = await store.StartSessionAsync(startedAt, TestContext.Current.CancellationToken);
+            var firstCatch = new FishCatch(Guid.NewGuid(), startedAt.AddMinutes(5), "Golden Koi",
+                FishRarity.Secret, "Golden", 5.0, 1200m, 0.98);
+            await store.SaveCatchAsync(firstSession, firstCatch, TestContext.Current.CancellationToken);
+            await store.FinishSessionAsync(firstSession, startedAt.AddHours(1), TestContext.Current.CancellationToken);
+
+            var secondStartedAt = startedAt.AddDays(1);
+            var secondSession = await store.StartSessionAsync(secondStartedAt, TestContext.Current.CancellationToken);
+            var secondCatch = new FishCatch(Guid.NewGuid(), secondStartedAt.AddMinutes(10), "Bluefin Tuna",
+                FishRarity.Legendary, "Shiny", 10.0, 2500m, 0.99);
+            await store.SaveCatchAsync(secondSession, secondCatch, TestContext.Current.CancellationToken);
+
+            var history = await store.GetAllCatchHistoryAsync(TestContext.Current.CancellationToken);
+
+            Assert.Equal(2, history.Count);
+            Assert.Equal(firstSession, history[0].SessionId);
+            Assert.Equal(firstCatch.Id, history[0].Catch.Id);
+            Assert.Equal(startedAt, history[0].SessionStartedAt);
+            Assert.Equal(startedAt.AddHours(1), history[0].SessionEndedAt);
+            Assert.Equal(secondSession, history[1].SessionId);
+            Assert.Equal(secondCatch.Id, history[1].Catch.Id);
+            Assert.Null(history[1].SessionEndedAt);
+        }
+        finally
+        {
+            DeleteDatabaseFiles(path);
+        }
+    }
+
+    [Fact]
+    public async Task GetAllCatchHistory_ReturnsEveryCatchWithItsSessionMetadata()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gafifish-{Guid.NewGuid():N}.db");
+        var store = new FishSessionStore(path);
+        var startedAt = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+
+        try
+        {
+            await store.InitializeAsync(TestContext.Current.CancellationToken);
+            var firstSession = await store.StartSessionAsync(startedAt, TestContext.Current.CancellationToken);
+            var firstCatch = new FishCatch(Guid.NewGuid(), startedAt.AddMinutes(5), "Golden Koi",
+                FishRarity.Secret, "Golden", 5.0, 1200m, 0.98);
+            await store.SaveCatchAsync(firstSession, firstCatch, TestContext.Current.CancellationToken);
+            await store.FinishSessionAsync(firstSession, startedAt.AddHours(1), TestContext.Current.CancellationToken);
+
+            var secondStartedAt = startedAt.AddDays(1);
+            var secondSession = await store.StartSessionAsync(secondStartedAt, TestContext.Current.CancellationToken);
+            var secondCatch = new FishCatch(Guid.NewGuid(), secondStartedAt.AddMinutes(10), "Bluefin Tuna",
+                FishRarity.Legendary, "Shiny", 10.0, 2500m, 0.99);
+            await store.SaveCatchAsync(secondSession, secondCatch, TestContext.Current.CancellationToken);
+
+            var history = await store.GetAllCatchHistoryAsync(TestContext.Current.CancellationToken);
+
+            Assert.Equal(2, history.Count);
+            Assert.Equal(firstSession, history[0].SessionId);
+            Assert.Equal(firstCatch.Id, history[0].Catch.Id);
+            Assert.Equal(startedAt, history[0].SessionStartedAt);
+            Assert.Equal(startedAt.AddHours(1), history[0].SessionEndedAt);
+            Assert.Equal(secondSession, history[1].SessionId);
+            Assert.Equal(secondCatch.Id, history[1].Catch.Id);
+            Assert.Null(history[1].SessionEndedAt);
+        }
+        finally
+        {
+            DeleteDatabaseFiles(path);
+        }
+    }
+
     private static void DeleteDatabaseFiles(string path)
     {
         SqliteConnection.ClearAllPools();
