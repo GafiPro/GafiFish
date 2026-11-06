@@ -104,7 +104,8 @@ public partial class MainWindow : Window
     private ShakeInputCoordinator? _shakeCoordinator;
     private bool _autoCastEnabled;
     private bool _autoShakeEnabled;
-    private readonly MissedBiteRetryPolicy _missedBiteRetries = new();
+    private bool _keepFishingUntilCatchEnabled;
+    private MissedBiteRetryPolicy _missedBiteRetries = new();
     private bool _automationEnabled;
     private LocalTesseractOcr? _ocr;
     private Guid? _activeSessionId;
@@ -236,6 +237,19 @@ public partial class MainWindow : Window
 
     private static string Registered(bool registered) => registered ? "ready" : "in use";
 
+    private void StartMacro_Click(object sender, RoutedEventArgs e) => StartAutomation();
+
+    private void StopMacro_Click(object sender, RoutedEventArgs e) =>
+        StopAutomation("Macro stopped by the user; all game inputs released.");
+
+    private void AutoCastCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_automationEnabled)
+        {
+            KeepFishingUntilCatchCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
+        }
+    }
+
     private void StartAutomation()
     {
         if (_automationEnabled)
@@ -264,6 +278,21 @@ public partial class MainWindow : Window
 
         var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
         var autoShakeEnabled = AutoShakeCheckBox.IsChecked == true;
+        var keepFishingUntilCatch = KeepFishingUntilCatchCheckBox.IsChecked == true;
+
+        if (keepFishingUntilCatch && !autoCastEnabled)
+        {
+            AutomationStatusText.Text = "Keep-fishing mode requires Auto-cast.";
+            return;
+        }
+
+        if (keepFishingUntilCatch
+            && (!_activeSessionId.HasValue || _ocr is null || !_profile.IsCatchNotificationCalibrated))
+        {
+            AutomationStatusText.Text =
+                "Keep-fishing mode requires an active local OCR session and a calibrated catch-notification region.";
+            return;
+        }
 
         if (autoCastEnabled && !_profile.IsCastCalibrated)
         {
@@ -347,10 +376,14 @@ public partial class MainWindow : Window
             _shakeCoordinator = shakeCoordinator;
             _autoCastEnabled = autoCastEnabled;
             _autoShakeEnabled = autoShakeEnabled;
-            _missedBiteRetries.Reset();
+            _keepFishingUntilCatchEnabled = keepFishingUntilCatch;
+            _missedBiteRetries = new MissedBiteRetryPolicy(unlimitedRetries: keepFishingUntilCatch);
             _automationEnabled = true;
+            StartMacroButton.IsEnabled = false;
+            StopMacroButton.IsEnabled = true;
             InvertReelDirectionCheckBox.IsEnabled = false;
             AutoCastCheckBox.IsEnabled = false;
+            KeepFishingUntilCatchCheckBox.IsEnabled = false;
             AutoShakeCheckBox.IsEnabled = false;
             SellAnywhereCheckBox.IsEnabled = false;
             EquipRodCheckBox.IsEnabled = false;
@@ -358,6 +391,7 @@ public partial class MainWindow : Window
 
             var enabledModes = new List<string> { "Reel assist" };
             if (autoCastEnabled) enabledModes.Add("Auto-cast");
+            if (keepFishingUntilCatch) enabledModes.Add("until first confirmed catch");
             if (autoShakeEnabled) enabledModes.Add("Auto-shake");
             if (sellCoordinator is not null) enabledModes.Add("Sell Anywhere / 10 min");
             else if (SellAnywhereCheckBox.IsChecked == true)
@@ -445,8 +479,12 @@ public partial class MainWindow : Window
         _shakeCoordinator = null;
         _autoCastEnabled = false;
         _autoShakeEnabled = false;
+        _keepFishingUntilCatchEnabled = false;
+        StartMacroButton.IsEnabled = true;
+        StopMacroButton.IsEnabled = false;
         InvertReelDirectionCheckBox.IsEnabled = true;
         AutoCastCheckBox.IsEnabled = true;
+        KeepFishingUntilCatchCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
         AutoShakeCheckBox.IsEnabled = true;
         SellAnywhereCheckBox.IsEnabled = true;
         EquipRodCheckBox.IsEnabled = true;
@@ -578,8 +616,8 @@ public partial class MainWindow : Window
                 }
             }
 
-            // A missed bite is retried a bounded number of times. This avoids
-            // both a dead session after one quiet cast and endless blind recasting.
+            // Retry after a quiet cast. The default budget is two; the explicit
+            // keep-fishing option removes only this retry cap, not emergency stops.
             if (_autoCastEnabled
                 && _runtimeStateMachine.CurrentState == FishingState.WaitingForBite
                 && _runtimeStateMachine.HasTimedOut(TimeSpan.FromSeconds(30), frame.CapturedAt))
@@ -587,16 +625,20 @@ public partial class MainWindow : Window
                 if (_missedBiteRetries.TryConsumeRetry())
                 {
                     _castVision.Reset();
+                    var retryReason = _missedBiteRetries.UnlimitedRetries
+                        ? "No bite after 30 seconds; continuing in keep-fishing mode."
+                        : $"No bite after 30 seconds; retry {_missedBiteRetries.RetriesUsed}/{_missedBiteRetries.MaximumRetries}.";
                     if (!_runtimeStateMachine.TryTransition(
                             FishingState.Preparing,
-                            $"No bite after 30 seconds; starting bounded recast retry {_missedBiteRetries.RetriesUsed}/{_missedBiteRetries.MaximumRetries}.",
+                            retryReason,
                             frame.CapturedAt))
                     {
                         throw new InvalidOperationException("Could not return to Preparing after a missed bite.");
                     }
 
-                    AutomationStatusText.Text =
-                        $"No bite detected. Recasting ({_missedBiteRetries.RetriesUsed}/{_missedBiteRetries.MaximumRetries} retries used).";
+                    AutomationStatusText.Text = _missedBiteRetries.UnlimitedRetries
+                        ? "No bite detected. Recasting; unlimited attempts remain enabled until a fish is confirmed."
+                        : $"No bite detected. Recasting ({_missedBiteRetries.RetriesUsed}/{_missedBiteRetries.MaximumRetries} retries used).";
                 }
                 else
                 {
@@ -647,8 +689,31 @@ public partial class MainWindow : Window
             if (_runtimeStateMachine.CurrentState == FishingState.Reeling
                 && _runtimeStateMachine.HasTimedOut(TimeSpan.FromMinutes(3), frame.CapturedAt))
             {
-                StopAutomation("The reel minigame exceeded the 3-minute safety limit; all inputs released.");
-                return;
+                if (_keepFishingUntilCatchEnabled)
+                {
+                    if (!_runtimeStateMachine.TryTransition(
+                            FishingState.Recovering,
+                            "Reel phase exceeded its safety window; release control and begin a fresh cycle.",
+                            frame.CapturedAt)
+                        || !_runtimeStateMachine.TryTransition(
+                            FishingState.Preparing,
+                            "Recovery completed; prepare a fresh cast while waiting for the first confirmed catch.",
+                            frame.CapturedAt))
+                    {
+                        throw new InvalidOperationException("Could not recover from a timed-out Reel phase.");
+                    }
+
+                    _castVision.Reset();
+                    _shakeCoordinator?.Reset();
+                    _missedBiteRetries.Reset();
+                    AutomationStatusText.Text =
+                        "Reel safety timeout: control was released and a new fishing cycle will begin.";
+                }
+                else
+                {
+                    StopAutomation("The reel minigame exceeded the 3-minute safety limit; all inputs released.");
+                    return;
+                }
             }
 
             // Casting owns the left mouse button while it is charging. Reel
@@ -1593,6 +1658,19 @@ public partial class MainWindow : Window
                 return;
             }
 
+            var stopAfterFirstCatch = _automationEnabled
+                && _keepFishingUntilCatchEnabled
+                && result.Confidence >= 0.90
+                && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
+
+            if (stopAfterFirstCatch)
+            {
+                _ = _runtimeStateMachine!.TryTransition(
+                    FishingState.CatchDetected,
+                    "A high-confidence local OCR notification confirmed the first caught fish.",
+                    frame.CapturedAt);
+            }
+
             var fingerprint = string.Join(
                 "|",
                 fishCatch.Species,
@@ -1603,6 +1681,11 @@ public partial class MainWindow : Window
             if (string.Equals(fingerprint, _lastCatchFingerprint, StringComparison.OrdinalIgnoreCase)
                 && frame.CapturedAt - _lastCatchAt < TimeSpan.FromSeconds(6))
             {
+                if (stopAfterFirstCatch)
+                {
+                    StopAutomation($"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
+                }
+
                 return;
             }
 
@@ -1625,6 +1708,11 @@ public partial class MainWindow : Window
                 $"Catch saved: {fishCatch.Species}" +
                 (fishCatch.Rarity.HasValue ? $" · {fishCatch.Rarity.Value}" : string.Empty) +
                 (fishCatch.WeightKg.HasValue ? $" · {fishCatch.WeightKg.Value:F2} kg" : string.Empty);
+
+            if (stopAfterFirstCatch)
+            {
+                StopAutomation($"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
+            }
         }
         catch (Exception exception)
         {
