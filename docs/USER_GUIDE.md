@@ -86,3 +86,11 @@ O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake us
 - **Auto-totem / Auto-potion**: desligados por defeito. Exigem Auto-cast e Equip my rod. Escolhe o slot do consumível e o intervalo entre 1 e 720 minutos. A ação só corre em Preparing, entre ciclos: seleciona o slot, envia um clique normal único e repõe o slot da cana. Cada uso pode consumir um item e não existe confirmação visual de sucesso; verifica os slots antes de ativar.
 - **Telemetria**: mostra estado, posição do peixe e barra, erro estimado, confiança e FPS aproximado da captura.
 - **Diagnóstico**: Export diagnostics guarda um JSON com sistema, perfil, resolução, estado e calibrações, sem imagens nem credenciais. Copy session summary copia o resumo concluído.
+
+
+## 7. Alertas de capturas e estatísticas acumuladas
+
+- **Espécies prioritárias**: na secção Catch alerts, escreve fragmentos de nomes separados por vírgulas. Exemplo: `Scylla, Megalodon`. O alerta compara estes termos com a espécie reconhecida por OCR, sem distinguir maiúsculas/minúsculas.
+- **Raridade alta**: a opção Legendary+ está ligada por defeito e alerta para Legendary, Mythical, Exotic, Secret e Apex.
+- **Mutações**: ativa a caixa correspondente para receber um som quando o OCR reconhecer uma mutação.
+- **Lifetime statistics**: agrega o histórico SQLite local: sessões, capturas, espécies mais capturadas, mutações, raridades Legendary+, pesos médio/máximo, valor estimado reconhecido no texto e capturas por hora de sessões concluídas. O valor é uma estimativa lida pelo OCR, não o saldo real da conta.

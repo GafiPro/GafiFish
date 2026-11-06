@@ -110,3 +110,8 @@ Projeto independente, sem afiliação ao Roblox ou aos criadores de Fisch.
 ### Melhorias adicionais e limites
 
 A aplicação inclui perfis de calibração nomeados manualmente por cana, telemetria, intervalo de captura adaptativo, ações temporizadas opcionais para totem/poção (slot escolhido pelo utilizador, clique único entre ciclos e reposição do slot da cana), cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. Appraise, Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, deteção de hunts e reconexão automática continuam não implementados.
+
+
+### Alertas e estatísticas
+
+Inclui alertas sonoros locais para espécies prioritárias, raridades Legendary+ e mutações reconhecidas por OCR. O painel de estatísticas acumuladas agrega o histórico SQLite local (sessões, capturas, espécies mais comuns, mutações, raridade, pesos, valor estimado e capturas por hora de sessões concluídas). O valor não representa nem confirma o saldo real do jogo.

@@ -24,6 +24,7 @@ using GafiFish.Ocr.Parsing;
 using GafiFish.Core.Automation;
 using GafiFish.Core.Control;
 using GafiFish.Core.Scheduling;
+using GafiFish.Core.Services;
 using GafiFish.App.Automation;
 using GafiFish.Windows.Input;
 
@@ -195,6 +196,61 @@ public partial class MainWindow : Window
             : "Local OCR: select the catch notification region before starting a session.";
         TelemetryText.Text = $"Profile: {_activeProfileName} · waiting for the first frame.";
         UpdateTimedItemControls();
+        await RefreshLifetimeStatisticsAsync();
+    }
+
+    private async Task RefreshLifetimeStatisticsAsync()
+    {
+        try
+        {
+            var statistics = await _sessionStore.GetLifetimeStatisticsAsync();
+            var topSpecies = statistics.TopSpecies.Count == 0
+                ? "No identified species yet."
+                : string.Join(", ", statistics.TopSpecies.Select(item => $"{item.Species} ({item.Count})"));
+            var averageWeight = statistics.AverageWeightKg.HasValue
+                ? $"{statistics.AverageWeightKg.Value:F2} kg"
+                : "n/a";
+            var heaviestWeight = statistics.HeaviestWeightKg.HasValue
+                ? $"{statistics.HeaviestWeightKg.Value:F2} kg"
+                : "n/a";
+
+            LifetimeStatsText.Text =
+                $"Sessions: {statistics.TotalSessions} · Catches: {statistics.TotalCatches} " +
+                $"({statistics.IdentifiedCatches} identified) · Mutations: {statistics.MutatedCatches} · " +
+                $"Legendary+: {statistics.LegendaryOrHigherCatches}{Environment.NewLine}" +
+                "Estimated value recognised by OCR: " + statistics.TotalEstimatedValue.ToString("N0") + " · " +
+                $"Average weight: {averageWeight} · Heaviest: {heaviestWeight}{Environment.NewLine}" +
+                $"Completed fishing time: {statistics.CompletedFishingHours:F1} h · " +
+                $"Average: {statistics.CatchesPerHour:F1} catches/h{Environment.NewLine}" +
+                $"Top species: {topSpecies}";
+        }
+        catch (Exception exception)
+        {
+            LifetimeStatsText.Text = $"Could not load lifetime statistics: {exception.Message}";
+        }
+    }
+
+    private async void RefreshLifetimeStats_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshLifetimeStatisticsAsync();
+    }
+
+    private void AlertForCatchIfNeeded(FishCatch fishCatch)
+    {
+        var watchedSpecies = WatchSpeciesTextBox.Text.Split(
+            new[] { ',', ';', '\r', '\n' },
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var options = new CatchAlertOptions(
+            watchedSpecies,
+            AlertLegendaryCheckBox.IsChecked == true,
+            AlertMutationCheckBox.IsChecked == true);
+        var reasons = CatchAlertMatcher.GetReasons(fishCatch, options);
+        if (reasons.Count == 0)
+            return;
+
+        CatchAlertStatusText.Text =
+            $"Priority catch: {fishCatch.Species ?? "Unidentified"} · {string.Join(" · ", reasons)}";
+        System.Media.SystemSounds.Asterisk.Play();
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -1812,6 +1868,7 @@ public partial class MainWindow : Window
 
             OcrStatusText.Text = "Local OCR remains ready for the next session.";
             StartSessionButton.IsEnabled = true;
+            await RefreshLifetimeStatisticsAsync();
         }
         catch (Exception exception)
         {
@@ -1888,7 +1945,10 @@ public partial class MainWindow : Window
                 AutoShake = _autoShakeEnabled,
                 AutoTotem = _autoTotemEnabled,
                 AutoPotion = _autoPotionEnabled,
-                TargetFish = _targetFishEnabled ? _targetFishName : null
+                TargetFish = _targetFishEnabled ? _targetFishName : null,
+                PrioritySpecies = WatchSpeciesTextBox.Text,
+                AlertLegendary = AlertLegendaryCheckBox.IsChecked == true,
+                AlertMutation = AlertMutationCheckBox.IsChecked == true
             },
             Status = new
             {
@@ -2108,6 +2168,8 @@ public partial class MainWindow : Window
             }
 
             await _sessionStore.SaveCatchAsync(sessionId, fishCatch);
+            AlertForCatchIfNeeded(fishCatch);
+            await RefreshLifetimeStatisticsAsync();
             _lastCatchFingerprint = fingerprint;
             _lastCatchAt = frame.CapturedAt;
 

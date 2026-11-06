@@ -80,9 +80,9 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [ ] Ajuste adaptativo à taxa de frames.
 - [x] Limites de tempo e recuperação segura nos estados Cast, Shake, espera por mordida e Reel.
 - [ ] Reprodução de capturas/gravações reais para diagnóstico sem abrir o jogo.
-- [ ] Estatísticas de vendas e rendimento por hora.
+- [x] Estatísticas acumuladas de todas as sessões: espécies mais capturadas, raridade alta, mutações, peso médio/máximo, valor estimado reconhecido por OCR e capturas por hora de sessões concluídas.
 - [ ] Relatórios de diagnóstico exportáveis.
-- [ ] Alertas para capturas prioritárias e preferências de espécie/mutação.
+- [x] Alertas sonoros locais para espécies configuradas, raridade Legendary+ e mutações detetadas por OCR.
 - [ ] HUD de telemetria com posição, erro, confiança, estado e motivo de cada decisão.
 - [ ] Perfis por cana com ajuste do controlador e cores próprios.
 - [ ] Auto-totem e auto-poção com horários/teclas configuráveis e bloqueio estrito durante Cast, Shake e Reel.

@@ -310,6 +310,28 @@
                                 Height="32" Margin="0,8,0,0" Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button Content="Export diagnostics" Click="ExportDiagnostics_Click"
                                 Height="32" Margin="0,7,0,0" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Separator Margin="0,14,0,10" Background="#33414F" />
+                        <TextBlock Text="Catch alerts" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <TextBlock Text="Priority species (comma-separated)" Foreground="#9BAAB8" Margin="0,0,0,5" />
+                        <TextBox x:Name="WatchSpeciesTextBox" Text="" Height="32" Padding="8,5"
+                                 Background="#263543" Foreground="#EAF0F5"
+                                 ToolTip="Examples: Scylla, Megalodon, Bluefin Tuna" />
+                        <CheckBox x:Name="AlertLegendaryCheckBox"
+                                  Content="Alert for Legendary, Mythical, Exotic, Secret or Apex"
+                                  IsChecked="True" Foreground="#EAF0F5" Margin="0,8,0,4" />
+                        <CheckBox x:Name="AlertMutationCheckBox"
+                                  Content="Alert for any recognised mutation"
+                                  IsChecked="False" Foreground="#EAF0F5" Margin="0,2,0,4" />
+                        <TextBlock x:Name="CatchAlertStatusText"
+                                   Text="Alerts ready · Legendary+ enabled."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,5,0,0" />
+                        <Separator Margin="0,14,0,10" Background="#33414F" />
+                        <TextBlock Text="Lifetime statistics" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <Button Content="Refresh lifetime statistics" Click="RefreshLifetimeStats_Click"
+                                Height="32" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <TextBlock x:Name="LifetimeStatsText"
+                                   Text="Loading saved fishing statistics…"
+                                   Foreground="#EAF0F5" TextWrapping="Wrap" Margin="0,9,0,0" />
                         <TextBlock Text="OCR runs locally on the selected notification region. The first session downloads the English language model once."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
                     </StackPanel>
