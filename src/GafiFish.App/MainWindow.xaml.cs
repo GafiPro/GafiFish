@@ -2314,7 +2314,7 @@ public partial class MainWindow : Window
             using var stream = File.Create(dialog.FileName);
             encoder.Save(stream);
             FrameReplayStatusText.Text =
-                $"Saved {frame.Width}×{frame.Height} frame to {Path.GetFileName(dialog.FileName)}.";
+                $"Saved {frame.Width}×{frame.Height} frame to {System.IO.Path.GetFileName(dialog.FileName)}.";
         }
         catch (Exception exception)
         {
@@ -2483,12 +2483,12 @@ public partial class MainWindow : Window
                 stride,
                 pixels,
                 DateTimeOffset.UtcNow,
-                $"Offline replay · {Path.GetFileName(path)}",
+                $"Offline replay · {System.IO.Path.GetFileName(path)}",
                 0);
 
             DisplayFrame(frame, allowAutomation: false);
             FrameReplayStatusText.Text =
-                $"Preview-only replay · {_frameReplaySequence.CurrentIndex + 1}/{_frameReplaySequence.Count} · {Path.GetFileName(path)}";
+                $"Preview-only replay · {_frameReplaySequence.CurrentIndex + 1}/{_frameReplaySequence.Count} · {System.IO.Path.GetFileName(path)}";
             return true;
         }
         catch (Exception exception)
