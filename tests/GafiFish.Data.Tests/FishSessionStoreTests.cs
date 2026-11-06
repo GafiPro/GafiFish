@@ -125,7 +125,8 @@ public sealed class FishSessionStoreTests
             Assert.Equal(2, statistics.MutatedCatches);
             Assert.Equal(2, statistics.LegendaryOrHigherCatches);
             Assert.Equal(3800m, statistics.TotalEstimatedValue);
-            Assert.Equal(17.0 / 3.0, statistics.AverageWeightKg, precision: 8);
+            Assert.NotNull(statistics.AverageWeightKg);
+            Assert.Equal(17.0 / 3.0, statistics.AverageWeightKg.Value, precision: 8);
             Assert.Equal(10.0, statistics.HeaviestWeightKg);
             Assert.Equal(1.5, statistics.CompletedFishingHours, precision: 6);
             Assert.Equal(2.0, statistics.CatchesPerHour, precision: 6);
