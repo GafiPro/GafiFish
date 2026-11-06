@@ -145,3 +145,13 @@ Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, dete�
 - [x] Cópia e exportação respeitam os filtros atualmente visíveis.
 - [x] Atalho visual para abrir a pasta de dados local do GafiFish.
 - [x] Testes para retenção dos eventos mais recentes, rotação e limpeza do histórico.
+
+
+## Catchbook — arquivo pesquisável
+
+- [x] Nova página para consultar todas as capturas guardadas em SQLite, independentemente da sessão.
+- [x] Pesquisa por espécie, raridade, mutação, peso, valor estimado e ID da sessão.
+- [x] Filtros combináveis para raridade, capturas identificadas e capturas com mutação.
+- [x] Ordenação por colunas, virtualização de linhas e cópia dos detalhes da captura selecionada.
+- [x] Exportação CSV apenas dos resultados atualmente filtrados.
+- [x] Testes para filtros combinados, valores OCR desconhecidos, pesquisa e ordenação.

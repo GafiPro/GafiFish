@@ -112,3 +112,14 @@ No modo **Fish until this exact target is caught**, o campo de quantidade aceita
 - **Ocultar a janela**: ativa Hide the GafiFish window while the fishing macro is running. Usa a tecla Show / hide configurada (F10 por defeito) para recuperar a janela. A tecla de emergência continua registada com a janela oculta.
 - **Activity & engine log**: a página Logs guarda os 500 eventos mais recentes: ações, sessões, capturas, perfis, hotkeys e erros. Podes copiar, exportar para TXT ou limpar o registo. Os eventos ficam apenas em memória até exportares.
 - **Dashboard Quick Info**: apresenta o estado dos módulos e requisitos do Sell Anywhere num único painel.
+
+
+## Catchbook
+
+A página **Catchbook** permite consultar o arquivo completo de capturas reconhecidas em todas as sessões guardadas localmente. Pesquisa por nome, raridade, mutação, peso, valor estimado ou ID da sessão. Também podes combinar os filtros **Identified only**, **Has mutation** e uma raridade específica. As colunas podem ser ordenadas clicando nos cabeçalhos.
+
+- **Copy selected** copia os detalhes da captura selecionada.
+- **Export filtered CSV** exporta apenas as linhas atualmente visíveis após aplicar os filtros.
+- **Refresh** volta a consultar a base SQLite local.
+
+Os campos que o OCR não conseguiu reconhecer aparecem como desconhecidos ou vazios; o Catchbook não tenta inferir esses valores.

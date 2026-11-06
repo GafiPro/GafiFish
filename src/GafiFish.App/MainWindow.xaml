@@ -224,7 +224,7 @@
                 </Grid>
             </Border>
 
-            <TabControl x:Name="MainTabs" Grid.Column="2" Margin="0,2,0,0">
+            <TabControl x:Name="MainTabs" Grid.Column="2" Margin="0,2,0,0" SelectionChanged="MainTabs_SelectionChanged">
                 <TabItem Header="Dashboard">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="0,2,4,12">
@@ -656,6 +656,109 @@
                 </Border>
                         </StackPanel>
                     </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Catchbook">
+                    <Grid Margin="0,2,4,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
+                                CornerRadius="16" Padding="18" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Catchbook" FontSize="20" FontWeight="SemiBold" />
+                                <TextBlock Text="Browse every locally recognised catch across all saved sessions. Nothing is uploaded."
+                                           Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,5,0,12" />
+                                <TextBlock x:Name="CatchArchiveSummaryText"
+                                           Text="Loading catch archive…"
+                                           Foreground="#67D5B5" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                <TextBlock Text="Search species, mutation, rarity, weight, value or session ID."
+                                           Foreground="#8298A8" FontSize="11" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="1" Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
+                                CornerRadius="14" Padding="14" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="CatchHistorySearchTextBox" Grid.Column="0" Height="34" Padding="9,6"
+                                         Background="#20313E" Foreground="#EAF0F5" BorderBrush="#405363"
+                                         ToolTip="Search the complete catch archive"
+                                         TextChanged="CatchHistorySearch_TextChanged" />
+                                <ComboBox x:Name="CatchRarityFilterComboBox" Grid.Column="2" Height="34"
+                                          Background="#20313E" Foreground="#EAF0F5"
+                                          SelectionChanged="CatchHistoryRarity_SelectionChanged" />
+                                <Button Grid.Column="4" Content="Clear filters" Click="ClearCatchHistoryFilters_Click"
+                                        Height="34" Padding="12,0" Background="#294153" Foreground="White" BorderThickness="0" />
+                            </Grid>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <CheckBox x:Name="IdentifiedCatchesOnlyCheckBox" Content="Identified only"
+                                          Foreground="#EAF0F5" Margin="0,0,18,0"
+                                          Checked="CatchHistoryFilter_Changed" Unchecked="CatchHistoryFilter_Changed" />
+                                <CheckBox x:Name="MutatedCatchesOnlyCheckBox" Content="Has mutation"
+                                          Foreground="#EAF0F5"
+                                          Checked="CatchHistoryFilter_Changed" Unchecked="CatchHistoryFilter_Changed" />
+                            </StackPanel>
+                        </Border>
+
+                        <DataGrid x:Name="CatchHistoryGrid" Grid.Row="2"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  CanUserResizeRows="False" CanUserSortColumns="True"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
+                                  SelectionChanged="CatchHistoryGrid_SelectionChanged"
+                                  EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True"
+                                  Background="#101A23" Foreground="#EAF0F5"
+                                  BorderBrush="#283B49" RowBackground="#17232D"
+                                  AlternatingRowBackground="#1D2B37"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="#283B49"
+                                  HeadersVisibility="Column">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Caught at" Binding="{Binding CaughtAtDisplay}" SortMemberPath="CaughtAt" Width="155" />
+                                <DataGridTextColumn Header="Species" Binding="{Binding SpeciesDisplay}" SortMemberPath="Species" Width="*" />
+                                <DataGridTextColumn Header="Rarity" Binding="{Binding RarityDisplay}" SortMemberPath="Rarity" Width="105" />
+                                <DataGridTextColumn Header="Mutation" Binding="{Binding MutationDisplay}" SortMemberPath="Mutation" Width="125" />
+                                <DataGridTextColumn Header="Weight" Binding="{Binding WeightDisplay}" SortMemberPath="WeightKg" Width="85" />
+                                <DataGridTextColumn Header="Est. value" Binding="{Binding EstimatedValueDisplay}" SortMemberPath="EstimatedValue" Width="95" />
+                                <DataGridTextColumn Header="OCR" Binding="{Binding ConfidenceDisplay}" SortMemberPath="RecognitionConfidence" Width="65" />
+                                <DataGridTextColumn Header="Session" Binding="{Binding SessionStartedAtDisplay}" SortMemberPath="SessionStartedAt" Width="145" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <Grid Grid.Row="3" Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="CatchArchiveStatusText" Grid.Column="0"
+                                       Text="The archive is stored locally in the GafiFish SQLite database."
+                                       Foreground="#9BAAB8" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <Button x:Name="CopySelectedCatchButton" Grid.Column="1" Content="Copy selected"
+                                    Click="CopySelectedCatch_Click" Height="34" Padding="12,0"
+                                    Background="#294153" Foreground="White" BorderThickness="0" IsEnabled="False" />
+                            <Button x:Name="ExportFilteredCatchHistoryButton" Grid.Column="3" Content="Export filtered CSV"
+                                    Click="ExportFilteredCatchHistoryCsv_Click" Height="34" Padding="12,0"
+                                    Background="#285B50" Foreground="White" BorderThickness="0" IsEnabled="False" />
+                            <Button Grid.Column="5" Content="Refresh" Click="RefreshCatchArchive_Click"
+                                    Height="34" Padding="12,0" Background="#203847" Foreground="White" BorderThickness="0" />
+                        </Grid>
+                    </Grid>
                 </TabItem>
                 <TabItem Header="Settings">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">

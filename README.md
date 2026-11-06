@@ -16,7 +16,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Botões visíveis Start macro / Stop macro, além dos atalhos F8/F9. O modo de recast contínuo exige Auto-cast, sessão OCR ativa e região de notificação calibrada; o timeout de Reel liberta o controlo e reinicia o ciclo, sem eliminar os stops de emergência.
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
-- Histórico local SQLite, explorador das 20 sessões mais recentes, detalhes das últimas 15 capturas de cada sessão e exportação CSV/JSON da sessão selecionada ou de todo o arquivo.
+- Histórico local SQLite, explorador das 20 sessões mais recentes, detalhes das últimas 15 capturas por sessão e novo Catchbook pesquisável para consultar o arquivo completo, filtrar por raridade/mutação/espécies e exportar resultados CSV.
 - Ritmos de captura Economy/Balanced/Responsive, com cadência adaptativa e controlo do compromisso entre CPU e atualização visual.
 - Objetivos de peixe-alvo de 1 a 100 capturas confirmadas, em vez de parar obrigatoriamente após o primeiro exemplar.
 - Importação/exportação de perfis de calibração JSON e arquivo completo de capturas em CSV/JSON com metadados da sessão.
@@ -124,5 +124,6 @@ Inclui alertas sonoros locais para espécies prioritárias, raridades Legendary+
 - Logs de atividade persistentes (últimos 500 eventos visíveis), com rotação automática de ficheiros, pesquisa, filtro por nível, cópia/exportação TXT e registo de avisos/erros.
 - Hotkeys globais F2–F12 configuráveis, validadas para serem únicas e guardadas localmente; tecla dedicada para mostrar/ocultar a janela.
 - Pasta de dados local acessível diretamente a partir do painel de logs.
+- Catchbook com pesquisa global do histórico completo, filtros combinados por raridade/identificação/mutação, ordenação por colunas e exportação CSV dos resultados filtrados.
 - Ocultação opcional da janela enquanto o macro está armado, sem desativar a hotkey de emergência.
 - Dashboard com estatísticas de sessões/capturas/Legendary+/capturas por hora e Quick Info que distingue módulos prontos de módulos ainda sem calibração.

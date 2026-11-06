@@ -30,6 +30,7 @@ using GafiFish.Core.Services;
 using GafiFish.App.Automation;
 using GafiFish.App.Settings;
 using GafiFish.App.Logging;
+using GafiFish.App.Models;
 using GafiFish.Windows.Input;
 
 namespace GafiFish.App;
@@ -60,6 +61,8 @@ public partial class MainWindow : Window
     private readonly AppHotkeySettingsStore _hotkeySettingsStore = new();
     private readonly ObservableCollection<string> _activityLog = [];
     private readonly ObservableCollection<string> _visibleActivityLog = [];
+    private readonly List<CatchHistoryRow> _allCatchHistoryRows = [];
+    private readonly ObservableCollection<CatchHistoryRow> _visibleCatchHistoryRows = [];
     private readonly ActivityLogStore _activityLogStore = new();
     private AppHotkeySettings _hotkeySettings = new();
     private bool _toggleUiHotkeyRegistered;
@@ -175,6 +178,13 @@ public partial class MainWindow : Window
         ActivityLogList.ItemsSource = _visibleActivityLog;
         ActivityLogLevelComboBox.ItemsSource = new[] { "All levels", "INFO", "WARN", "ERROR", "DEBUG" };
         ActivityLogLevelComboBox.SelectedIndex = 0;
+        CatchHistoryGrid.ItemsSource = _visibleCatchHistoryRows;
+        CatchRarityFilterComboBox.ItemsSource = new[]
+        {
+            "All rarities", "Unknown", "Common", "Unusual", "Rare",
+            "Legendary", "Mythical", "Exotic", "Secret", "Apex"
+        };
+        CatchRarityFilterComboBox.SelectedIndex = 0;
         CapturePerformanceModeComboBox.SelectionChanged += CapturePerformanceMode_SelectionChanged;
         InitializeHotkeyControls();
         Loaded += Window_Loaded;
@@ -359,6 +369,191 @@ public partial class MainWindow : Window
 
         await ShowSessionDetailsAsync(selectedSession);
     }
+
+    private bool IsCatchbookSelected() =>
+        MainTabs.SelectedItem is TabItem selectedTab
+        && string.Equals(selectedTab.Header?.ToString(), "Catchbook", StringComparison.Ordinal);
+
+    private async void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, MainTabs))
+            return;
+
+        if (IsCatchbookSelected())
+            await RefreshCatchArchiveAsync();
+    }
+
+    private async Task RefreshCatchArchiveAsync()
+    {
+        try
+        {
+            CatchArchiveStatusText.Text = "Loading the local catch archive…";
+            var history = await _sessionStore.GetAllCatchHistoryAsync();
+
+            _allCatchHistoryRows.Clear();
+            foreach (var item in history)
+            {
+                var fish = item.Catch;
+                _allCatchHistoryRows.Add(new CatchHistoryRow(
+                    item.SessionId,
+                    item.SessionStartedAt,
+                    fish.CaughtAt,
+                    fish.Species,
+                    fish.Rarity,
+                    fish.Mutation,
+                    fish.WeightKg,
+                    fish.EstimatedValue,
+                    fish.RecognitionConfidence));
+            }
+
+            ApplyCatchHistoryFilters();
+            CatchArchiveStatusText.Text =
+                $"Loaded {_allCatchHistoryRows.Count:N0} catches from the local database.";
+        }
+        catch (Exception exception)
+        {
+            CatchArchiveStatusText.Text = $"Could not load catch archive: {exception.Message}";
+            CatchArchiveSummaryText.Text = "Catch archive unavailable.";
+            _visibleCatchHistoryRows.Clear();
+            UpdateCatchArchiveActions();
+        }
+    }
+
+    private void ApplyCatchHistoryFilters()
+    {
+        var filtered = CatchHistoryFilter.Apply(
+            _allCatchHistoryRows,
+            CatchHistorySearchTextBox.Text,
+            CatchRarityFilterComboBox.SelectedItem as string ?? "All rarities",
+            IdentifiedCatchesOnlyCheckBox.IsChecked == true,
+            MutatedCatchesOnlyCheckBox.IsChecked == true);
+
+        _visibleCatchHistoryRows.Clear();
+        foreach (var item in filtered)
+            _visibleCatchHistoryRows.Add(item);
+
+        var identified = _allCatchHistoryRows.Count(item => item.IsIdentified);
+        var mutated = _allCatchHistoryRows.Count(item => item.HasMutation);
+        CatchArchiveSummaryText.Text =
+            $"{_allCatchHistoryRows.Count:N0} total · {identified:N0} identified · {mutated:N0} with mutations";
+        CatchArchiveStatusText.Text =
+            $"Showing {_visibleCatchHistoryRows.Count:N0} of {_allCatchHistoryRows.Count:N0} catches.";
+        UpdateCatchArchiveActions();
+    }
+
+    private void UpdateCatchArchiveActions()
+    {
+        if (ExportFilteredCatchHistoryButton is not null)
+            ExportFilteredCatchHistoryButton.IsEnabled = _visibleCatchHistoryRows.Count > 0;
+        if (CopySelectedCatchButton is not null)
+            CopySelectedCatchButton.IsEnabled = CatchHistoryGrid.SelectedItem is CatchHistoryRow;
+    }
+
+    private void CatchHistorySearch_TextChanged(object sender, TextChangedEventArgs e) =>
+        ApplyCatchHistoryFilters();
+
+    private void CatchHistoryFilter_Changed(object sender, RoutedEventArgs e) =>
+        ApplyCatchHistoryFilters();
+
+    private void CatchHistoryRarity_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (IsLoaded)
+            ApplyCatchHistoryFilters();
+    }
+
+    private void CatchHistoryGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateCatchArchiveActions();
+
+    private async void RefreshCatchArchive_Click(object sender, RoutedEventArgs e) =>
+        await RefreshCatchArchiveAsync();
+
+    private void ClearCatchHistoryFilters_Click(object sender, RoutedEventArgs e)
+    {
+        CatchHistorySearchTextBox.Clear();
+        CatchRarityFilterComboBox.SelectedIndex = 0;
+        IdentifiedCatchesOnlyCheckBox.IsChecked = false;
+        MutatedCatchesOnlyCheckBox.IsChecked = false;
+        ApplyCatchHistoryFilters();
+    }
+
+    private void CopySelectedCatch_Click(object sender, RoutedEventArgs e)
+    {
+        if (CatchHistoryGrid.SelectedItem is not CatchHistoryRow selected)
+            return;
+
+        var text = string.Join(Environment.NewLine,
+            $"Species: {selected.SpeciesDisplay}",
+            $"Rarity: {selected.RarityDisplay}",
+            $"Mutation: {selected.MutationDisplay}",
+            $"Caught: {selected.CaughtAtDisplay}",
+            $"Weight: {selected.WeightDisplay}",
+            $"Estimated value: {selected.EstimatedValueDisplay}",
+            $"OCR confidence: {selected.ConfidenceDisplay}",
+            $"Session: {selected.SessionStartedAtDisplay}",
+            $"Session ID: {selected.SessionId:D}");
+
+        try
+        {
+            Clipboard.SetText(text);
+            CatchArchiveStatusText.Text = $"Copied {selected.SpeciesDisplay} catch details.";
+        }
+        catch (Exception exception) when (exception is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
+        {
+            CatchArchiveStatusText.Text = $"Could not copy selected catch: {exception.Message}";
+        }
+    }
+
+    private void ExportFilteredCatchHistoryCsv_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = _visibleCatchHistoryRows.ToArray();
+        if (rows.Length == 0)
+            return;
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export filtered GafiFish catch archive",
+            Filter = "CSV file (*.csv)|*.csv",
+            DefaultExt = "csv",
+            AddExtension = true,
+            FileName = $"GafiFish-filtered-catches-{DateTime.Now:yyyyMMdd-HHmmss}.csv",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var builder = new System.Text.StringBuilder();
+            builder.AppendLine("CaughtAt,Species,Rarity,Mutation,WeightKg,EstimatedValue,RecognitionConfidence,SessionStartedAt,SessionId");
+            foreach (var item in rows)
+            {
+                var fields = new[]
+                {
+                    item.CaughtAt.ToLocalTime().ToString("O"),
+                    item.Species ?? string.Empty,
+                    item.Rarity?.ToString() ?? "Unknown",
+                    item.Mutation ?? string.Empty,
+                    item.WeightKg?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    item.EstimatedValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    item.RecognitionConfidence.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    item.SessionStartedAt.ToLocalTime().ToString("O"),
+                    item.SessionId.ToString("D")
+                };
+                builder.AppendLine(string.Join(",", fields.Select(EscapeCsvCell)));
+            }
+
+            File.WriteAllText(dialog.FileName, builder.ToString(), new System.Text.UTF8Encoding(false));
+            CatchArchiveStatusText.Text =
+                $"Exported {rows.Length:N0} filtered catches to {System.IO.Path.GetFileName(dialog.FileName)}.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            CatchArchiveStatusText.Text = $"Could not export filtered catch archive: {exception.Message}";
+        }
+    }
+
+    private static string EscapeCsvCell(string value) =>
+        "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 
     private async Task RefreshLifetimeStatisticsAsync()
     {
@@ -2807,6 +3002,8 @@ public partial class MainWindow : Window
             AlertForCatchIfNeeded(fishCatch);
             await RefreshLifetimeStatisticsAsync();
             await RefreshSessionHistoryAsync(sessionId);
+            if (IsCatchbookSelected())
+                await RefreshCatchArchiveAsync();
             _lastCatchFingerprint = fingerprint;
             _lastCatchAt = frame.CapturedAt;
             AddActivityLog("INFO", "CATCH",
