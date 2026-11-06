@@ -45,6 +45,22 @@ public sealed class MissedBiteRetryPolicyTests
     }
 
     [Fact]
+    public void Policy_UnlimitedModeContinuesBeyondDefaultRetryLimit()
+    {
+        var policy = new MissedBiteRetryPolicy(unlimitedRetries: true);
+
+        for (var retry = 1; retry <= 25; retry++)
+        {
+            Assert.True(policy.CanRetry);
+            Assert.True(policy.TryConsumeRetry());
+            Assert.Equal(retry, policy.RetriesUsed);
+        }
+
+        Assert.True(policy.CanRetry);
+        Assert.True(policy.UnlimitedRetries);
+    }
+
+    [Fact]
     public void Policy_CanDisableRetriesExplicitly()
     {
         var policy = new MissedBiteRetryPolicy(maximumRetries: 0);
