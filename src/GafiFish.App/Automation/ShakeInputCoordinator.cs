@@ -13,7 +13,8 @@ public enum ShakeInputResultKind
     WaitingForPromptChange,
     Cooldown,
     Clicked,
-    StaleFrame
+    StaleFrame,
+    PromptSequenceEnded
 }
 
 public sealed record ShakeInputResult(
@@ -34,6 +35,8 @@ public sealed class ShakeInputCoordinator
     private DetectedMarker? _stablePrompt;
     private int _stableFrames;
     private int _missingFrames;
+    private bool _clickedInCurrentSequence;
+    private DateTimeOffset _lastProcessedAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastClickAt = DateTimeOffset.MinValue;
     private bool _readyForNextClick = true;
 
@@ -55,28 +58,20 @@ public sealed class ShakeInputCoordinator
         ArgumentNullException.ThrowIfNull(prompts);
 
         var age = (now ?? DateTimeOffset.UtcNow) - frame.CapturedAt;
-        if (age < TimeSpan.Zero || age > _settings.MaximumFrameAge)
+        if (age < TimeSpan.Zero || age > _settings.MaximumFrameAge
+            || (_lastProcessedAt != DateTimeOffset.MinValue && frame.CapturedAt <= _lastProcessedAt))
         {
             return new ShakeInputResult(
                 ShakeInputResultKind.StaleFrame,
                 null,
-                "Shake prompt frame is stale; no click was sent.");
+                "Shake prompt frame is stale or out of order; no click was sent.");
         }
+
+        _lastProcessedAt = frame.CapturedAt;
 
         if (prompts.Count == 0)
         {
-            _missingFrames++;
-            _stableFrames = 0;
-            _stablePrompt = null;
-
-            if (_missingFrames >= _settings.RequiredMissingFrames)
-            {
-                _readyForNextClick = true;
-            }
-
-            return new ShakeInputResult(
-                ShakeInputResultKind.NoPrompt,
-                null,
+            return HandleMissingPrompt(
                 "No Shake prompt candidate is currently visible.");
         }
 
@@ -93,10 +88,9 @@ public sealed class ShakeInputCoordinator
         {
             _stableFrames = 0;
             _stablePrompt = null;
-            return new ShakeInputResult(
-                ShakeInputResultKind.LowConfidence,
-                null,
-                "Shake candidates are below the confidence threshold.");
+            return HandleMissingPrompt(
+                "Shake candidates are below the confidence threshold.",
+                ShakeInputResultKind.LowConfidence);
         }
 
         if (_lastClickedPrompt is not null
@@ -148,6 +142,7 @@ public sealed class ShakeInputCoordinator
 
         _lastClickedPrompt = candidate;
         _lastClickAt = frame.CapturedAt;
+        _clickedInCurrentSequence = true;
         _readyForNextClick = false;
         _stablePrompt = null;
         _stableFrames = 0;
@@ -165,7 +160,37 @@ public sealed class ShakeInputCoordinator
         _stableFrames = 0;
         _missingFrames = 0;
         _lastClickAt = DateTimeOffset.MinValue;
+        _lastProcessedAt = DateTimeOffset.MinValue;
+        _clickedInCurrentSequence = false;
         _readyForNextClick = true;
+    }
+
+    private ShakeInputResult HandleMissingPrompt(
+        string reason,
+        ShakeInputResultKind noPromptKind = ShakeInputResultKind.NoPrompt)
+    {
+        _missingFrames++;
+        _stableFrames = 0;
+        _stablePrompt = null;
+
+        if (_missingFrames < _settings.RequiredMissingFrames)
+        {
+            return new ShakeInputResult(noPromptKind, null, reason);
+        }
+
+        _readyForNextClick = true;
+        if (_clickedInCurrentSequence)
+        {
+            _clickedInCurrentSequence = false;
+            _lastClickedPrompt = null;
+            _missingFrames = 0;
+            return new ShakeInputResult(
+                ShakeInputResultKind.PromptSequenceEnded,
+                null,
+                "The Shake prompt sequence disappeared; waiting for the reel minigame.");
+        }
+
+        return new ShakeInputResult(noPromptKind, null, reason);
     }
 
     private static double Distance(DetectedMarker left, DetectedMarker right)
