@@ -26,6 +26,7 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
     private bool _leftButtonDown;
     private bool _isArmed;
     private bool _disposed;
+    private int? _armedProcessId;
 
     public RobloxInputService(RobloxWindowCapture? windowCapture = null)
     {
@@ -38,11 +39,20 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
     public void Arm()
     {
         ThrowIfDisposed();
-        if (!_windowCapture.IsRobloxForeground())
+
+        if (_isArmed)
+        {
+            EnsureArmedAndForeground();
+            return;
+        }
+
+        var processId = _windowCapture.GetForegroundRobloxProcessId();
+        if (!processId.HasValue)
         {
             throw new InvalidOperationException("Focus the Roblox game window before arming inputs.");
         }
 
+        _armedProcessId = processId.Value;
         _isArmed = true;
     }
 
@@ -94,16 +104,26 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             throw new InvalidOperationException("Cannot issue a point click while the left mouse button is held.");
         }
 
-        if (!_windowCapture.IsRobloxForeground(frame.ProcessId))
+        if (_armedProcessId != frame.ProcessId
+            || !_windowCapture.IsRobloxForeground(frame.ProcessId))
         {
             Disarm();
             throw new InvalidOperationException(
-                "The foreground Roblox process no longer matches the captured frame; input was released and disarmed.");
+                "The captured frame does not belong to the Roblox process armed by F8; input was released and disarmed.");
         }
 
         var screenX = frame.ClientScreenX + clientX;
         var screenY = frame.ClientScreenY + clientY;
         MoveMouseToScreen(screenX, screenY);
+
+        // Recheck after moving the pointer: another Roblox client may have
+        // become foreground between frame capture and the click.
+        if (!_windowCapture.IsRobloxForeground(frame.ProcessId))
+        {
+            Disarm();
+            throw new InvalidOperationException(
+                "The foreground Roblox process changed before the click; input was released and disarmed.");
+        }
 
         SetLeftButton(true);
         try
@@ -160,7 +180,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
         }
 
         _isArmed = false;
-        ReleaseAll();
+        try
+        {
+            ReleaseAll();
+        }
+        finally
+        {
+            _armedProcessId = null;
+        }
     }
 
     public void ReleaseAll()
@@ -221,11 +248,21 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             throw new InvalidOperationException("Inputs are disarmed. Arm the input adapter explicitly first.");
         }
 
-        if (!_windowCapture.IsRobloxForeground())
+        if (!_armedProcessId.HasValue
+            || !_windowCapture.IsRobloxForeground(_armedProcessId.Value))
         {
             _isArmed = false;
-            ReleaseAll();
-            throw new InvalidOperationException("Roblox lost foreground focus. Inputs have been released and disarmed.");
+            try
+            {
+                ReleaseAll();
+            }
+            finally
+            {
+                _armedProcessId = null;
+            }
+
+            throw new InvalidOperationException(
+                "The foreground window is no longer the Roblox client armed by F8. Inputs have been released and disarmed.");
         }
     }
 
