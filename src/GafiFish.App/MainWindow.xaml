@@ -109,15 +109,35 @@
                                   Content="Invert hold/release mapping (test with a safe catch)"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8" />
                         <CheckBox x:Name="AutoCastCheckBox"
-                                  Content="Auto-cast (hold until calibrated Perfect Cast window)"
+                                  Content="Auto-cast + auto-recast (Perfect Cast; 2 missed-bite retries)"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8" />
                         <CheckBox x:Name="AutoShakeCheckBox"
-                                  Content="Auto-shake (click stable moving prompts)"
+                                  Content="Auto-shake (stable prompts; detects end of prompt sequence)"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8" />
+                        <CheckBox x:Name="EquipRodCheckBox"
+                                  Content="Equip my rod from the hotbar when F8 starts"
+                                  Foreground="#EAF0F5" IsChecked="False"
+                                  Checked="EquipRodCheckBox_Changed"
+                                  Unchecked="EquipRodCheckBox_Changed"
+                                  Margin="0,0,0,6" />
+                        <ComboBox x:Name="RodSlotComboBox" SelectedIndex="0" IsEnabled="False"
+                                  Height="30" Margin="0,0,0,8"
+                                  Background="#263543" Foreground="#EAF0F5">
+                            <ComboBoxItem Content="1" />
+                            <ComboBoxItem Content="2" />
+                            <ComboBoxItem Content="3" />
+                            <ComboBoxItem Content="4" />
+                            <ComboBoxItem Content="5" />
+                            <ComboBoxItem Content="6" />
+                            <ComboBoxItem Content="7" />
+                            <ComboBoxItem Content="8" />
+                            <ComboBoxItem Content="9" />
+                            <ComboBoxItem Content="0" />
+                        </ComboBox>
                         <CheckBox x:Name="SellAnywhereCheckBox"
                                   Content="Enable Sell Anywhere every 10 minutes (non-favourites are sold)"
                                   Foreground="#EAF0F5" IsChecked="False" />
-                        <TextBlock Text="Equip the rod manually before arming. Auto-cast, Auto-shake and Sell Anywhere are disabled until selected."
+                        <TextBlock Text="Without hotbar selection, keep the fishing rod equipped before F8. If enabled, choose the slot containing your rod. The slot is pressed once using normal keyboard input."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
                         <TextBlock Text="Sell Anywhere also requires an active OCR session and calibrated button and inventory-list regions."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,8,0,0" />
