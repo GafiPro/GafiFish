@@ -1524,11 +1524,38 @@ public partial class MainWindow : Window
         _lastOcrAt = frame.CapturedAt;
         _ocrInProgress = true;
 
-        _catchRecognitionTask = ProcessCatchRecognitionAsync(
+        var completion = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        _catchRecognitionTask = completion.Task;
+
+        _ = ProcessCatchRecognitionTrackedAsync(
             frame,
             sessionId,
             _ocr,
-            _profile.CatchNotificationRegion);
+            _profile.CatchNotificationRegion,
+            completion);
+    }
+
+    private async Task ProcessCatchRecognitionTrackedAsync(
+        ScreenCaptureFrame frame,
+        Guid sessionId,
+        LocalTesseractOcr ocr,
+        NormalizedRegion region,
+        TaskCompletionSource completion)
+    {
+        try
+        {
+            await ProcessCatchRecognitionAsync(frame, sessionId, ocr, region);
+        }
+        finally
+        {
+            if (ReferenceEquals(_catchRecognitionTask, completion.Task))
+            {
+                _catchRecognitionTask = null;
+            }
+
+            completion.TrySetResult();
+        }
     }
 
     private async Task ProcessCatchRecognitionAsync(
@@ -1606,7 +1633,6 @@ public partial class MainWindow : Window
         finally
         {
             _ocrInProgress = false;
-            _catchRecognitionTask = null;
         }
     }
 
