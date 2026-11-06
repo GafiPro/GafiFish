@@ -323,6 +323,19 @@ public sealed class FishSessionStore
             completedFishingHours = reader.GetDouble(1);
         }
 
+        int completedSessionCatches;
+        await using (var completedCatchesCommand = connection.CreateCommand())
+        {
+            completedCatchesCommand.CommandText = """
+                SELECT COUNT(*)
+                FROM FishCatches AS catches
+                INNER JOIN Sessions AS sessions ON sessions.Id = catches.SessionId
+                WHERE sessions.EndedAt IS NOT NULL;
+                """;
+            var value = await completedCatchesCommand.ExecuteScalarAsync(cancellationToken);
+            completedSessionCatches = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+        }
+
         int totalCatches;
         int identifiedCatches;
         int mutatedCatches;
@@ -376,7 +389,7 @@ public sealed class FishSessionStore
         }
 
         var catchesPerHour = completedFishingHours > 0
-            ? totalCatches / completedFishingHours
+            ? completedSessionCatches / completedFishingHours
             : 0d;
 
         return new LifetimeFishingStatistics(
