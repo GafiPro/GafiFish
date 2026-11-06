@@ -74,14 +74,14 @@ public sealed class FrameReplaySequenceTests
         Assert.Throws<ArgumentException>(() => FrameReplaySequence.Create([]));
     }
 
-    private sealed class TemporaryImages(params string[] names) : IDisposable
+    private sealed class TemporaryImages : IDisposable
     {
         private readonly string _directory = Path.Combine(
             Path.GetTempPath(), "GafiFish-frames-" + Guid.NewGuid().ToString("N"));
 
-        public string[] Paths { get; } = [];
+        public string[] Paths { get; }
 
-        public TemporaryImages(params string[] names) : this()
+        public TemporaryImages(params string[] names)
         {
             Directory.CreateDirectory(_directory);
             Paths = names.Select(name =>
@@ -92,12 +92,11 @@ public sealed class FrameReplaySequenceTests
             }).ToArray();
         }
 
-        private TemporaryImages() { }
-
         public void Dispose()
         {
             if (Directory.Exists(_directory))
                 Directory.Delete(_directory, recursive: true);
         }
     }
+}
 }
