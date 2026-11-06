@@ -1,5 +1,6 @@
 using System.IO;
 using System.Diagnostics;
+using System.Collections.ObjectModel;
 using System.Text.Json;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
@@ -27,6 +28,7 @@ using GafiFish.Core.Control;
 using GafiFish.Core.Scheduling;
 using GafiFish.Core.Services;
 using GafiFish.App.Automation;
+using GafiFish.App.Settings;
 using GafiFish.Windows.Input;
 
 namespace GafiFish.App;
@@ -38,11 +40,10 @@ public partial class MainWindow : Window
     private const int PreviewHotkeyId = 0x4712;
     private const int ReelArmHotkeyId = 0x4713;
     private const int EmergencyStopHotkeyId = 0x4714;
+    private const int ToggleUiHotkeyId = 0x4715;
     private const uint ModNoRepeat = 0x4000;
-    private const uint VkF6 = 0x75;
-    private const uint VkF7 = 0x76;
-    private const uint VkF8 = 0x77;
-    private const uint VkF9 = 0x78;
+    private static readonly string[] AvailableFunctionKeys =
+        Enumerable.Range(2, 11).Select(number => $"F{number}").ToArray();
 
     private readonly RobloxWindowCapture _capture = new();
     private readonly FishingVisionDetector _vision = new();
@@ -55,6 +56,11 @@ public partial class MainWindow : Window
     private string _activeProfileName = "Default";
     private readonly FishSessionStore _sessionStore = new();
     private readonly FishCatchTextParser _catchParser = new();
+    private readonly AppHotkeySettingsStore _hotkeySettingsStore = new();
+    private readonly ObservableCollection<string> _activityLog = [];
+    private AppHotkeySettings _hotkeySettings = new();
+    private bool _toggleUiHotkeyRegistered;
+    private bool _isUiHidden;
     private readonly Rectangle _fishMarkerOverlay = new()
     {
         Stroke = Brushes.Lime,
@@ -163,7 +169,9 @@ public partial class MainWindow : Window
         PreviewOverlay.Children.Add(_castTargetOverlay);
         PreviewOverlay.Children.Add(_castIndicatorOverlay);
         PreviewOverlay.Children.Add(_sellButtonOverlay);
+        ActivityLogList.ItemsSource = _activityLog;
         CapturePerformanceModeComboBox.SelectionChanged += CapturePerformanceMode_SelectionChanged;
+        InitializeHotkeyControls();
         Loaded += Window_Loaded;
     }
 
@@ -171,6 +179,10 @@ public partial class MainWindow : Window
     {
         RodProfileNameTextBox.Text = _activeProfileName;
         _profile = await _profileStore.LoadOrDefaultAsync();
+        _hotkeySettings = await _hotkeySettingsStore.LoadAsync();
+        ApplyHotkeySettingsToControls();
+        RegisterGlobalHotkeys();
+        AddActivityLog("INFO", "SYSTEM", "GafiFish started. Local settings and calibration were loaded.");
         try
         {
             await _sessionStore.InitializeAsync();
@@ -201,6 +213,7 @@ public partial class MainWindow : Window
         TelemetryText.Text = $"Profile: {_activeProfileName} · waiting for the first frame.";
         UpdateTimedItemControls();
         CapturePerformanceMode_SelectionChanged(CapturePerformanceModeComboBox, null!);
+        RefreshModuleQuickInfo();
         await RefreshLifetimeStatisticsAsync();
         await RefreshSessionHistoryAsync();
     }
@@ -392,17 +405,205 @@ public partial class MainWindow : Window
         _source = HwndSource.FromHwnd(handle);
         _source?.AddHook(WindowMessageHook);
 
-        _captureHotkeyRegistered = Native.RegisterHotKey(handle, CaptureHotkeyId, ModNoRepeat, VkF6);
-        _previewHotkeyRegistered = Native.RegisterHotKey(handle, PreviewHotkeyId, ModNoRepeat, VkF7);
-        _reelArmHotkeyRegistered = Native.RegisterHotKey(handle, ReelArmHotkeyId, ModNoRepeat, VkF8);
-        _emergencyStopHotkeyRegistered = Native.RegisterHotKey(handle, EmergencyStopHotkeyId, ModNoRepeat, VkF9);
+        // Global hotkeys are registered after preferences load in Window_Loaded.
+    }
+
+    private void InitializeHotkeyControls()
+    {
+        foreach (var comboBox in new[]
+        {
+            CaptureHotkeyComboBox, ObserveHotkeyComboBox, StartHotkeyComboBox,
+            StopHotkeyComboBox, ToggleUiHotkeyComboBox
+        })
+            comboBox.ItemsSource = AvailableFunctionKeys;
+    }
+
+    private void ApplyHotkeySettingsToControls()
+    {
+        CaptureHotkeyComboBox.SelectedItem = _hotkeySettings.CaptureKey;
+        ObserveHotkeyComboBox.SelectedItem = _hotkeySettings.ObserveKey;
+        StartHotkeyComboBox.SelectedItem = _hotkeySettings.StartKey;
+        StopHotkeyComboBox.SelectedItem = _hotkeySettings.StopKey;
+        ToggleUiHotkeyComboBox.SelectedItem = _hotkeySettings.ToggleUiKey;
+        HideUiWhileRunningCheckBox.IsChecked = _hotkeySettings.HideUiWhileRunning;
+    }
+
+    private static uint GetVirtualKey(string key)
+    {
+        if (key.Length is not 2 or 3 || key[0] != 'F'
+            || !int.TryParse(key.AsSpan(1), out var number) || number is < 2 or > 12)
+            throw new ArgumentException("A function key between F2 and F12 is required.", nameof(key));
+        return (uint)(0x70 + number - 1);
+    }
+
+    private void UnregisterGlobalHotkeys()
+    {
+        if (_source is null) return;
+        var handle = _source.Handle;
+        Native.UnregisterHotKey(handle, CaptureHotkeyId);
+        Native.UnregisterHotKey(handle, PreviewHotkeyId);
+        Native.UnregisterHotKey(handle, ReelArmHotkeyId);
+        Native.UnregisterHotKey(handle, EmergencyStopHotkeyId);
+        Native.UnregisterHotKey(handle, ToggleUiHotkeyId);
+        _captureHotkeyRegistered = false;
+        _previewHotkeyRegistered = false;
+        _reelArmHotkeyRegistered = false;
+        _emergencyStopHotkeyRegistered = false;
+        _toggleUiHotkeyRegistered = false;
+    }
+
+    private void RegisterGlobalHotkeys()
+    {
+        if (_source is null) return;
+        UnregisterGlobalHotkeys();
+        var handle = _source.Handle;
+        _captureHotkeyRegistered = Native.RegisterHotKey(handle, CaptureHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.CaptureKey));
+        _previewHotkeyRegistered = Native.RegisterHotKey(handle, PreviewHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.ObserveKey));
+        _reelArmHotkeyRegistered = Native.RegisterHotKey(handle, ReelArmHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.StartKey));
+        _emergencyStopHotkeyRegistered = Native.RegisterHotKey(handle, EmergencyStopHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.StopKey));
+        _toggleUiHotkeyRegistered = Native.RegisterHotKey(handle, ToggleUiHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.ToggleUiKey));
 
         HotkeyStatusText.Text =
-            $"Global hotkeys — F6 capture: {Registered(_captureHotkeyRegistered)} · " +
-            $"F7 observe: {Registered(_previewHotkeyRegistered)} · " +
-            $"F8 arm Reel: {Registered(_reelArmHotkeyRegistered)} · " +
-            $"F9 emergency stop: {Registered(_emergencyStopHotkeyRegistered)}";
+            $"Global hotkeys — {_hotkeySettings.CaptureKey}: capture {Registered(_captureHotkeyRegistered)} · " +
+            $"{_hotkeySettings.ObserveKey}: observe {Registered(_previewHotkeyRegistered)} · " +
+            $"{_hotkeySettings.StartKey}: start {Registered(_reelArmHotkeyRegistered)} · " +
+            $"{_hotkeySettings.StopKey}: stop {Registered(_emergencyStopHotkeyRegistered)} · " +
+            $"{_hotkeySettings.ToggleUiKey}: show/hide {Registered(_toggleUiHotkeyRegistered)}";
+        GlobalHotkeyStatusText.Text = HotkeyStatusText.Text;
+        if (!_captureHotkeyRegistered || !_previewHotkeyRegistered || !_reelArmHotkeyRegistered
+            || !_emergencyStopHotkeyRegistered || !_toggleUiHotkeyRegistered)
+            AddActivityLog("WARN", "HOTKEYS", "At least one global hotkey is unavailable because another application is using that key.");
+        else
+            AddActivityLog("INFO", "HOTKEYS", "All five global hotkeys are registered.");
     }
+
+    private async void ApplyHotkeys_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled || _startRequested)
+        {
+            GlobalHotkeyStatusText.Text = "Stop the fishing macro before changing global hotkeys.";
+            return;
+        }
+
+        try
+        {
+            var settings = new AppHotkeySettings
+            {
+                CaptureKey = CaptureHotkeyComboBox.SelectedItem as string ?? string.Empty,
+                ObserveKey = ObserveHotkeyComboBox.SelectedItem as string ?? string.Empty,
+                StartKey = StartHotkeyComboBox.SelectedItem as string ?? string.Empty,
+                StopKey = StopHotkeyComboBox.SelectedItem as string ?? string.Empty,
+                ToggleUiKey = ToggleUiHotkeyComboBox.SelectedItem as string ?? string.Empty,
+                HideUiWhileRunning = HideUiWhileRunningCheckBox.IsChecked == true
+            };
+            settings.Validate();
+            await _hotkeySettingsStore.SaveAsync(settings);
+            _hotkeySettings = settings;
+            RegisterGlobalHotkeys();
+            GlobalHotkeyStatusText.Text = "Hotkeys saved locally and applied.";
+            AddActivityLog("INFO", "SETTINGS", "Global hotkey preferences were saved.");
+        }
+        catch (Exception exception)
+        {
+            GlobalHotkeyStatusText.Text = $"Could not apply hotkeys: {exception.Message}";
+            AddActivityLog("ERROR", "SETTINGS", $"Could not apply global hotkeys: {exception.Message}");
+        }
+    }
+
+    private void HideMainWindow()
+    {
+        if (!IsVisible) return;
+        _isUiHidden = true;
+        Hide();
+        AddActivityLog("INFO", "UI", "Window hidden. Use the configured visibility key to restore it.");
+    }
+
+    private void RestoreMainWindow()
+    {
+        _isUiHidden = false;
+        if (!IsVisible) Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+        AddActivityLog("INFO", "UI", "GafiFish window restored.");
+    }
+
+    private void ToggleMainWindowVisibility()
+    {
+        if (_isUiHidden || !IsVisible) RestoreMainWindow();
+        else HideMainWindow();
+    }
+
+    private void AddActivityLog(string level, string source, string message)
+    {
+        _activityLog.Insert(0, $"{DateTime.Now:HH:mm:ss.fff}  {level,-5}  {source,-8}  {message}");
+        while (_activityLog.Count > 500)
+            _activityLog.RemoveAt(_activityLog.Count - 1);
+        if (ActivityLogList is not null && _activityLog.Count > 0)
+            ActivityLogList.ScrollIntoView(_activityLog[0]);
+    }
+
+    private void CopyActivityLog_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText(string.Join(Environment.NewLine, _activityLog));
+            ActivityLogStatusText.Text = $"Copied {_activityLog.Count} log entries.";
+        }
+        catch (Exception exception) when (exception is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
+        {
+            ActivityLogStatusText.Text = $"Could not copy activity log: {exception.Message}";
+        }
+    }
+
+    private void ExportActivityLog_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export GafiFish activity log",
+            Filter = "Text log (*.txt)|*.txt",
+            DefaultExt = "txt",
+            AddExtension = true,
+            FileName = $"GafiFish-activity-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+            OverwritePrompt = true
+        };
+        if (dialog.ShowDialog(this) != true) return;
+        try
+        {
+            File.WriteAllText(dialog.FileName, string.Join(Environment.NewLine, _activityLog));
+            ActivityLogStatusText.Text = $"Exported {_activityLog.Count} entries to {System.IO.Path.GetFileName(dialog.FileName)}.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ActivityLogStatusText.Text = $"Could not export activity log: {exception.Message}";
+        }
+    }
+
+    private void ClearActivityLog_Click(object sender, RoutedEventArgs e)
+    {
+        _activityLog.Clear();
+        AddActivityLog("INFO", "SYSTEM", "Activity log cleared.");
+        ActivityLogStatusText.Text = "Activity log cleared. New events will appear here.";
+    }
+
+    private void RefreshModuleQuickInfo()
+    {
+        if (ModuleQuickInfoText is null) return;
+        static string State(bool enabled) => enabled ? "ON" : "OFF";
+        var sellStatus = SellAnywhereCheckBox.IsChecked == true
+            ? (_activeSessionId.HasValue && _profile.IsSellButtonCalibrated && _profile.IsInventoryVerificationCalibrated
+                ? "READY" : "NEEDS SESSION / CALIBRATION")
+            : "OFF";
+        ModuleQuickInfoText.Text =
+            $"Reel assist: {State(_automationEnabled)}{Environment.NewLine}" +
+            $"Auto-cast: {State(AutoCastCheckBox.IsChecked == true)}{Environment.NewLine}" +
+            $"Auto-shake: {State(AutoShakeCheckBox.IsChecked == true)}{Environment.NewLine}" +
+            $"Auto-totem: {State(AutoTotemCheckBox.IsChecked == true)}{Environment.NewLine}" +
+            $"Auto-potion: {State(AutoPotionCheckBox.IsChecked == true)}{Environment.NewLine}" +
+            $"Sell Anywhere: {sellStatus}{Environment.NewLine}" +
+            $"Local OCR session: {State(_activeSessionId.HasValue)}";
+    }
+
+    private void ModuleOption_Changed(object sender, RoutedEventArgs e) => RefreshModuleQuickInfo();
 
     private IntPtr WindowMessageHook(
         IntPtr hwnd,
@@ -434,7 +635,13 @@ public partial class MainWindow : Window
         }
         else if (id == EmergencyStopHotkeyId)
         {
-            StopAutomation("Emergency stop (F9): all game inputs released.");
+            StopAutomation($"Emergency stop ({_hotkeySettings.StopKey}): all game inputs released.");
+            if (_isUiHidden) RestoreMainWindow();
+            handled = true;
+        }
+        else if (id == ToggleUiHotkeyId)
+        {
+            ToggleMainWindowVisibility();
             handled = true;
         }
 
@@ -476,9 +683,14 @@ public partial class MainWindow : Window
         }
 
         StopAutomation("Macro stopped by the user; all game inputs released.");
+        if (_isUiHidden) RestoreMainWindow();
     }
 
-    private void TimedItemCheckBox_Changed(object sender, RoutedEventArgs e) => UpdateTimedItemControls();
+    private void TimedItemCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        UpdateTimedItemControls();
+        RefreshModuleQuickInfo();
+    }
 
     private void UpdateTimedItemControls()
     {
@@ -489,6 +701,7 @@ public partial class MainWindow : Window
         TotemIntervalTextBox.IsEnabled = enabled && AutoTotemCheckBox.IsChecked == true;
         PotionSlotComboBox.IsEnabled = enabled && AutoPotionCheckBox.IsChecked == true;
         PotionIntervalTextBox.IsEnabled = enabled && AutoPotionCheckBox.IsChecked == true;
+        RefreshModuleQuickInfo();
     }
 
     private static int ReadHotbarSlot(ComboBox comboBox, string label)
@@ -514,6 +727,7 @@ public partial class MainWindow : Window
         TargetFishTextBox.IsEnabled = enabled;
         TargetFishCatchGoalTextBox.IsEnabled = enabled;
         TargetFishProgressText.Text = $"Target progress · 0 / {ReadTargetCatchGoalOrDefault()}";
+        RefreshModuleQuickInfo();
     }
 
     private void AutoCastCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -537,6 +751,7 @@ public partial class MainWindow : Window
             AutoPotionCheckBox.IsChecked = false;
         }
         UpdateTimedItemControls();
+        RefreshModuleQuickInfo();
     }
 
     private int ReadTargetCatchGoalOrDefault() =>
@@ -772,7 +987,10 @@ public partial class MainWindow : Window
                 enabledModes.Add("Sell Anywhere unavailable (session/calibration missing)");
 
             AutomationStatusText.Text =
-                $"Armed: {string.Join(" + ", enabledModes)}. F9 stops and releases all inputs.";
+                $"Armed: {string.Join(" + ", enabledModes)}. {_hotkeySettings.StopKey} stops and releases all inputs.";
+            AddActivityLog("INFO", "AUTOMATION", $"Macro armed with: {string.Join(", ", enabledModes)}.");
+            RefreshModuleQuickInfo();
+            if (_hotkeySettings.HideUiWhileRunning) HideMainWindow();
         }
         catch (Exception exception)
         {
@@ -787,6 +1005,8 @@ public partial class MainWindow : Window
             }
 
             AutomationStatusText.Text = $"Reel assist could not arm: {exception.Message}";
+            AddActivityLog("ERROR", "AUTOMATION", $"Could not arm macro: {exception.Message}");
+            RefreshModuleQuickInfo();
         }
     }
 
@@ -881,6 +1101,9 @@ public partial class MainWindow : Window
         AutomationStatusText.Text = releaseFailed
             ? $"{reason} Warning: Windows rejected an input-release event; check the mouse/keyboard state."
             : reason;
+        AddActivityLog(releaseFailed ? "WARN" : "INFO", "AUTOMATION",
+            releaseFailed ? $"{reason} Input release warning." : reason);
+        RefreshModuleQuickInfo();
     }
 
     private void ProcessAutomationFrame(
@@ -1166,6 +1389,7 @@ public partial class MainWindow : Window
             var frame = await Task.Run(_capture.CaptureForegroundClient);
             DisplayFrame(frame);
             StatusText.Text = $"Captured {frame.WindowTitle} (PID {frame.ProcessId}).";
+            AddActivityLog("INFO", "CAPTURE", $"Captured frame {frame.Width}×{frame.Height} from Roblox.");
         }
         catch (Exception exception) when (
             exception is InvalidOperationException
@@ -1173,6 +1397,7 @@ public partial class MainWindow : Window
             or ArgumentException)
         {
             StatusText.Text = exception.Message;
+            AddActivityLog("WARN", "CAPTURE", $"Frame capture failed: {exception.Message}");
         }
     }
 
@@ -1190,8 +1415,9 @@ public partial class MainWindow : Window
         }
 
         _previewCancellation = new CancellationTokenSource();
-        PreviewButton.Content = "Stop observation (F7)";
+        PreviewButton.Content = "Stop observation";
         StatusText.Text = "Observation active. Bring Roblox to the foreground.";
+        AddActivityLog("INFO", "CAPTURE", "Continuous observation started.");
         _ = RunPreviewLoopAsync(_previewCancellation);
     }
 
@@ -1210,8 +1436,9 @@ public partial class MainWindow : Window
         }
 
         _previewCancellation?.Cancel();
-        PreviewButton.Content = "Start observation (F7)";
+        PreviewButton.Content = "Start observation";
         StatusText.Text = "Observation stopped.";
+        AddActivityLog("INFO", "CAPTURE", "Continuous observation stopped.");
     }
 
     private async Task RunPreviewLoopAsync(CancellationTokenSource owner)
@@ -1276,7 +1503,7 @@ public partial class MainWindow : Window
             {
                 _previewCancellation = null;
                 owner.Dispose();
-                PreviewButton.Content = "Start observation (F7)";
+                PreviewButton.Content = "Start observation";
             }
         }
     }
@@ -1646,6 +1873,7 @@ public partial class MainWindow : Window
             SellStatusText.Text = _profile.IsSellButtonCalibrated ? "Sell Anywhere: profile calibration loaded." : "Sell Anywhere: awaiting button calibration.";
             OcrStatusText.Text = _profile.IsCatchNotificationCalibrated ? "Local OCR: catch notification region loaded." : "Local OCR: select the catch notification region before starting a session.";
             TelemetryText.Text = $"Profile: {_activeProfileName} · loaded.";
+            AddActivityLog("INFO", "PROFILE", $"Calibration profile '{_activeProfileName}' loaded.");
         }
         catch (Exception exception)
         {
@@ -1731,6 +1959,7 @@ public partial class MainWindow : Window
         {
             RodSlotComboBox.IsEnabled = EquipRodCheckBox.IsChecked == true;
         }
+        RefreshModuleQuickInfo();
     }
 
     private void SetCalibrationAction(CalibrationAction action, string instruction)
@@ -2048,14 +2277,17 @@ public partial class MainWindow : Window
 
             EndSessionButton.IsEnabled = true;
             OcrStatusText.Text = "Local OCR ready. Images stay on this computer.";
-            SessionStatusText.Text = "Session running. Start F7 observation to detect catch notifications.";
+            SessionStatusText.Text = "Session running. Start observation to detect catch notifications.";
             SessionSummaryText.Text = string.Empty;
+            AddActivityLog("INFO", "SESSION", $"Local OCR session started ({sessionId:D}).");
+            RefreshModuleQuickInfo();
             await RefreshSessionHistoryAsync(sessionId);
         }
         catch (Exception exception)
         {
             OcrStatusText.Text = $"Local OCR could not start: {exception.Message}";
             SessionStatusText.Text = "No session started. Check the network connection and the Microsoft Visual C++ 2022 runtime.";
+            AddActivityLog("ERROR", "SESSION", $"Could not start local OCR session: {exception.Message}");
             StartSessionButton.IsEnabled = true;
         }
     }
@@ -2112,8 +2344,11 @@ public partial class MainWindow : Window
             SessionStatusText.Text =
                 $"Session ended · {summary.TotalCatches} catches · {summary.IdentifiedCatches} identified · " +
                 $"{summary.Duration.TotalMinutes:F1} min · {summary.CatchesPerHour:F1} catches/hour.";
+            AddActivityLog("INFO", "SESSION",
+                $"Session completed · {summary.TotalCatches} catches · {summary.Duration.TotalMinutes:F1} minutes.");
 
             OcrStatusText.Text = "Local OCR remains ready for the next session.";
+            RefreshModuleQuickInfo();
             StartSessionButton.IsEnabled = true;
             await RefreshLifetimeStatisticsAsync();
             await RefreshSessionHistoryAsync(sessionId);
@@ -2476,6 +2711,9 @@ public partial class MainWindow : Window
             await RefreshSessionHistoryAsync(sessionId);
             _lastCatchFingerprint = fingerprint;
             _lastCatchAt = frame.CapturedAt;
+            AddActivityLog("INFO", "CATCH",
+                $"{fishCatch.Species ?? "Unidentified fish"} · {fishCatch.Rarity?.ToString() ?? "rarity unknown"}" +
+                (string.IsNullOrWhiteSpace(fishCatch.Mutation) ? string.Empty : $" · {fishCatch.Mutation}"));
 
             if (_automationEnabled
                 && _runtimeStateMachine is not null
@@ -2538,27 +2776,7 @@ public partial class MainWindow : Window
         _ocr?.Dispose();
         _ocr = null;
 
-        var handle = new WindowInteropHelper(this).Handle;
-        if (_captureHotkeyRegistered)
-        {
-            Native.UnregisterHotKey(handle, CaptureHotkeyId);
-        }
-
-        if (_previewHotkeyRegistered)
-        {
-            Native.UnregisterHotKey(handle, PreviewHotkeyId);
-        }
-
-        if (_reelArmHotkeyRegistered)
-        {
-            Native.UnregisterHotKey(handle, ReelArmHotkeyId);
-        }
-
-        if (_emergencyStopHotkeyRegistered)
-        {
-            Native.UnregisterHotKey(handle, EmergencyStopHotkeyId);
-        }
-
+        UnregisterGlobalHotkeys();
         _source?.RemoveHook(WindowMessageHook);
         _source?.Dispose();
     }
