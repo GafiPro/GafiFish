@@ -29,6 +29,7 @@ using GafiFish.Core.Scheduling;
 using GafiFish.Core.Services;
 using GafiFish.App.Automation;
 using GafiFish.App.Settings;
+using GafiFish.App.Logging;
 using GafiFish.Windows.Input;
 
 namespace GafiFish.App;
@@ -58,6 +59,8 @@ public partial class MainWindow : Window
     private readonly FishCatchTextParser _catchParser = new();
     private readonly AppHotkeySettingsStore _hotkeySettingsStore = new();
     private readonly ObservableCollection<string> _activityLog = [];
+    private readonly ObservableCollection<string> _visibleActivityLog = [];
+    private readonly ActivityLogStore _activityLogStore = new();
     private AppHotkeySettings _hotkeySettings = new();
     private bool _toggleUiHotkeyRegistered;
     private bool _isUiHidden;
@@ -169,7 +172,9 @@ public partial class MainWindow : Window
         PreviewOverlay.Children.Add(_castTargetOverlay);
         PreviewOverlay.Children.Add(_castIndicatorOverlay);
         PreviewOverlay.Children.Add(_sellButtonOverlay);
-        ActivityLogList.ItemsSource = _activityLog;
+        ActivityLogList.ItemsSource = _visibleActivityLog;
+        ActivityLogLevelComboBox.ItemsSource = new[] { "All levels", "INFO", "WARN", "ERROR", "DEBUG" };
+        ActivityLogLevelComboBox.SelectedIndex = 0;
         CapturePerformanceModeComboBox.SelectionChanged += CapturePerformanceMode_SelectionChanged;
         InitializeHotkeyControls();
         Loaded += Window_Loaded;
@@ -182,6 +187,16 @@ public partial class MainWindow : Window
         _hotkeySettings = await _hotkeySettingsStore.LoadAsync();
         ApplyHotkeySettingsToControls();
         RegisterGlobalHotkeys();
+        try
+        {
+            foreach (var entry in _activityLogStore.LoadRecent(500))
+                _activityLog.Insert(0, entry);
+            RefreshActivityLogView();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ActivityLogStatusText.Text = $"Could not load saved activity log: {exception.Message}";
+        }
         AddActivityLog("INFO", "SYSTEM", "GafiFish started. Local settings and calibration were loaded.");
         try
         {
@@ -535,19 +550,65 @@ public partial class MainWindow : Window
 
     private void AddActivityLog(string level, string source, string message)
     {
-        _activityLog.Insert(0, $"{DateTime.Now:HH:mm:ss.fff}  {level,-5}  {source,-8}  {message}");
+        var entry = $"{DateTime.Now:HH:mm:ss.fff}  {level,-5}  {source,-8}  {message}";
+        _activityLog.Insert(0, entry);
         while (_activityLog.Count > 500)
             _activityLog.RemoveAt(_activityLog.Count - 1);
-        if (ActivityLogList is not null && _activityLog.Count > 0)
-            ActivityLogList.ScrollIntoView(_activityLog[0]);
+
+        string? persistenceError = null;
+        try
+        {
+            _activityLogStore.Append(entry);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            persistenceError = exception.Message;
+        }
+
+        RefreshActivityLogView(scrollToNewest: true);
+        if (persistenceError is not null)
+            ActivityLogStatusText.Text = $"Log is visible for this run but could not be saved: {persistenceError}";
     }
+
+    private void RefreshActivityLogView(bool scrollToNewest = false)
+    {
+        var search = ActivityLogSearchTextBox?.Text?.Trim() ?? string.Empty;
+        var selectedLevel = ActivityLogLevelComboBox?.SelectedItem as string ?? "All levels";
+        var filtered = _activityLog.Where(entry =>
+        {
+            var matchesSearch = search.Length == 0
+                || entry.Contains(search, StringComparison.OrdinalIgnoreCase);
+            var matchesLevel = selectedLevel == "All levels"
+                || entry.Contains($"  {selectedLevel,-5}  ", StringComparison.OrdinalIgnoreCase);
+            return matchesSearch && matchesLevel;
+        }).ToArray();
+
+        _visibleActivityLog.Clear();
+        foreach (var entry in filtered)
+            _visibleActivityLog.Add(entry);
+
+        if (ActivityLogStatusText is not null)
+            ActivityLogStatusText.Text = $"Showing {_visibleActivityLog.Count} of {_activityLog.Count} recent events · saved locally with automatic log rotation.";
+
+        if (scrollToNewest && ActivityLogList is not null && _visibleActivityLog.Count > 0)
+            ActivityLogList.ScrollIntoView(_visibleActivityLog[0]);
+    }
+
+    private void ActivityLogSearch_TextChanged(object sender, TextChangedEventArgs e) =>
+        RefreshActivityLogView();
+
+    private void ActivityLogLevel_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        RefreshActivityLogView();
+
+    private string[] GetVisibleActivityLogEntries() => _visibleActivityLog.ToArray();
 
     private void CopyActivityLog_Click(object sender, RoutedEventArgs e)
     {
+        var visibleEntries = GetVisibleActivityLogEntries();
         try
         {
-            Clipboard.SetText(string.Join(Environment.NewLine, _activityLog));
-            ActivityLogStatusText.Text = $"Copied {_activityLog.Count} log entries.";
+            Clipboard.SetText(string.Join(Environment.NewLine, visibleEntries));
+            ActivityLogStatusText.Text = $"Copied {visibleEntries.Length} visible log entries.";
         }
         catch (Exception exception) when (exception is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
         {
@@ -557,6 +618,7 @@ public partial class MainWindow : Window
 
     private void ExportActivityLog_Click(object sender, RoutedEventArgs e)
     {
+        var visibleEntries = GetVisibleActivityLogEntries();
         var dialog = new SaveFileDialog
         {
             Title = "Export GafiFish activity log",
@@ -569,8 +631,8 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog(this) != true) return;
         try
         {
-            File.WriteAllText(dialog.FileName, string.Join(Environment.NewLine, _activityLog));
-            ActivityLogStatusText.Text = $"Exported {_activityLog.Count} entries to {System.IO.Path.GetFileName(dialog.FileName)}.";
+            File.WriteAllText(dialog.FileName, string.Join(Environment.NewLine, visibleEntries));
+            ActivityLogStatusText.Text = $"Exported {visibleEntries.Length} visible entries to {System.IO.Path.GetFileName(dialog.FileName)}.";
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -580,9 +642,34 @@ public partial class MainWindow : Window
 
     private void ClearActivityLog_Click(object sender, RoutedEventArgs e)
     {
-        _activityLog.Clear();
-        AddActivityLog("INFO", "SYSTEM", "Activity log cleared.");
-        ActivityLogStatusText.Text = "Activity log cleared. New events will appear here.";
+        try
+        {
+            _activityLogStore.Clear();
+            _activityLog.Clear();
+            RefreshActivityLogView();
+            AddActivityLog("INFO", "SYSTEM", "Activity log cleared.");
+            ActivityLogStatusText.Text = "Saved activity history cleared. New events will be recorded.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ActivityLogStatusText.Text = $"Could not clear saved activity log: {exception.Message}";
+        }
+    }
+
+    private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dataDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "GafiFish");
+            Directory.CreateDirectory(dataDirectory);
+            Process.Start(new ProcessStartInfo { FileName = dataDirectory, UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            ActivityLogStatusText.Text = $"Could not open the GafiFish data folder: {exception.Message}";
+        }
     }
 
     private void RefreshModuleQuickInfo()

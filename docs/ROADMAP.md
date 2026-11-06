@@ -129,10 +129,19 @@ Appraise/Treasure Appraise, Auto Enchant, Aquarium, Angler Quest, Harpoon, dete�
 
 ## Inspiração ExoPanda — próximos módulos
 
-- [x] Logs locais de atividade/engine, com copy/export e limite de 500 entradas.
+- [x] Logs locais de atividade/engine persistentes, com rotação automática, pesquisa, filtro por nível, copy/export e limite de 500 entradas visíveis.
 - [x] Hotkeys globais configuráveis e persistentes, incluindo show/hide e auto-hide opcional.
 - [x] Quick Info para estado dos módulos.
 - [ ] Auto Aquarium: detetar o painel/temporizadores, alimentar apenas quando o cooldown permitir, confirmar a ação e distinguir auto-claim.
 - [ ] Auto Appraisal: calibrar as zonas de diálogo, selecionar um peixe pela hotbar, ler peso/mutação e limitar tentativas/custo antes de repetir.
 - [ ] Custom Rod handlers: implementar cada minijogo específico apenas após recolher e validar frames reais.
 - [ ] Rotação de Totems por fase do dia/noite, com deteção visual do ciclo e confirmação do uso.
+
+
+## Melhorias de manutenção e interface — novembro de 2026
+
+- [x] Persistência local dos logs entre reinícios, com ficheiro ativo e um arquivo rotativo para limitar o espaço ocupado.
+- [x] Pesquisa instantânea no texto dos eventos e filtro por INFO/WARN/ERROR/DEBUG.
+- [x] Cópia e exportação respeitam os filtros atualmente visíveis.
+- [x] Atalho visual para abrir a pasta de dados local do GafiFish.
+- [x] Testes para retenção dos eventos mais recentes, rotação e limpeza do histórico.

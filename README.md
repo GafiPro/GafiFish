@@ -121,7 +121,8 @@ A aplicação inclui perfis de calibração nomeados manualmente por cana, telem
 Inclui alertas sonoros locais para espécies prioritárias, raridades Legendary+ e mutações reconhecidas por OCR. O painel de estatísticas acumuladas agrega o histórico SQLite local (sessões, capturas, espécies mais comuns, mutações, raridade, pesos, valor estimado e capturas por hora de sessões concluídas). O valor não representa nem confirma o saldo real do jogo.
 
 
-- Logs de atividade locais (últimos 500 eventos), com cópia/exportação TXT e registo de avisos/erros.
+- Logs de atividade persistentes (últimos 500 eventos visíveis), com rotação automática de ficheiros, pesquisa, filtro por nível, cópia/exportação TXT e registo de avisos/erros.
 - Hotkeys globais F2–F12 configuráveis, validadas para serem únicas e guardadas localmente; tecla dedicada para mostrar/ocultar a janela.
+- Pasta de dados local acessível diretamente a partir do painel de logs.
 - Ocultação opcional da janela enquanto o macro está armado, sem desativar a hotkey de emergência.
 - Dashboard Quick Info com estado dos módulos e requisitos de calibração.

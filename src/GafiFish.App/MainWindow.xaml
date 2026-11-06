@@ -688,17 +688,30 @@
                             <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1" CornerRadius="16" Padding="18">
                                 <StackPanel>
                                     <TextBlock Text="Activity &amp; engine log" FontSize="18" FontWeight="SemiBold" />
-                                    <TextBlock Text="A local timeline of starts, stops, detections, saves, warnings and errors. The newest events appear first."
+                                    <TextBlock Text="A persistent local timeline. Search messages or filter by level; the active log rotates automatically so it cannot grow forever."
                                                Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,5,0,12" />
                                     <Grid Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="140" />
                                         </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0" Content="Copy log" Click="CopyActivityLog_Click" Height="34" Background="#294153" />
-                                        <Button Grid.Column="2" Content="Export TXT" Click="ExportActivityLog_Click" Height="34" Background="#294153" />
-                                        <Button Grid.Column="4" Content="Clear" Click="ClearActivityLog_Click" Height="34" Background="#4A3037" />
+                                        <TextBox x:Name="ActivityLogSearchTextBox" Grid.Column="0" Height="34" Padding="9,6"
+                                                 Background="#20313E" Foreground="#EAF0F5" BorderBrush="#405363"
+                                                 ToolTip="Search in the visible recent log entries"
+                                                 TextChanged="ActivityLogSearch_TextChanged" />
+                                        <ComboBox x:Name="ActivityLogLevelComboBox" Grid.Column="2" Height="34"
+                                                  Background="#20313E" Foreground="#EAF0F5"
+                                                  SelectionChanged="ActivityLogLevel_SelectionChanged" />
                                     </Grid>
-                                    <ListBox x:Name="ActivityLogList" Height="510" Background="#0E1720" Foreground="#DCE6ED"
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="Copy visible" Click="CopyActivityLog_Click" Height="34" Background="#294153" />
+                                        <Button Grid.Column="2" Content="Export TXT" Click="ExportActivityLog_Click" Height="34" Background="#294153" />
+                                        <Button Grid.Column="4" Content="Clear history" Click="ClearActivityLog_Click" Height="34" Background="#4A3037" />
+                                        <Button Grid.Column="6" Content="Open data folder" Click="OpenDataFolder_Click" Height="34" Background="#203847" />
+                                    </Grid>
+                                    <ListBox x:Name="ActivityLogList" Height="470" Background="#0E1720" Foreground="#DCE6ED"
                                              BorderBrush="#2D414F" BorderThickness="1" ScrollViewer.VerticalScrollBarVisibility="Auto">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
@@ -707,7 +720,7 @@
                                         </ListBox.ItemTemplate>
                                     </ListBox>
                                     <TextBlock x:Name="ActivityLogStatusText"
-                                               Text="Logs stay on this computer and are limited to the most recent 500 events."
+                                               Text="The latest 500 events are shown here. A rolling log and one archive are stored under %LOCALAPPDATA%\\GafiFish\\logs."
                                                Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
                                 </StackPanel>
                             </Border>
