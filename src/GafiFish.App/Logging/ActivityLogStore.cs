@@ -18,9 +18,9 @@ public sealed class ActivityLogStore
         if (maximumFileBytes < 1)
             throw new ArgumentOutOfRangeException(nameof(maximumFileBytes));
 
-        _path = path ?? Path.Combine(
+        _path = Path.GetFullPath(path ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GafiFish", "logs", "activity.log");
+            "GafiFish", "logs", "activity.log"));
         _archivePath = _path + ".1";
         _maximumFileBytes = maximumFileBytes;
     }

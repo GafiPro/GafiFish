@@ -375,6 +375,11 @@ public partial class MainWindow : Window
                 ? $"{statistics.HeaviestWeightKg.Value:F2} kg"
                 : "n/a";
 
+            DashboardSessionsMetricText.Text = statistics.TotalSessions.ToString("N0");
+            DashboardCatchesMetricText.Text = statistics.TotalCatches.ToString("N0");
+            DashboardLegendaryMetricText.Text = statistics.LegendaryOrHigherCatches.ToString("N0");
+            DashboardCatchRateMetricText.Text = $"{statistics.CatchesPerHour:F1}/h";
+
             LifetimeStatsText.Text =
                 $"Sessions: {statistics.TotalSessions} · Catches: {statistics.TotalCatches} " +
                 $"({statistics.IdentifiedCatches} identified) · Mutations: {statistics.MutatedCatches} · " +
@@ -676,16 +681,21 @@ public partial class MainWindow : Window
     {
         if (ModuleQuickInfoText is null) return;
         static string State(bool enabled) => enabled ? "ON" : "OFF";
+        static string Readiness(bool enabled, bool calibrated) =>
+            !enabled ? "OFF" : calibrated ? "READY" : "NEEDS CALIBRATION";
+        static string TimedItem(bool enabled) => enabled ? "ON · SLOT NOT VERIFIED" : "OFF";
+
         var sellStatus = SellAnywhereCheckBox.IsChecked == true
             ? (_activeSessionId.HasValue && _profile.IsSellButtonCalibrated && _profile.IsInventoryVerificationCalibrated
                 ? "READY" : "NEEDS SESSION / CALIBRATION")
             : "OFF";
         ModuleQuickInfoText.Text =
+            $"Fishing vision: {(_profile.IsFishingCalibrated ? "READY" : "NEEDS CALIBRATION")}{Environment.NewLine}" +
             $"Reel assist: {State(_automationEnabled)}{Environment.NewLine}" +
-            $"Auto-cast: {State(AutoCastCheckBox.IsChecked == true)}{Environment.NewLine}" +
-            $"Auto-shake: {State(AutoShakeCheckBox.IsChecked == true)}{Environment.NewLine}" +
-            $"Auto-totem: {State(AutoTotemCheckBox.IsChecked == true)}{Environment.NewLine}" +
-            $"Auto-potion: {State(AutoPotionCheckBox.IsChecked == true)}{Environment.NewLine}" +
+            $"Auto-cast: {Readiness(AutoCastCheckBox.IsChecked == true, _profile.IsCastCalibrated)}{Environment.NewLine}" +
+            $"Auto-shake: {Readiness(AutoShakeCheckBox.IsChecked == true, _profile.IsShakeCalibrated)}{Environment.NewLine}" +
+            $"Auto-totem: {TimedItem(AutoTotemCheckBox.IsChecked == true)}{Environment.NewLine}" +
+            $"Auto-potion: {TimedItem(AutoPotionCheckBox.IsChecked == true)}{Environment.NewLine}" +
             $"Sell Anywhere: {sellStatus}{Environment.NewLine}" +
             $"Local OCR session: {State(_activeSessionId.HasValue)}";
     }
@@ -2368,6 +2378,7 @@ public partial class MainWindow : Window
             SessionSummaryText.Text = string.Empty;
             AddActivityLog("INFO", "SESSION", $"Local OCR session started ({sessionId:D}).");
             RefreshModuleQuickInfo();
+            await RefreshLifetimeStatisticsAsync();
             await RefreshSessionHistoryAsync(sessionId);
         }
         catch (Exception exception)

@@ -125,4 +125,4 @@ Inclui alertas sonoros locais para espécies prioritárias, raridades Legendary+
 - Hotkeys globais F2–F12 configuráveis, validadas para serem únicas e guardadas localmente; tecla dedicada para mostrar/ocultar a janela.
 - Pasta de dados local acessível diretamente a partir do painel de logs.
 - Ocultação opcional da janela enquanto o macro está armado, sem desativar a hotkey de emergência.
-- Dashboard Quick Info com estado dos módulos e requisitos de calibração.
+- Dashboard com estatísticas de sessões/capturas/Legendary+/capturas por hora e Quick Info que distingue módulos prontos de módulos ainda sem calibração.
