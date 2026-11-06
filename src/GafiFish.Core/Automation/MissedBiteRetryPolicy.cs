@@ -1,8 +1,8 @@
 namespace GafiFish.Core.Automation;
 
 /// <summary>
-/// Bounds automatic recasts after the cast succeeds but no bite is detected.
-/// A successful reel-marker detection should reset the policy.
+/// Allows bounded automatic recasts by default, with an opt-in unlimited mode.
+/// A successful reel-marker detection should reset the retry counter.
 /// </summary>
 public sealed class MissedBiteRetryPolicy
 {
