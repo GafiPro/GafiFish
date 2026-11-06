@@ -289,8 +289,7 @@ public partial class MainWindow : Window
         StopAutomation("Macro stopped by the user; all game inputs released.");
     }
 
-    private void TargetFishCheckBox_Changed(object sender, RoutedEventArgs e)
-    {    private void TimedItemCheckBox_Changed(object sender, RoutedEventArgs e) => UpdateTimedItemControls();
+    private void TimedItemCheckBox_Changed(object sender, RoutedEventArgs e) => UpdateTimedItemControls();
 
     private void UpdateTimedItemControls()
     {
@@ -1289,8 +1288,7 @@ public partial class MainWindow : Window
         return true;
     }
 
-    private void SelectRegion_Click(object sender, RoutedEventArgs e)
-    {    private static string ProfileSlug(string name)
+    private static string ProfileSlug(string name)
     {
         var slug = new string(name.Trim().ToLowerInvariant()
             .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-').ToArray());
@@ -1834,8 +1832,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void ExportCsv_Click(object sender, RoutedEventArgs e)
-    {    private void CopySessionSummary_Click(object sender, RoutedEventArgs e)
+    private void CopySessionSummary_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(SessionSummaryText.Text))
         {
