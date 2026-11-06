@@ -665,7 +665,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var dataDirectory = Path.Combine(
+            var dataDirectory = System.IO.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "GafiFish");
             Directory.CreateDirectory(dataDirectory);
