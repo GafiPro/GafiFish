@@ -56,7 +56,7 @@ public sealed class CatchAlertSettingsStoreTests
         var path = Path.Combine(directory, "alerts.json");
         try
         {
-            await File.WriteAllTextAsync(path, "{ not valid json");
+            await File.WriteAllTextAsync(path, "{ not valid json", TestContext.Current.CancellationToken);
             var settings = await new CatchAlertSettingsStore(path).LoadAsync(TestContext.Current.CancellationToken);
             Assert.Equal(new CatchAlertSettings(), settings);
         }
