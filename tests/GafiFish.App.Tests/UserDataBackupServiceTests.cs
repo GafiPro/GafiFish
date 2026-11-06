@@ -50,13 +50,16 @@ public sealed class UserDataBackupServiceTests
                     var connectionString = new SqliteConnectionStringBuilder
                     {
                         DataSource = extractedDatabase,
-                        Mode = SqliteOpenMode.ReadOnly
+                        Mode = SqliteOpenMode.ReadOnly,
+                        Pooling = false
                     }.ToString();
-                    await using var connection = new SqliteConnection(connectionString);
-                    await connection.OpenAsync();
-                    await using var command = connection.CreateCommand();
-                    command.CommandText = "SELECT Value FROM BackupTest;";
-                    Assert.Equal("snapshot-value", (string?)await command.ExecuteScalarAsync());
+                    await using (var connection = new SqliteConnection(connectionString))
+                    {
+                        await connection.OpenAsync();
+                        await using var command = connection.CreateCommand();
+                        command.CommandText = "SELECT Value FROM BackupTest;";
+                        Assert.Equal("snapshot-value", (string?)await command.ExecuteScalarAsync());
+                    }
                 }
 
                 var verification = await service.VerifyBackupAsync(backupPath);
@@ -82,7 +85,7 @@ public sealed class UserDataBackupServiceTests
         var backupPath = Path.Combine(Path.GetTempPath(), $"gafifish-tampered-{Guid.NewGuid():N}.zip");
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "{ \"ok\": true }");
+            await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "original-text");
             var service = new UserDataBackupService(directory);
             await service.CreateBackupAsync(backupPath);
 
@@ -92,7 +95,7 @@ public sealed class UserDataBackupServiceTests
                 var tampered = archive.CreateEntry("vision-profile.json");
                 await using var stream = tampered.Open();
                 await using var writer = new StreamWriter(stream);
-                await writer.WriteAsync("modified after backup");
+                await writer.WriteAsync("tampered-text");
             }
 
             var verification = await service.VerifyBackupAsync(backupPath);
