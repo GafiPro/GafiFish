@@ -451,7 +451,7 @@ public partial class MainWindow : Window
         SellAnywhereCheckBox.IsEnabled = true;
         EquipRodCheckBox.IsEnabled = true;
         RodSlotComboBox.IsEnabled = EquipRodCheckBox.IsChecked == true;
-        _missedBiteRetryCount = 0;
+        _missedBiteRetries.Reset();
 
         AutomationStatusText.Text = releaseFailed
             ? $"{reason} Warning: Windows rejected an input-release event; check the mouse/keyboard state."
@@ -521,7 +521,7 @@ public partial class MainWindow : Window
                     FishingState.Preparing or FishingState.WaitingForBite or FishingState.Shaking))
             {
                 _shakeCoordinator?.Reset();
-                _missedBiteRetryCount = 0;
+                _missedBiteRetries.Reset();
                 _ = _runtimeStateMachine.TryTransition(
                     FishingState.Reeling,
                     "Both calibrated reel markers are visible with sufficient confidence.",
