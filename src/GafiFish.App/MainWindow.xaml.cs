@@ -1716,10 +1716,18 @@ public partial class MainWindow : Window
 
             if (stopAfterFirstCatch)
             {
-                _ = _runtimeStateMachine!.TryTransition(
-                    FishingState.CatchDetected,
-                    "A high-confidence local OCR notification confirmed the first caught fish.",
-                    frame.CapturedAt);
+                if (!_runtimeStateMachine!.TryTransition(
+                        FishingState.CatchDetected,
+                        "A high-confidence local OCR notification confirmed the first caught fish.",
+                        frame.CapturedAt))
+                {
+                    StopAutomation("The catch was recognised but the fishing state could not confirm it; all inputs released.");
+                    return;
+                }
+
+                // Stop before the database write so no later frame can start a new
+                // cycle or trigger a periodic inventory action after the first catch.
+                StopAutomation($"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
             }
 
             var fingerprint = string.Join(
@@ -1732,11 +1740,6 @@ public partial class MainWindow : Window
             if (string.Equals(fingerprint, _lastCatchFingerprint, StringComparison.OrdinalIgnoreCase)
                 && frame.CapturedAt - _lastCatchAt < TimeSpan.FromSeconds(6))
             {
-                if (stopAfterFirstCatch)
-                {
-                    StopAutomation($"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
-                }
-
                 return;
             }
 
@@ -1760,10 +1763,6 @@ public partial class MainWindow : Window
                 (fishCatch.Rarity.HasValue ? $" · {fishCatch.Rarity.Value}" : string.Empty) +
                 (fishCatch.WeightKg.HasValue ? $" · {fishCatch.WeightKg.Value:F2} kg" : string.Empty);
 
-            if (stopAfterFirstCatch)
-            {
-                StopAutomation($"First catch confirmed ({fishCatch.Species}); keep-fishing mode completed.");
-            }
         }
         catch (Exception exception)
         {
