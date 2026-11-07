@@ -38,6 +38,8 @@ public sealed class RodProfileBindingStoreTests
             var actual = await store.LoadAsync(TestContext.Current.CancellationToken);
             Assert.Equal(expected.SlotProfiles.OrderBy(pair => pair.Key),
                 actual.SlotProfiles.OrderBy(pair => pair.Key));
+            Assert.Equal(expected.RodNameProfiles.OrderBy(pair => pair.Key),
+                actual.RodNameProfiles.OrderBy(pair => pair.Key));
         }
         finally
         {
