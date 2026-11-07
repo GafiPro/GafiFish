@@ -3,6 +3,7 @@ using GafiFish.Windows.Input;
 using GafiFish.Core.Control;
 using GafiFish.Vision.Detection;
 using GafiFish.Vision.Tracking;
+using GafiFish.Core.Control;
 
 namespace GafiFish.App.Automation;
 
@@ -33,7 +34,8 @@ public sealed class ReelInputCoordinator
         FishingState state,
         DetectedMarker? fishMarker,
         DetectedMarker? controlMarker,
-        FishMotionEstimate? motion)
+        FishMotionEstimate? motion,
+        RodChargeMeterObservation? chargeMeter = null)
     {
         if (state != FishingState.Reeling)
         {
@@ -54,6 +56,21 @@ public sealed class ReelInputCoordinator
         var confidence = Math.Min(
             motion.Confidence,
             Math.Min(fishMarker.Confidence, controlMarker.Confidence));
+
+        // Charge-meter rods grant a progress bonus when the meter is released
+        // above 80% while the fish is inside the calibrated control bar. If
+        // the charge meter is uncertain, fall back to normal Reel control.
+        if (chargeMeter is { IsUsable: true, Progress: >= 0.80 }
+            && fishMarker.CenterX >= controlMarker.Bounds.Left
+            && fishMarker.CenterX <= controlMarker.Bounds.Right)
+        {
+            _input.SetLeftButton(false);
+            return new ReelControlDecision(
+                ReelCommand.Release,
+                fishMarker.CenterX - controlMarker.CenterX,
+                chargeMeter.Progress,
+                "Rod charge reached 80% while the fish was inside the control bar; released for the calibrated charge bonus.");
+        }
 
         var decision = _controller.Evaluate(
             motion.PositionX,
