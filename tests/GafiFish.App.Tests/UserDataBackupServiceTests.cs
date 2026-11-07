@@ -16,6 +16,7 @@ public sealed class UserDataBackupServiceTests
             await CreateDatabaseAsync(Path.Combine(directory, "sessions.db"), TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(Path.Combine(directory, "vision-profile.json"), "{ \"profile\": 1 }", TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json"), "{ \"hotkey\": \"F8\" }", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(directory, "rod-profile-bindings.json"), "{ \"SlotProfiles\": { \"1\": \"Rod Alpha\" } }", TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(Path.Combine(directory, "app-settings.json.tmp"), "temporary", TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(Path.Combine(directory, "old-backup.zip"), "do not nest old backups", TestContext.Current.CancellationToken);
             Directory.CreateDirectory(Path.Combine(directory, "logs"));
@@ -29,6 +30,7 @@ public sealed class UserDataBackupServiceTests
 
                 Assert.Contains(manifest.Files, item => item.Path == "sessions.db");
                 Assert.Contains(manifest.Files, item => item.Path == "vision-profile.json");
+                Assert.Contains(manifest.Files, item => item.Path == "rod-profile-bindings.json");
                 Assert.Contains(manifest.Files, item => item.Path == "logs/activity.log");
                 Assert.DoesNotContain(manifest.Files, item => item.Path.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase));
                 Assert.DoesNotContain(manifest.Files, item => item.Path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
@@ -37,6 +39,7 @@ public sealed class UserDataBackupServiceTests
                 {
                     Assert.NotNull(archive.GetEntry("gafifish-backup-manifest.json"));
                     Assert.NotNull(archive.GetEntry("sessions.db"));
+                    Assert.NotNull(archive.GetEntry("rod-profile-bindings.json"));
                     Assert.Null(archive.GetEntry("app-settings.json.tmp"));
                     Assert.Null(archive.GetEntry("old-backup.zip"));
 

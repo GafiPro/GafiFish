@@ -544,10 +544,19 @@
                         </Grid>
                         <TextBlock Text="Create a named visual-calibration profile for each rod. Bind it to the rod hotbar slot below to load it automatically when that slot is selected."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
-                        <Button Content="Bind active profile to selected rod slot"
-                                Click="BindRodProfileToSlot_Click" Height="34"
-                                Background="#203847" Foreground="White" BorderThickness="0"
-                                Margin="0,0,0,6" />
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="Bind active profile"
+                                    Click="BindRodProfileToSlot_Click" Height="34"
+                                    Background="#203847" Foreground="White" BorderThickness="0" />
+                            <Button Grid.Column="2" Content="Clear slot binding"
+                                    Click="ClearRodProfileBinding_Click" Height="34"
+                                    Background="#3A3038" Foreground="White" BorderThickness="0" />
+                        </Grid>
                         <TextBlock x:Name="RodProfileBindingStatusText"
                                    Text="Enable Equip my rod and choose its hotbar slot to bind a profile."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
