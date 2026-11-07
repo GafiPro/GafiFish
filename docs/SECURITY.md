@@ -25,7 +25,8 @@ O Reel assistido, Auto-cast e Auto-shake estão desligados até o utilizador arm
 
 - Auto-cast mantém o botão esquerdo premido por um máximo de 8 segundos e liberta-o apenas quando o medidor calibrado indica a zona-alvo. Se o medidor desaparecer, ficar desatualizado ou a previsão for inválida, o cast é cancelado e o input é libertado.
 - Auto-shake exige deteção acima do limiar e estabilidade em dois frames. Depois de um clique, não volta a clicar no mesmo prompt; considera a sequência terminada após quatro frames sem candidato válido.
-- Os testes destes controlos usam inputs simulados e frames sintéticos; ainda é necessária validação no Fisch real. Não se deve armar estas opções numa sessão importante sem confirmar a calibração e a direção do Reel.
+- Tranquility Rhythm usa apenas as teclas normais D/F/J/K do Windows, com uma amostra por pista, uma linha de receção calibrada e previsão a partir de frames novos. Os toques só podem ocorrer no estado Reeling; uma falha ao pressionar/libertar uma tecla desarma o coordenador.
+- Os testes destes controlos usam inputs simulados e frames sintéticos; ainda é necessária validação no Fisch real. Não se deve armar estas opções numa sessão importante sem confirmar a calibração e o timing.
 
 ## Venda com Sell Anywhere
 

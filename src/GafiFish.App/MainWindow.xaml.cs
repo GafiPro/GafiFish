@@ -60,6 +60,7 @@ public partial class MainWindow : Window
 
     private readonly RobloxWindowCapture _capture = new();
     private readonly FishingVisionDetector _vision = new();
+    private readonly RhythmNoteVisionDetector _rhythmVision = new();
     private readonly RodChargeMeterVisionDetector _rodChargeMeterVision = new();
     private readonly CastMeterVisionDetector _castVision = new();
     private readonly ShakePromptVisionDetector _shakeVision = new();
@@ -172,6 +173,7 @@ public partial class MainWindow : Window
     private int _emergencyStopLatch;
     private RobloxInputService? _automationInput;
     private ReelInputCoordinator? _reelCoordinator;
+    private RhythmNoteInputCoordinator? _rhythmCoordinator;
     private FishingStateMachine? _runtimeStateMachine;
     private PeriodicSellSchedule? _sellSchedule;
     private SellAnywhereCoordinator? _sellCoordinator;
@@ -259,7 +261,12 @@ public partial class MainWindow : Window
         SampleAnglerSubmitButtonColor,
         SelectRodNameRegion,
         SelectRodChargeMeterRegion,
-        SampleRodChargeMeterColor
+        SampleRodChargeMeterColor,
+        SelectRhythmHitLine,
+        SampleRhythmLaneDColor,
+        SampleRhythmLaneFColor,
+        SampleRhythmLaneJColor,
+        SampleRhythmLaneKColor
     }
 
     public MainWindow()
@@ -2678,9 +2685,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_profile.IsFishingCalibrated)
+        var isTranquilityRhythmMode =
+            _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
+        if (isTranquilityRhythmMode
+            ? !_profile.IsTranquilityRhythmCalibrated
+            : !_profile.IsFishingCalibrated)
         {
-            AutomationStatusText.Text = "Calibrate the fishing region and both marker colors before arming.";
+            AutomationStatusText.Text = isTranquilityRhythmMode
+                ? "Tranquility Rhythm needs a calibrated four-lane search region, four note colours and hit line."
+                : "Calibrate the fishing region and both marker colours before arming.";
             return;
         }
 
@@ -2826,9 +2839,13 @@ public partial class MainWindow : Window
             };
             var controller = new ReelController(controllerSettings);
             var reelCoordinator = new ReelInputCoordinator(input, controller);
+            var rhythmCoordinator = isTranquilityRhythmMode
+                ? new RhythmNoteInputCoordinator(input)
+                : null;
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
                 throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             reelCoordinator.Arm();
+            rhythmCoordinator?.Start(_profile);
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
             {
                 input.EmergencyStop();
@@ -2927,6 +2944,7 @@ public partial class MainWindow : Window
 
             _runtimeStateMachine = stateMachine;
             _reelCoordinator = reelCoordinator;
+            _rhythmCoordinator = rhythmCoordinator;
             _sellCoordinator = sellCoordinator;
             _sellSchedule = sellSchedule;
             _castCoordinator = castCoordinator;
@@ -3070,6 +3088,7 @@ public partial class MainWindow : Window
         {
             _castCoordinator?.Stop();
             _shakeCoordinator?.Reset();
+            _rhythmCoordinator?.Stop();
             _reelCoordinator?.Stop();
         }
         catch
@@ -3110,6 +3129,7 @@ public partial class MainWindow : Window
         _startRequested = false;
         _automationInput = null;
         _reelCoordinator = null;
+        _rhythmCoordinator = null;
         _runtimeStateMachine = null;
         _sellCoordinator = null;
         _sellSchedule = null;
@@ -3158,6 +3178,7 @@ public partial class MainWindow : Window
             : reason;
         AddActivityLog(releaseFailed ? "WARN" : "INFO", "AUTOMATION",
             releaseFailed ? $"{reason} Input release warning." : reason);
+        RefreshRodReelPresetControls();
         RefreshModuleQuickInfo();
         SyncModuleToggles();
     }
@@ -3168,7 +3189,8 @@ public partial class MainWindow : Window
         DetectedMarker? controlMarker,
         FishMotionEstimate? motion,
         CastMeterObservation? castObservation,
-        IReadOnlyList<DetectedMarker> shakePrompts)
+        IReadOnlyList<DetectedMarker> shakePrompts,
+        RhythmNoteVisionResult? rhythmObservation)
     {
         if (!_automationEnabled
             || _reelCoordinator is null
@@ -3227,6 +3249,43 @@ public partial class MainWindow : Window
 
             var castStartedThisFrame = false;
 
+            var isRhythmMode = _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
+            if (isRhythmMode)
+            {
+                if (_rhythmCoordinator is null)
+                    throw new InvalidOperationException("Tranquility Rhythm coordinator is not available.");
+
+                if (rhythmObservation is null)
+                    throw new InvalidOperationException("Tranquility rhythm observation was not produced.");
+
+                var acceptedRhythmObservation = _rhythmCoordinator.ProcessObservation(
+                    rhythmObservation,
+                    _profile,
+                    allowInput: _runtimeStateMachine.CurrentState == FishingState.Reeling);
+                RhythmNoteStatusText.Text = _rhythmCoordinator.LastStatus;
+                if (acceptedRhythmObservation is { IsCalibrated: true, HasNotes: true }
+                    && (_runtimeStateMachine.CurrentState is
+                        FishingState.Preparing or FishingState.Casting
+                        or FishingState.WaitingForBite or FishingState.Shaking))
+                {
+                    if (_runtimeStateMachine.CurrentState == FishingState.Casting)
+                    {
+                        _castCoordinator?.Stop();
+                        _castVision.Reset();
+                    }
+
+                    _shakeCoordinator?.Reset();
+                    _missedBiteRetries.Reset();
+                    if (!_runtimeStateMachine.TryTransition(
+                            FishingState.Reeling,
+                            "A calibrated falling note entered the Tranquility rhythm lanes.",
+                            frame.CapturedAt))
+                    {
+                        throw new InvalidOperationException("Could not enter Reeling after detecting a rhythm note.");
+                    }
+                }
+            }
+
             // A detected fish/bar pair takes priority over Shake candidates.
             var reelMarkersVisible =
                 fishMarker is not null
@@ -3236,7 +3295,7 @@ public partial class MainWindow : Window
                 && motion is { IsFresh: true }
                 && motion.Confidence >= 0.70;
 
-            if (reelMarkersVisible
+            if (!isRhythmMode && reelMarkersVisible
                 && (_runtimeStateMachine.CurrentState is
                     FishingState.Preparing or FishingState.Casting
                     or FishingState.WaitingForBite or FishingState.Shaking))
@@ -3467,9 +3526,19 @@ public partial class MainWindow : Window
                 }
             }
 
+            // Rhythm keys are handled by RhythmNoteInputCoordinator. The
+            // ordinary mouse Reel controller must never run for this rod mode.
+            if (isRhythmMode)
+            {
+                if (_runtimeStateMachine.CurrentState == FishingState.Reeling
+                    && _rhythmCoordinator is not null)
+                {
+                    AutomationStatusText.Text = _rhythmCoordinator.LastStatus;
+                }
+            }
             // Casting owns the left mouse button while it is charging. Reel
             // must not run in parallel and accidentally release the cast.
-            if (!(_runtimeStateMachine.CurrentState == FishingState.Casting
+            else if (!(_runtimeStateMachine.CurrentState == FishingState.Casting
                 && _castCoordinator?.IsHolding == true))
             {
                 var chargeMeter = _profile.RodMinigameMode == RodMinigameMode.ChargeMeterBonus
@@ -4086,6 +4155,16 @@ public partial class MainWindow : Window
         ResolutionText.Text = $"{frame.Width} × {frame.Height}";
 
         var visionResult = _vision.Detect(frame, _profile);
+        var rhythmObservation = _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm
+            ? _rhythmVision.Detect(frame, _profile)
+            : null;
+        if (rhythmObservation is not null)
+        {
+            RhythmNoteStatusText.Text = rhythmObservation.Status;
+            RhythmCalibrationStatusText.Text = rhythmObservation.IsCalibrated
+                ? "Four lanes calibrated. Replay is visual-only; live key taps require the Reeling state."
+                : rhythmObservation.Status;
+        }
         DrawMarker(_fishMarkerOverlay, visionResult.FishMarker);
         DrawMarker(_secondaryFishMarkerOverlay, visionResult.SecondaryFishMarker);
         DrawMarker(_controlMarkerOverlay, visionResult.ControlMarker);
@@ -4208,7 +4287,8 @@ public partial class MainWindow : Window
                 visionResult.ControlMarker,
                 motion,
                 castObservation,
-                shakeResult.Prompts);
+                shakeResult.Prompts,
+                rhythmObservation);
 
             TryStartCatchRecognition(frame);
             TryStartRodNameRecognition(frame);
@@ -4435,6 +4515,8 @@ public partial class MainWindow : Window
             RodReelPresetComboBox.SelectedValue = _profile.RodPreset.ToString();
             RodMinigameModeComboBox.SelectedValue = _profile.RodMinigameMode.ToString();
             RodChargeMeterFillFromRightCheckBox.IsChecked = _profile.RodChargeMeterFillFromRight;
+            RhythmInputLeadMillisecondsTextBox.Text =
+                _profile.RhythmInputLeadMilliseconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -4457,10 +4539,22 @@ public partial class MainWindow : Window
             RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
                 ? "Dual Fish · both target colours are calibrated."
                 : "Dual Fish · calibration required.",
+            RodMinigameMode.TranquilityRhythm => _profile.IsTranquilityRhythmCalibrated
+                ? "Tranquility Rhythm · four note lanes and hit line calibrated."
+                : "Tranquility Rhythm · calibrate D/F/J/K note colours and the hit line.",
             _ => "Standard Reel · shared marker-based controller."
         };
         DualFishCoverageStatusText.Visibility =
             _profile.RodMinigameMode == RodMinigameMode.DualFish ? Visibility.Visible : Visibility.Collapsed;
+        var isRhythmMode = _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
+        RhythmNoteStatusText.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
+        RhythmCalibrationStatusText.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
+        RhythmInputLeadLabel.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
+        RhythmInputLeadMillisecondsTextBox.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
+        RhythmInputLeadMillisecondsTextBox.IsEnabled = isRhythmMode && !_automationEnabled;
+        RhythmCalibrationStatusText.Text = _profile.IsTranquilityRhythmCalibrated
+            ? "Four rhythm lanes and hit line calibrated."
+            : "Calibration required: search region, D/F/J/K note colours and hit line.";
     }
 
     private async void RodReelPresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -4516,6 +4610,9 @@ public partial class MainWindow : Window
             RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
                 ? "Dual Fish · tracks both targets and aims for their shared centre. The bar must be wide enough to cover both."
                 : "Dual Fish · sample both fish-marker colours in Calibration before starting.",
+            RodMinigameMode.TranquilityRhythm => _profile.IsTranquilityRhythmCalibrated
+                ? "Tranquility Rhythm · calibrated D/F/J/K lanes. Key taps are predicted from falling-note movement."
+                : "Tranquility Rhythm · calibrate the four note lanes and receptor line before starting.",
             _ => "Standard Reel · uses the shared marker-based controller."
         };
         _motionTracker.Reset();
@@ -4552,6 +4649,60 @@ public partial class MainWindow : Window
         SetCalibrationAction(
             CalibrationAction.SampleRodChargeMeterColor,
             "Sample a clear pixel from the filled portion of the rod charge meter.");
+
+    private void SelectRhythmHitLine_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SelectRhythmHitLine,
+            "Click the centre of the fixed receptor line inside the calibrated four-lane region.");
+
+    private void SampleRhythmLaneD_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleRhythmLaneDColor,
+            "Click a clear pixel on a falling note in the D lane.");
+
+    private void SampleRhythmLaneF_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleRhythmLaneFColor,
+            "Click a clear pixel on a falling note in the F lane.");
+
+    private void SampleRhythmLaneJ_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleRhythmLaneJColor,
+            "Click a clear pixel on a falling note in the J lane.");
+
+    private void SampleRhythmLaneK_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleRhythmLaneKColor,
+            "Click a clear pixel on a falling note in the K lane.");
+
+    private async void RhythmInputLeadMilliseconds_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingRodReelPreset || !IsLoaded)
+            return;
+
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            RefreshRodReelPresetControls();
+            RhythmCalibrationStatusText.Text = "Stop the macro before changing rhythm input timing.";
+            return;
+        }
+
+        if (!double.TryParse(
+                RhythmInputLeadMillisecondsTextBox.Text.Trim(),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var leadMilliseconds)
+            || !double.IsFinite(leadMilliseconds)
+            || leadMilliseconds is < 0 or > 250)
+        {
+            RefreshRodReelPresetControls();
+            RhythmCalibrationStatusText.Text = "Input lead must be a number from 0 to 250 milliseconds.";
+            return;
+        }
+
+        if (Math.Abs(_profile.RhythmInputLeadMilliseconds - leadMilliseconds) < 0.001)
+            return;
+
+        _profile = _profile with { RhythmInputLeadMilliseconds = leadMilliseconds };
+        await SaveProfileAsync("Tranquility rhythm input lead updated.");
+        RefreshRodReelPresetControls();
+    }
 
     private async void BindDetectedRodNameToProfile_Click(object sender, RoutedEventArgs e)
     {
@@ -5422,6 +5573,30 @@ public partial class MainWindow : Window
         RefreshModuleQuickInfo();
     }
 
+    private static VisionProfile WithRhythmLaneColor(
+        VisionProfile profile,
+        int lane,
+        HsvColorRange color,
+        int referenceWidth,
+        int referenceHeight)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        if (lane is < 0 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(lane));
+
+        var laneColors = new HsvColorRange?[4];
+        if (profile.RhythmLaneColors is { Length: 4 })
+            Array.Copy(profile.RhythmLaneColors, laneColors, 4);
+        laneColors[lane] = color;
+
+        return profile with
+        {
+            RhythmLaneColors = laneColors,
+            ReferenceWidth = referenceWidth,
+            ReferenceHeight = referenceHeight
+        };
+    }
+
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
         if (_automationEnabled)
@@ -5444,11 +5619,52 @@ public partial class MainWindow : Window
         SelectionRectangle.Visibility = Visibility.Collapsed;
     }
 
-    private void PreviewOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private async void PreviewOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var overlayPoint = e.GetPosition(PreviewOverlay);
         if (!TryMapOverlayPoint(overlayPoint, out var pixelPoint) || _lastFrame is null)
         {
+            return;
+        }
+
+        if (_calibrationAction == CalibrationAction.SelectRhythmHitLine)
+        {
+            if (!_profile.FishingRegionCalibrated)
+            {
+                CalibrationModeText.Text = "Select the four-lane search region before calibrating the rhythm hit line.";
+                e.Handled = true;
+                return;
+            }
+
+            var fishingRegion = _profile.FishingRegion.ToPixelRect(_lastFrame.Width, _lastFrame.Height);
+            if (pixelPoint.Y < fishingRegion.Y || pixelPoint.Y >= fishingRegion.Bottom)
+            {
+                CalibrationModeText.Text = "Click the receptor line inside the selected four-lane region.";
+                e.Handled = true;
+                return;
+            }
+
+            var relativeY = (pixelPoint.Y - fishingRegion.Y) / (double)fishingRegion.Height;
+            if (relativeY is < 0.10 or > 0.99)
+            {
+                CalibrationModeText.Text = "The hit line must be inside the lane area, away from its top and bottom edges.";
+                e.Handled = true;
+                return;
+            }
+
+            _profile = _profile with
+            {
+                RhythmHitLinePosition = relativeY,
+                RhythmHitLineCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            };
+            _calibrationAction = CalibrationAction.None;
+            RhythmCalibrationStatusText.Text = _profile.IsTranquilityRhythmCalibrated
+                ? "Rhythm calibration complete. Review the input lead before starting."
+                : "Hit line saved. Sample the D, F, J and K falling-note colours to finish.";
+            await SaveProfileAsync("Tranquility rhythm hit line saved.");
+            e.Handled = true;
             return;
         }
 
@@ -5466,7 +5682,11 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleAquariumButtonColor
             or CalibrationAction.SampleAnglerAcceptButtonColor
             or CalibrationAction.SampleAnglerSubmitButtonColor
-            or CalibrationAction.SampleRodChargeMeterColor)
+            or CalibrationAction.SampleRodChargeMeterColor
+            or CalibrationAction.SampleRhythmLaneDColor
+            or CalibrationAction.SampleRhythmLaneFColor
+            or CalibrationAction.SampleRhythmLaneJColor
+            or CalibrationAction.SampleRhythmLaneKColor)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
@@ -5770,6 +5990,10 @@ public partial class MainWindow : Window
         var isAnglerButtonColor = _calibrationAction is CalibrationAction.SampleAnglerAcceptButtonColor
             or CalibrationAction.SampleAnglerSubmitButtonColor;
         var isRodChargeMeterColor = _calibrationAction == CalibrationAction.SampleRodChargeMeterColor;
+        var isRhythmLaneColor = _calibrationAction is CalibrationAction.SampleRhythmLaneDColor
+            or CalibrationAction.SampleRhythmLaneFColor
+            or CalibrationAction.SampleRhythmLaneJColor
+            or CalibrationAction.SampleRhythmLaneKColor;
         var isSecondaryFishColor = _calibrationAction == CalibrationAction.SampleSecondaryFishMarker;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
@@ -5801,6 +6025,10 @@ public partial class MainWindow : Window
             CalibrationAction.SampleAnglerSubmitButtonColor => WithAnglerQuestButtonColor(
                 _profile, AnglerQuestButtonKind.SubmitFish, color, _lastFrame.Width, _lastFrame.Height),
             CalibrationAction.SampleRodChargeMeterColor => _profile with { RodChargeMeterColor = color },
+            CalibrationAction.SampleRhythmLaneDColor => WithRhythmLaneColor(_profile, 0, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleRhythmLaneFColor => WithRhythmLaneColor(_profile, 1, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleRhythmLaneJColor => WithRhythmLaneColor(_profile, 2, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleRhythmLaneKColor => WithRhythmLaneColor(_profile, 3, color, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
         };
 
@@ -5845,6 +6073,12 @@ public partial class MainWindow : Window
                 ? "Charge Meter Bonus · calibration complete. It will release at 80% when the fish is inside the bar."
                 : "Charge fill colour saved. Select the full meter track to finish calibration.";
             RodChargeMeterStatusText.Text = "Charge meter calibration updated.";
+        }
+        if (isRhythmLaneColor)
+        {
+            RhythmCalibrationStatusText.Text = _profile.IsTranquilityRhythmCalibrated
+                ? "Tranquility Rhythm calibration complete. Test the detector in replay before using live input."
+                : "Lane colour saved. Continue sampling the remaining D/F/J/K lanes and set the hit line.";
         }
         if (isSecondaryFishColor)
         {

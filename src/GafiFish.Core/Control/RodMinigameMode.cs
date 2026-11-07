@@ -9,5 +9,6 @@ public enum RodMinigameMode
 {
     StandardReel,
     ChargeMeterBonus,
-    DualFish
+    DualFish,
+    TranquilityRhythm
 }

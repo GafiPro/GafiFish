@@ -165,3 +165,12 @@ O `WorldPhaseVisionDetector` compara duas gamas HSV calibradas pelo utilizador n
 ## 14. Templates locais para marcadores de pesca
 
 O perfil pode guardar pequenos recortes PNG em escala de cinzentos para o peixe e para a barra de controlo. A seleção é feita pelo utilizador na pré-visualização e limitada a 128×128 pixels. O detetor tenta primeiro HSV; quando a deteção está ausente ou abaixo da confiança mínima, executa `matchTemplate` com correlação normalizada e limiar de 0,82. O template é redimensionado proporcionalmente à resolução de referência. Não há templates genéricos embutidos nem coordenadas presumidas.
+
+
+## 15. Tranquility Rhythm — quatro pistas
+
+O `RhythmNoteVisionDetector` deteta, numa região selecionada pelo utilizador, a nota mais próxima da linha de receção em cada uma das quatro pistas. Cada pista tem uma amostra HSV independente (ordem D/F/J/K) e a linha horizontal é guardada como posição normalizada no perfil. O detetor ignora os recetores estáticos colocados sobre a linha.
+
+O `RhythmNoteInputCoordinator` só envia uma tecla normal do Windows depois de obter duas observações monotónicas da mesma nota, estimar a velocidade vertical e prever a passagem pela janela de timing calibrada. As teclas são D, F, J e K, por pista. O envio só é permitido quando a máquina de estados está em `Reeling`; observações duplicadas/fora de ordem não geram input. Os toques têm libertação imediata e qualquer falha de input desarma o coordenador.
+
+O avanço temporal (0–250 ms) é configurável por perfil porque a latência de captura e o FPS variam entre computadores. Os testes usam frames sintéticos; a validação da geometria, velocidade e timing com gravações reais do Fisch continua pendente.

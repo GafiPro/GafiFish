@@ -628,6 +628,7 @@
                             <ComboBoxItem Content="Standard Reel" Tag="StandardReel" />
                             <ComboBoxItem Content="Charge Meter Bonus" Tag="ChargeMeterBonus" />
                             <ComboBoxItem Content="Dual Fish (two targets)" Tag="DualFish" />
+                            <ComboBoxItem Content="Tranquility Rhythm (four lanes)" Tag="TranquilityRhythm" />
                         </ComboBox>
                         <TextBlock x:Name="RodMinigameModeStatusText"
                                    Text="Standard Reel · shared fish/bar controller."
@@ -644,6 +645,21 @@
                         <TextBlock x:Name="RodChargeMeterStatusText"
                                    Text="Charge Meter Bonus requires its own calibrated HUD track and fill colour."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                        <TextBlock x:Name="RhythmNoteStatusText"
+                                   Text="Tranquility Rhythm is inactive."
+                                   Foreground="#70DCC1" FontSize="11" TextWrapping="Wrap"
+                                   Margin="0,0,0,6" Visibility="Collapsed" />
+                        <TextBlock x:Name="RhythmCalibrationStatusText"
+                                   Text="Select the four-lane region, calibrate the hit line, and sample each lane."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap"
+                                   Margin="0,0,0,6" Visibility="Collapsed" />
+                        <TextBlock x:Name="RhythmInputLeadLabel" Text="Rhythm input lead (milliseconds)"
+                                   Foreground="#9BAAB8" Margin="0,0,0,4" Visibility="Collapsed" />
+                        <TextBox x:Name="RhythmInputLeadMillisecondsTextBox" Text="60"
+                                 Height="30" Padding="8,4" Margin="0,0,0,10"
+                                 Background="#263543" Foreground="#EAF0F5"
+                                 LostFocus="RhythmInputLeadMilliseconds_LostFocus"
+                                 Visibility="Collapsed" />
                         <Separator Margin="0,8,0,8" Background="#33414F" />
                         <TextBlock Text="Automatic rod recognition" Foreground="#9BAAB8" Margin="0,0,0,5" />
                         <CheckBox x:Name="AutoDetectRodCheckBox"
@@ -1070,6 +1086,20 @@
                                 Background="#294153" Foreground="White" BorderThickness="0" />
                         <TextBlock Text="Select the whole horizontal 0–100% track, then sample the inner fill. This detector never guesses the track position or colour."
                                    Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7" />
+                        <Separator Margin="0,10,0,8" Background="#33414F" />
+                        <TextBlock Text="Tranquility Rhythm calibration" FontWeight="SemiBold" Margin="0,0,0,7" />
+                        <TextBlock Text="First use Select search region to cover all four lanes. Then sample a falling note in each lane and click the centre of the receptor line."
+                                   Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7" />
+                        <Button Content="Sample D lane note colour" Click="SampleRhythmLaneD_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" />
+                        <Button Content="Sample F lane note colour" Click="SampleRhythmLaneF_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" />
+                        <Button Content="Sample J lane note colour" Click="SampleRhythmLaneJ_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" />
+                        <Button Content="Sample K lane note colour" Click="SampleRhythmLaneK_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" />
+                        <Button Content="Select rhythm hit line" Click="SelectRhythmHitLine_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" />
                         <Button Content="Select reconnect button region" Click="SelectReconnectButtonRegion_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
