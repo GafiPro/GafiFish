@@ -45,24 +45,25 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
                 return;
             }
 
+            // A previous stop/disarm may have failed to release a physical input.
+            // Retry every tracked release before allowing a new automation session.
+            // If Windows still rejects a release, keep the service disarmed and fail closed.
+            ReleaseAll();
+
             var processId = _windowCapture.GetForegroundRobloxProcessId();
             if (!processId.HasValue)
                 throw new InvalidOperationException(
                     "Input refused: Roblox must be the foreground application before arming.");
 
-            _armedProcessId = processId.Value;
-            _isArmed = true;
-
-            if (!_windowCapture.IsRobloxForeground(_armedProcessId.Value))
-            {
-                _isArmed = false;
-                _armedProcessId = null;
+            if (!_windowCapture.IsRobloxForeground(processId.Value))
                 throw new InvalidOperationException(
                     "Input refused: Roblox lost foreground focus while the macro was arming.");
-            }
 
-            // Only an explicit new Arm call clears the emergency-stop latch.
+            _armedProcessId = processId.Value;
+
+            // Only a successful, explicit Arm call clears the emergency-stop latch.
             _emergencyStopLatched = false;
+            _isArmed = true;
 
         }
     }
