@@ -20,7 +20,11 @@ public sealed class VisionProfileStoreTests
             ControlMarkerColor = new HsvColorRange(0, 0, 160, 10, 80, 255),
             ReconnectButtonRegion = new NormalizedRegion(0.35, 0.25, 0.20, 0.08),
             ReconnectButtonRegionCalibrated = true,
-            ReconnectButtonColor = new HsvColorRange(100, 80, 100, 120, 255, 255)
+            ReconnectButtonColor = new HsvColorRange(100, 80, 100, 120, 255, 255),
+            WorldPhaseRegion = new NormalizedRegion(0.70, 0.10, 0.12, 0.18),
+            WorldPhaseRegionCalibrated = true,
+            DayPhaseColor = new HsvColorRange(0, 180, 180, 5, 255, 255),
+            NightPhaseColor = new HsvColorRange(110, 180, 180, 130, 255, 255)
         };
 
         try
@@ -36,6 +40,10 @@ public sealed class VisionProfileStoreTests
             Assert.Equal(profile.ReconnectButtonRegion, loaded.ReconnectButtonRegion);
             Assert.Equal(profile.ReconnectButtonColor, loaded.ReconnectButtonColor);
             Assert.True(loaded.IsReconnectButtonCalibrated);
+            Assert.Equal(profile.WorldPhaseRegion, loaded.WorldPhaseRegion);
+            Assert.Equal(profile.DayPhaseColor, loaded.DayPhaseColor);
+            Assert.Equal(profile.NightPhaseColor, loaded.NightPhaseColor);
+            Assert.True(loaded.IsWorldPhaseCalibrated);
             Assert.True(loaded.IsFishingCalibrated);
         }
         finally

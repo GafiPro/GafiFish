@@ -19,6 +19,10 @@ public sealed record VisionProfile
     public NormalizedRegion ReconnectButtonRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool ReconnectButtonRegionCalibrated { get; init; }
     public HsvColorRange? ReconnectButtonColor { get; init; }
+    public NormalizedRegion WorldPhaseRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool WorldPhaseRegionCalibrated { get; init; }
+    public HsvColorRange? DayPhaseColor { get; init; }
+    public HsvColorRange? NightPhaseColor { get; init; }
     public bool FishingRegionCalibrated { get; init; }
     public bool CastRegionCalibrated { get; init; }
     public bool ShakeRegionCalibrated { get; init; }
@@ -46,6 +50,9 @@ public sealed record VisionProfile
     public bool IsInventoryVerificationCalibrated => InventoryItemsRegionCalibrated;
     public bool IsCatchNotificationCalibrated => CatchNotificationRegionCalibrated;
     public bool IsReconnectButtonCalibrated => ReconnectButtonRegionCalibrated && ReconnectButtonColor.HasValue;
+    public bool IsWorldPhaseCalibrated => WorldPhaseRegionCalibrated
+        && DayPhaseColor.HasValue
+        && NightPhaseColor.HasValue;
 
     public void Validate()
     {
@@ -56,6 +63,7 @@ public sealed record VisionProfile
         InventoryItemsRegion.Validate();
         CatchNotificationRegion.Validate();
         ReconnectButtonRegion.Validate();
+        WorldPhaseRegion.Validate();
 
         if (ReferenceWidth < 0 || ReferenceHeight < 0)
         {
@@ -79,6 +87,8 @@ public sealed record VisionProfile
         ShakePromptColor?.Validate();
         SellButtonColor?.Validate();
         ReconnectButtonColor?.Validate();
+        DayPhaseColor?.Validate();
+        NightPhaseColor?.Validate();
         ArgumentNullException.ThrowIfNull(AquariumButtons);
         foreach (var button in AquariumButtons.Values)
             button.Validate();
