@@ -1,5 +1,17 @@
 # Guia de utilização do GafiFish
 
+## Interface e switches
+
+O Dashboard concentra a pré-visualização, o estado da captura e os controlos principais. Os separadores ocupam a largura disponível e as opções contínuas usam switches:
+
+- **Dashboard**: liga/desliga a observação contínua e o macro de pesca.
+- **Sessions**: liga/desliga a gravação de uma sessão OCR local. O switch fica temporariamente bloqueado enquanto a sessão está a iniciar ou a terminar.
+- **Aquarium**: liga/desliga o Auto Aquarium; os switches Feed, Restock e Claim definem as ações permitidas.
+- **Fishing**: cada opção automática (Auto-cast, Auto-shake, Sell Anywhere, consumíveis, alvo, etc.) tem o seu próprio switch.
+- **Angler** e **Connection watchdog**: cada módulo tem um switch de ativação próprio.
+
+Quando um módulo não pode arrancar por falta de calibração, foco ou conflito com outro módulo, o switch regressa a desligado e o estado explica o motivo. As ações de uma só vez — capturar um frame, exportar dados, marcar uma alimentação — continuam a ser botões.
+
 ## 1. Captura
 
 O GafiFish captura apenas o cliente Roblox visível e em primeiro plano.
@@ -19,8 +31,8 @@ O Reel assistido é opcional e só deve ser armado depois de calibrares:
 
 Com o Roblox em primeiro plano e a observação F7 ativa:
 
-- **Start macro (F8)** na janela ou F8 arma o controlador hold/release e as opções selecionadas.
-- **Stop macro (F9)** na janela ou F9 pára a automação e liberta imediatamente o rato e as teclas.
+- Liga o switch **Fishing macro · Reel assist** no Dashboard ou prime F8 para armar o controlador hold/release e as opções selecionadas.
+- Desliga o mesmo switch ou prime F9 para parar a automação e libertar imediatamente o rato e as teclas.
 - Se o Roblox perder o foco ou F7 for parado, o GafiFish também desarma e liberta os inputs.
 
 O controlador só atua quando ambos os marcadores estão presentes e acima do limiar de confiança. Se um desaparecer, o botão esquerdo é libertado. A opção **Invert hold/release mapping** permite inverter o sentido do controlo; testa-a apenas numa situação segura. Antes de iniciar o macro, podes ativar as opções de automação desligadas por defeito:
