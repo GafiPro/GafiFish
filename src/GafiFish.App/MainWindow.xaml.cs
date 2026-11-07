@@ -4176,6 +4176,11 @@ public partial class MainWindow : Window
             if (!hasCalibration)
                 throw new InvalidDataException("The selected JSON does not contain a usable GafiFish calibration profile.");
 
+            // This manual import takes precedence over any slot selection that
+            // started while the file was being read.
+            Interlocked.Increment(ref _rodProfileSelectionVersion);
+            _isLoadingBoundRodProfile = false;
+
             var profileName = RodProfileNameTextBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(profileName))
                 profileName = System.IO.Path.GetFileNameWithoutExtension(dialog.FileName);
@@ -4240,9 +4245,17 @@ public partial class MainWindow : Window
             StopConnectionRecovery("Profile change requested; reconnect watchdog was disarmed.");
         try
         {
-            _activeProfileName = RodProfileNameTextBox.Text.Trim();
-            _profileStore = CreateProfileStore(_activeProfileName);
-            _profile = await _profileStore.LoadOrDefaultAsync();
+            var requestedProfileName = RodProfileNameTextBox.Text.Trim();
+            var requestedProfileStore = CreateProfileStore(requestedProfileName);
+            var requestedProfile = await requestedProfileStore.LoadOrDefaultAsync();
+
+            // The explicit Load profile action wins over any automatic slot
+            // load that may have started while this file was being read.
+            Interlocked.Increment(ref _rodProfileSelectionVersion);
+            _isLoadingBoundRodProfile = false;
+            _activeProfileName = requestedProfileName;
+            _profileStore = requestedProfileStore;
+            _profile = requestedProfile;
             _motionTracker.Reset();
             _castVision.Reset();
             CalibrationModeText.Text = $"Loaded profile '{_activeProfileName}'.";
