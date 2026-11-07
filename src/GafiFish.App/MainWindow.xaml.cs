@@ -199,6 +199,7 @@ public partial class MainWindow : Window
     private Task? _catchRecognitionTask;
     private bool _isEndingSession;
     private bool _isRefreshingSessionHistory;
+    private bool _syncingModuleToggles;
     private DateTimeOffset? _dashboardSessionStartedAt;
     private IReadOnlyList<FishCatch> _dashboardSessionCatches = Array.Empty<FishCatch>();
     private readonly DispatcherTimer _dashboardSessionTimer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -1103,6 +1104,7 @@ public partial class MainWindow : Window
         StopAnglerQuestAutomationButton.IsEnabled = true;
         AnglerQuestAutomationStatusText.Text =
             "Start requested. Switch to Roblox; the input guard will arm only after it captures the foreground game window.";
+        SyncModuleToggles();
     }
 
     private void StartAnglerQuestAutomationNow(ScreenCaptureFrame frame)
@@ -1146,6 +1148,8 @@ public partial class MainWindow : Window
             AddActivityLog("WARN", "ANGLER", $"Angler automation start refused: {exception.Message}");
         }
     }
+
+        SyncModuleToggles();
 
     private void AnglerQuestActionConfirmed(AnglerQuestButtonKind action, DateTimeOffset confirmedAt)
     {
@@ -1219,6 +1223,7 @@ public partial class MainWindow : Window
 
         if (log)
             AddActivityLog(releaseFailed ? "WARN" : "INFO", "ANGLER", AnglerQuestAutomationStatusText.Text);
+        SyncModuleToggles();
     }
 
     private void SelectAquariumButtonRegion_Click(object sender, RoutedEventArgs e)
@@ -1280,6 +1285,7 @@ public partial class MainWindow : Window
         _connectionRecoveryStartRequested = true;
         ConnectionRecoveryStatusText.Text = "Start requested. Focus Roblox; the first fresh frame will arm the watchdog.";
         UpdateConnectionRecoveryControls();
+        SyncModuleToggles();
     }
 
     private void StopConnectionRecovery_Click(object sender, RoutedEventArgs e) =>
@@ -1354,6 +1360,7 @@ public partial class MainWindow : Window
 
         if (log)
             AddActivityLog(releaseFailed ? "WARN" : "INFO", "RECONNECT", ConnectionRecoveryStatusText.Text);
+        SyncModuleToggles();
     }
 
     private void UpdateConnectionRecoveryControls()
@@ -1369,6 +1376,7 @@ public partial class MainWindow : Window
                 && _profile.IsReconnectButtonCalibrated
                 && _profile.IsSessionIndicatorCalibrated;
         StopConnectionRecoveryButton.IsEnabled = active;
+        SyncModuleToggles();
     }
 
     private void StartAquariumAutomation_Click(object sender, RoutedEventArgs e)
@@ -1414,6 +1422,7 @@ public partial class MainWindow : Window
         StopAquariumAutomationButton.IsEnabled = true;
         AquariumAutomationStatusText.Text =
             "Start requested. Switch to Roblox and keep the Aquarium panel open; the first fresh frame will arm the module.";
+        SyncModuleToggles();
     }
 
     private void StartAquariumAutomationNow()
@@ -1459,6 +1468,8 @@ public partial class MainWindow : Window
         }
     }
 
+        SyncModuleToggles();
+
     private void AquariumActionConfirmed(AquariumActionKind action, DateTimeOffset confirmedAt)
     {
         _aquariumScheduleState = AquariumAutomationCoordinator.MarkCompleted(
@@ -1500,6 +1511,7 @@ public partial class MainWindow : Window
 
         if (log)
             AddActivityLog(releaseFailed ? "WARN" : "INFO", "AQUARIUM", AquariumAutomationStatusText.Text);
+        SyncModuleToggles();
     }
 
     private static VisionProfile WithAquariumButtonRegion(
@@ -2207,6 +2219,86 @@ public partial class MainWindow : Window
         }
     }
 
+
+    private void SyncModuleToggles()
+    {
+        if (ObservationToggleCheckBox is null || FishingMacroToggleCheckBox is null)
+            return;
+
+        _syncingModuleToggles = true;
+        try
+        {
+            ObservationToggleCheckBox.IsChecked =
+                PreviewButton?.Content?.ToString() == "Stop observation"
+                && _previewCancellation is { IsCancellationRequested: false };
+            FishingMacroToggleCheckBox.IsChecked = _startRequested || _automationEnabled;
+            AquariumAutomationToggleCheckBox.IsChecked =
+                _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true;
+            AnglerAutomationToggleCheckBox.IsChecked =
+                _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true;
+            ReconnectWatchdogToggleCheckBox.IsChecked =
+                _connectionRecoveryStartRequested || _connectionRecoveryCoordinator?.IsStarted == true;
+        }
+        finally
+        {
+            _syncingModuleToggles = false;
+        }
+    }
+
+    private void ObservationToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingModuleToggles) return;
+        if (ObservationToggleCheckBox.IsChecked == true)
+        {
+            if (_previewCancellation is null) TogglePreviewLoop();
+        }
+        else if (_previewCancellation is not null)
+        {
+            StopPreviewLoop();
+        }
+        SyncModuleToggles();
+    }
+
+    private void FishingMacroToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingModuleToggles) return;
+        if (FishingMacroToggleCheckBox.IsChecked == true)
+            StartMacro_Click(sender, e);
+        else
+            StopMacro_Click(sender, e);
+        SyncModuleToggles();
+    }
+
+    private void AquariumAutomationToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingModuleToggles) return;
+        if (AquariumAutomationToggleCheckBox.IsChecked == true)
+            StartAquariumAutomation_Click(sender, e);
+        else
+            StopAquariumAutomation("Auto Aquarium disabled from its toggle.");
+        SyncModuleToggles();
+    }
+
+    private void AnglerAutomationToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingModuleToggles) return;
+        if (AnglerAutomationToggleCheckBox.IsChecked == true)
+            StartAnglerQuestAutomation_Click(sender, e);
+        else
+            StopAnglerQuestAutomation("Angler visual actions disabled from their toggle.");
+        SyncModuleToggles();
+    }
+
+    private void ReconnectWatchdogToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingModuleToggles) return;
+        if (ReconnectWatchdogToggleCheckBox.IsChecked == true)
+            StartConnectionRecovery_Click(sender, e);
+        else
+            StopConnectionRecovery("Reconnect watchdog disabled from its toggle.");
+        SyncModuleToggles();
+    }
+
     private void RefreshModuleQuickInfo()
     {
         if (ModuleQuickInfoText is null) return;
@@ -2242,6 +2334,7 @@ public partial class MainWindow : Window
             $"Hunt alerts: {(HuntDetectionEnabledCheckBox.IsChecked == true ? (_profile.IsHuntSignalCalibrated ? "ON · MONITORING" : "NEEDS CALIBRATION") : "OFF")}{Environment.NewLine}" +
             $"Angler quest: {(AnglerQuestAssistCheckBox.IsChecked == true ? "ASSIST ENABLED" : "OFF")}{Environment.NewLine}" +
             $"Local OCR session: {State(_activeSessionId.HasValue)}";
+        SyncModuleToggles();
     }
 
     private void ModuleOption_Changed(object sender, RoutedEventArgs e) => RefreshModuleQuickInfo();
@@ -2330,6 +2423,7 @@ public partial class MainWindow : Window
         StopMacroButton.IsEnabled = true;
         AutomationStatusText.Text =
             "Start requested. Switch to the Roblox window; the macro will arm when its first frame is captured.";
+        SyncModuleToggles();
     }
 
     private void StopMacro_Click(object sender, RoutedEventArgs e)
@@ -2340,6 +2434,7 @@ public partial class MainWindow : Window
             StartMacroButton.IsEnabled = true;
             StopMacroButton.IsEnabled = false;
             AutomationStatusText.Text = "Pending start cancelled.";
+            SyncModuleToggles();
             return;
         }
 
@@ -2349,6 +2444,7 @@ public partial class MainWindow : Window
         if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
             StopAnglerQuestAutomation("Stopped by the user; Angler inputs released.");
         if (_isUiHidden) RestoreMainWindow();
+        SyncModuleToggles();
     }
 
     private void TimedItemCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -3043,6 +3139,7 @@ public partial class MainWindow : Window
         AddActivityLog(releaseFailed ? "WARN" : "INFO", "AUTOMATION",
             releaseFailed ? $"{reason} Input release warning." : reason);
         RefreshModuleQuickInfo();
+        SyncModuleToggles();
     }
 
     private void ProcessAutomationFrame(
@@ -3427,6 +3524,7 @@ public partial class MainWindow : Window
         StatusText.Text = "Observation active. Bring Roblox to the foreground.";
         UpdateFrameReplayControls();
         AddActivityLog("INFO", "CAPTURE", "Continuous observation started.");
+        SyncModuleToggles();
         _ = RunPreviewLoopAsync(_previewCancellation);
     }
 
@@ -3455,6 +3553,7 @@ public partial class MainWindow : Window
         StatusText.Text = "Observation stopped.";
         AddActivityLog("INFO", "CAPTURE", "Continuous observation stopped.");
         UpdateFrameReplayControls();
+        SyncModuleToggles();
     }
 
     private async Task RunPreviewLoopAsync(CancellationTokenSource owner)
