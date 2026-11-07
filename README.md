@@ -139,7 +139,7 @@ Projeto independente, sem afiliação ao Roblox ou aos criadores de Fisch.
 
 ### Melhorias adicionais e limites
 
-A aplicação inclui perfis de calibração nomeados manualmente por cana, telemetria, intervalo de captura adaptativo, ações temporizadas para dois slots de totem/poção, cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis ainda não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. A deteção de Hunts é um alerta visual apenas de leitura; o Angler Quest Assist acompanha o peixe pedido e o cooldown, mas a aceitação e entrega ao NPC são manuais. Appraise/Treasure Appraise e Auto Enchant continuam sem automação. A reconexão, o Aquarium, o OCR e os restantes detetores visuais continuam a precisar de calibração e validação prática no Fisch real.
+A aplicação inclui perfis de calibração nomeados por cana, que podem ser associados pelo utilizador aos slots de hotbar para carregamento automático ao escolher o slot. As associações são persistentes, podem ser removidas individualmente e entram nas cópias de segurança. Inclui também telemetria, intervalo de captura adaptativo, ações temporizadas para dois slots de totem/poção, cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis ainda não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. A deteção de Hunts é um alerta visual apenas de leitura; o Angler Quest Assist acompanha o peixe pedido e o cooldown, mas a aceitação e entrega ao NPC são manuais. Appraise/Treasure Appraise e Auto Enchant continuam sem automação. A reconexão, o Aquarium, o OCR e os restantes detetores visuais continuam a precisar de calibração e validação prática no Fisch real.
 
 
 ### Alertas e estatísticas

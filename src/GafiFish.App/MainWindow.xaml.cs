@@ -76,6 +76,7 @@ public partial class MainWindow : Window
     private readonly RodProfileBindingStore _rodProfileBindingStore = new();
     private RodProfileSlotBindings _rodProfileBindings = new();
     private bool _isLoadingBoundRodProfile;
+    private bool _rodProfileBindingError;
     private int _rodProfileSelectionVersion;
     private readonly CatchAlertSettingsStore _catchAlertSettingsStore = new();
     private readonly AquariumScheduleStore _aquariumScheduleStore = new();
@@ -1994,6 +1995,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_rodProfileBindingError)
+        {
+            AutomationStatusText.Text = "The calibration profile bound to this rod slot could not be loaded. Fix or clear the slot binding before starting.";
+            return;
+        }
+
         if (_automationEnabled || _startRequested || _aquariumStartRequested
             || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested
@@ -2191,12 +2198,14 @@ public partial class MainWindow : Window
 
     private void StartAutomation()
     {
-        if (_isLoadingBoundRodProfile)
+        if (_isLoadingBoundRodProfile || _rodProfileBindingError)
         {
             _startRequested = false;
             StartMacroButton.IsEnabled = true;
             StopMacroButton.IsEnabled = false;
-            AutomationStatusText.Text = "The rod calibration profile is still loading. Press Start again after it finishes.";
+            AutomationStatusText.Text = _isLoadingBoundRodProfile
+                ? "The rod calibration profile is still loading. Press Start again after it finishes."
+                : "The profile bound to this rod slot could not be loaded. Fix or clear the slot binding before starting.";
             return;
         }
 
@@ -3865,6 +3874,13 @@ public partial class MainWindow : Window
         if (!IsLoaded)
             return;
 
+        if (_rodProfileBindingError)
+        {
+            RodProfileBindingStatusText.Text =
+                "The profile bound to this slot could not be loaded. Rebind it after saving the profile, or clear the slot binding.";
+            return;
+        }
+
         if (EquipRodCheckBox.IsChecked != true)
         {
             RodProfileBindingStatusText.Text =
@@ -3923,6 +3939,7 @@ public partial class MainWindow : Window
             await _rodProfileBindingStore.SaveAsync(updated);
             _rodProfileBindings = updated;
             _profileStore = profileStore;
+            _rodProfileBindingError = false;
             RefreshRodProfileBindingStatus();
             AddActivityLog("INFO", "PROFILE", $"Profile '{profileName}' bound to rod hotbar slot {slot}.");
         }
@@ -3949,7 +3966,11 @@ public partial class MainWindow : Window
             || EquipRodCheckBox.IsChecked != true)
         {
             if (IsCurrentRequest())
+            {
                 _isLoadingBoundRodProfile = false;
+                if (EquipRodCheckBox.IsChecked != true)
+                    _rodProfileBindingError = false;
+            }
             return;
         }
 
@@ -3970,6 +3991,7 @@ public partial class MainWindow : Window
             if (IsCurrentRequest())
             {
                 _isLoadingBoundRodProfile = false;
+                _rodProfileBindingError = false;
                 RefreshRodProfileBindingStatus();
             }
             return;
@@ -3980,6 +4002,7 @@ public partial class MainWindow : Window
             if (IsCurrentRequest())
             {
                 _isLoadingBoundRodProfile = false;
+                _rodProfileBindingError = false;
                 RefreshRodProfileBindingStatus();
             }
             return;
@@ -4013,6 +4036,7 @@ public partial class MainWindow : Window
             _profileStore = profileStore;
             _profile = profile;
             _activeProfileName = profileName;
+            _rodProfileBindingError = false;
             RodProfileNameTextBox.Text = profileName;
             _motionTracker.Reset();
             _castVision.Reset();
@@ -4056,6 +4080,7 @@ public partial class MainWindow : Window
         {
             if (IsCurrentRequest())
             {
+                _rodProfileBindingError = true;
                 RodProfileBindingStatusText.Text = $"Could not load profile for slot {slot}: {exception.Message}";
                 AddActivityLog("ERROR", "PROFILE", $"Automatic rod profile selection failed for slot {slot}: {exception.Message}");
             }
@@ -4097,6 +4122,7 @@ public partial class MainWindow : Window
             var updated = new RodProfileSlotBindings { SlotProfiles = updatedSlots };
             await _rodProfileBindingStore.SaveAsync(updated);
             _rodProfileBindings = updated;
+            _rodProfileBindingError = false;
             RefreshRodProfileBindingStatus();
             AddActivityLog("INFO", "PROFILE", $"Removed calibration profile binding from rod hotbar slot {slot}.");
         }
@@ -4189,6 +4215,7 @@ public partial class MainWindow : Window
             _profileStore = CreateProfileStore(_activeProfileName);
             _profile = importedProfile;
             await _profileStore.SaveAsync(_profile);
+            _rodProfileBindingError = false;
             RodProfileNameTextBox.Text = _activeProfileName;
 
             _motionTracker.Reset();
@@ -4256,6 +4283,7 @@ public partial class MainWindow : Window
             _activeProfileName = requestedProfileName;
             _profileStore = requestedProfileStore;
             _profile = requestedProfile;
+            _rodProfileBindingError = false;
             _motionTracker.Reset();
             _castVision.Reset();
             CalibrationModeText.Text = $"Loaded profile '{_activeProfileName}'.";
@@ -4424,7 +4452,10 @@ public partial class MainWindow : Window
             if (EquipRodCheckBox.IsChecked == true)
                 _ = LoadBoundRodProfileForSelectedSlotAsync(requestVersion);
             else
+            {
                 _isLoadingBoundRodProfile = false;
+                _rodProfileBindingError = false;
+            }
 
             RefreshRodProfileBindingStatus();
         }
