@@ -296,7 +296,7 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Calibração incluída nos perfis de cana e testes sintéticos do detetor/coordenador.
 - [ ] Calibrar com uma imagem real da mensagem/indicador de Hunt na versão atual do Fisch e verificar falsos positivos.
 - [ ] Appraise/Treasure Appraise e Auto Enchant continuam por implementar automaticamente até existirem frames reais dos respetivos diálogos, botões e estados de sucesso/custo. Não são usados alvos, preços ou coordenadas inventados.
-- [x] Angler Quest Assist tem tracker e integração OCR; a aceitação e entrega ao NPC permanecem manuais.
+- [x] Angler Quest Assist tem tracker OCR e aceitação/entrega visual por botões calibrados; deslocação ao NPC e abertura do diálogo permanecem manuais.
 
 
 ## Angler Quest Assist — novembro de 2026
@@ -304,13 +304,14 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Integra o pedido manual do Angler com o target-fish OCR existente.
 - [x] Define automaticamente o objetivo para uma captura confirmada do peixe pedido.
 - [x] Pára o macro quando o alvo é reconhecido com confiança suficiente.
-- [x] A entrega ao NPC é manual; o utilizador confirma a entrega para iniciar o cooldown de 120 segundos.
+- [x] A entrega ao NPC pode ser confirmada visualmente através do botão Submit Fish calibrado, ou manualmente; o cooldown de 120 segundos só começa após a confirmação.
 - [x] Mostra o tempo restante e bloqueia o pedido seguinte antes do fim do cooldown.
 - [x] Testes para alvo, captura, entrega, cooldown e pedido seguinte.
 - [x] Persistir o pedido ativo, a captura por entregar e o cooldown de 120 segundos entre reinícios.
 - [x] Validar snapshots inconsistentes e bloquear novos pedidos quando o estado local não pode ser recuperado.
 - [x] Testes para restauro de pedido ativo, entrega pendente e cooldown após reinício.
 - [ ] Validar o OCR dos nomes dos peixes em diálogos reais do Angler e diferentes resoluções.
+- [ ] Validar os botões Accept Request e Submit Fish em frames reais do Fisch e diferentes resoluções.
 - [x] Aceitação e entrega do NPC com botões calibrados; deslocação até ao NPC e abertura do diálogo permanecem manuais.
 
 ## Proteção de foco e destino de input — 7 de novembro de 2026
