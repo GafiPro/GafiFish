@@ -8,7 +8,7 @@ namespace GafiFish.Windows.Capture;
 /// Captures only the visible client area of the foreground Roblox process.
 /// No process memory, injection, hooks, or game files are accessed.
 /// </summary>
-public sealed class RobloxWindowCapture
+public sealed class RobloxWindowCapture : IRobloxWindowCapture
 {
     private const uint Srccopy = 0x00CC0020;
     private const uint CaptureBlt = 0x40000000;
