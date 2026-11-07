@@ -4549,6 +4549,7 @@ public partial class MainWindow : Window
         var isRhythmMode = _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
         RhythmNoteStatusText.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
         RhythmCalibrationStatusText.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
+        RhythmInputLeadLabel.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
         RhythmInputLeadMillisecondsTextBox.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
         RhythmInputLeadMillisecondsTextBox.IsEnabled = isRhythmMode && !_automationEnabled;
         RhythmCalibrationStatusText.Text = _profile.IsTranquilityRhythmCalibrated
