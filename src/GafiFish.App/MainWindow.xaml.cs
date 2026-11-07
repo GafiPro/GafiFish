@@ -245,8 +245,6 @@ public partial class MainWindow : Window
         SelectAnglerSubmitButtonRegion,
         SampleAnglerSubmitButtonColor,
         SelectRodNameRegion,
-        SelectAppraisalPanelRegion,
-        SelectEnchantPanelRegion,
         SelectRodChargeMeterRegion,
         SampleRodChargeMeterColor
     }
@@ -1007,16 +1005,6 @@ public partial class MainWindow : Window
         SetCalibrationAction(
             CalibrationAction.SelectAnglerSubmitButtonRegion,
             "Drag a tight rectangle around the enabled Angler Submit Fish button.");
-
-    private void SelectAppraisalPanelRegion_Click(object sender, RoutedEventArgs e) =>
-        SetCalibrationAction(
-            CalibrationAction.SelectAppraisalPanelRegion,
-            "Select the visible text area of the regular or Treasure Appraiser panel. This region is used for read-only OCR only.");
-
-    private void SelectEnchantPanelRegion_Click(object sender, RoutedEventArgs e) =>
-        SetCalibrationAction(
-            CalibrationAction.SelectEnchantPanelRegion,
-            "Select the visible text area of the Enchant altar panel. This region is used for read-only OCR only.");
 
     private void SampleAnglerSubmitButtonColor_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(
@@ -4624,61 +4612,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task ReadCalibratedPanelAsync(bool appraisalPanel)
-    {
-        var frame = _lastFrame;
-        if (frame is null)
-        {
-            var status = "Capture a fresh Roblox frame with F6 first.";
-            if (appraisalPanel) AppraisalPanelStatusText.Text = status;
-            else EnchantPanelStatusText.Text = status;
-            return;
-        }
-
-        var calibrated = appraisalPanel
-            ? _profile.AppraisalPanelRegionCalibrated
-            : _profile.EnchantPanelRegionCalibrated;
-        var region = appraisalPanel ? _profile.AppraisalPanelRegion : _profile.EnchantPanelRegion;
-        if (!calibrated)
-        {
-            var status = appraisalPanel
-                ? "Select the Appraiser panel text region in Calibration first."
-                : "Select the Enchant altar text region in Calibration first.";
-            if (appraisalPanel) AppraisalPanelStatusText.Text = status;
-            else EnchantPanelStatusText.Text = status;
-            return;
-        }
-
-        try
-        {
-            var ocr = await EnsureLocalOcrEngineAsync();
-            var result = await Task.Run(() => ocr.Recognize(frame, region));
-            var text = result.Text.Trim();
-            if (appraisalPanel)
-                AppraisalPanelOcrTextBox.Text = text;
-            else
-                EnchantPanelOcrTextBox.Text = text;
-
-            var status = string.IsNullOrWhiteSpace(text)
-                ? "No text recognized. Try a tighter region and a fresh frame."
-                : $"Read-only OCR · confidence {result.Confidence:P0}. No game inputs were sent.";
-            if (appraisalPanel) AppraisalPanelStatusText.Text = status;
-            else EnchantPanelStatusText.Text = status;
-        }
-        catch (Exception exception)
-        {
-            var status = $"Panel OCR failed: {exception.Message}";
-            if (appraisalPanel) AppraisalPanelStatusText.Text = status;
-            else EnchantPanelStatusText.Text = status;
-        }
-    }
-
-    private async void ReadAppraisalPanel_Click(object sender, RoutedEventArgs e) =>
-        await ReadCalibratedPanelAsync(appraisalPanel: true);
-
-    private async void ReadEnchantPanel_Click(object sender, RoutedEventArgs e) =>
-        await ReadCalibratedPanelAsync(appraisalPanel: false);
-
     private async Task<LocalTesseractOcr> EnsureLocalOcrEngineAsync()
     {
         await _ocrInitializationGate.WaitAsync();
@@ -5006,8 +4939,7 @@ public partial class MainWindow : Window
                 || importedProfile.IsAnglerAcceptButtonCalibrated
                 || importedProfile.IsAnglerSubmitButtonCalibrated
                 || importedProfile.RodNameRegionCalibrated
-                || importedProfile.AppraisalPanelRegionCalibrated
-                || importedProfile.EnchantPanelRegionCalibrated;
+;
             if (!hasCalibration)
                 throw new InvalidDataException("The selected JSON does not contain a usable GafiFish calibration profile.");
 
@@ -5338,8 +5270,6 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
             or CalibrationAction.SelectRodNameRegion
-            or CalibrationAction.SelectAppraisalPanelRegion
-            or CalibrationAction.SelectEnchantPanelRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -5370,8 +5300,6 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
             or CalibrationAction.SelectRodNameRegion
-            or CalibrationAction.SelectAppraisalPanelRegion
-            or CalibrationAction.SelectEnchantPanelRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -5403,8 +5331,6 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
             or CalibrationAction.SelectRodNameRegion
-            or CalibrationAction.SelectAppraisalPanelRegion
-            or CalibrationAction.SelectEnchantPanelRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -5539,20 +5465,6 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
-            CalibrationAction.SelectAppraisalPanelRegion => _profile with
-            {
-                AppraisalPanelRegion = selectedRegion,
-                AppraisalPanelRegionCalibrated = true,
-                ReferenceWidth = _lastFrame.Width,
-                ReferenceHeight = _lastFrame.Height
-            },
-            CalibrationAction.SelectEnchantPanelRegion => _profile with
-            {
-                EnchantPanelRegion = selectedRegion,
-                EnchantPanelRegionCalibrated = true,
-                ReferenceWidth = _lastFrame.Width,
-                ReferenceHeight = _lastFrame.Height
-            },
             CalibrationAction.SelectRodChargeMeterRegion => _profile with
             {
                 RodChargeMeterRegion = selectedRegion,
@@ -5582,8 +5494,6 @@ public partial class MainWindow : Window
             CalibrationAction.SelectAnglerAcceptButtonRegion => "Angler Accept Request button area saved.",
             CalibrationAction.SelectAnglerSubmitButtonRegion => "Angler Submit Fish button area saved.",
             CalibrationAction.SelectRodNameRegion => "Rod-name OCR region saved.",
-            CalibrationAction.SelectAppraisalPanelRegion => "Appraiser panel OCR region saved.",
-            CalibrationAction.SelectEnchantPanelRegion => "Enchant panel OCR region saved.",
             CalibrationAction.SelectRodChargeMeterRegion => "Rod charge-meter region saved.",
             _ => "Region saved."
         };
