@@ -189,15 +189,10 @@ public sealed class AnglerQuestAutomationCoordinator
                 _onConfirmed(pending.Kind, frame.CapturedAt);
                 _pending = null;
                 _absentFrames = 0;
-                if (pending.Kind == AnglerQuestButtonKind.SubmitFish)
-                {
-                    Stop();
-                    _lastStatus = "Hand-in visually confirmed; the 2-minute cooldown was recorded and inputs were released.";
-                }
-                else
-                {
-                    _lastStatus = "Quest acceptance visually confirmed. The target is now being tracked.";
-                }
+                Stop();
+                _lastStatus = pending.Kind == AnglerQuestButtonKind.SubmitFish
+                    ? "Hand-in visually confirmed; the 2-minute cooldown was recorded and inputs were released."
+                    : "Quest acceptance visually confirmed. Inputs released; start the fishing macro to catch the target.";
                 return;
             }
         }
