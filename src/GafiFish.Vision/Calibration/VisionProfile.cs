@@ -36,6 +36,12 @@ public sealed record VisionProfile
     public bool RodChargeMeterRegionCalibrated { get; init; }
     public HsvColorRange? RodChargeMeterColor { get; init; }
     public bool RodChargeMeterFillFromRight { get; init; }
+    // Tranquility Rod uses four calibrated note lanes and one horizontal hit line.
+    // Empty lane colours keep the mode disabled until the user calibrates real frames.
+    public HsvColorRange?[] RhythmLaneColors { get; init; } = [null, null, null, null];
+    public double RhythmHitLinePosition { get; init; } = 0.85;
+    public bool RhythmHitLineCalibrated { get; init; }
+    public double RhythmInputLeadMilliseconds { get; init; } = 60;
     public HsvColorRange? DayPhaseColor { get; init; }
     public HsvColorRange? NightPhaseColor { get; init; }
     public HsvColorRange? HuntSignalColor { get; init; }
@@ -86,6 +92,14 @@ public sealed record VisionProfile
     public bool IsDualFishCalibrated =>
         FishingRegionCalibrated && FishMarkerColor.HasValue
         && SecondaryFishMarkerColor.HasValue && ControlMarkerColor.HasValue;
+    public bool IsTranquilityRhythmCalibrated =>
+        FishingRegionCalibrated
+        && RhythmHitLineCalibrated
+        && RhythmLaneColors is { Length: 4 }
+        && RhythmLaneColors[0].HasValue
+        && RhythmLaneColors[1].HasValue
+        && RhythmLaneColors[2].HasValue
+        && RhythmLaneColors[3].HasValue;
 
     public void Validate()
     {
@@ -136,6 +150,16 @@ public sealed record VisionProfile
         NightPhaseColor?.Validate();
         HuntSignalColor?.Validate();
         RodChargeMeterColor?.Validate();
+        ArgumentNullException.ThrowIfNull(RhythmLaneColors);
+        if (RhythmLaneColors.Length != 4)
+            throw new ArgumentException("Tranquility Rhythm requires exactly four lane colours.", nameof(RhythmLaneColors));
+        foreach (var laneColor in RhythmLaneColors)
+            laneColor?.Validate();
+        if (!double.IsFinite(RhythmHitLinePosition) || RhythmHitLinePosition is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(RhythmHitLinePosition));
+        if (!double.IsFinite(RhythmInputLeadMilliseconds)
+            || RhythmInputLeadMilliseconds is < 0 or > 250)
+            throw new ArgumentOutOfRangeException(nameof(RhythmInputLeadMilliseconds));
         ArgumentNullException.ThrowIfNull(AquariumButtons);
         foreach (var button in AquariumButtons.Values)
             button.Validate();
