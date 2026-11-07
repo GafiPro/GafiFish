@@ -95,11 +95,12 @@ public sealed class AnglerQuestAutomationCoordinatorTests
         coordinator.Start();
         coordinator.ProcessFrame(optionsFrame, profile, tracker, "Ancient Kraken");
         coordinator.ProcessFrame(optionsFrame, profile, tracker, "Ancient Kraken");
-        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(120), true), profile, tracker, "Ancient Kraken");
 
         Assert.Equal(0, input.Clicks);
         Assert.Contains("duplicate or out-of-order", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
 
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(120), true), profile, tracker, "Ancient Kraken");
+        Assert.Equal(0, input.Clicks);
         coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(240), true), profile, tracker, "Ancient Kraken");
         Assert.Equal(1, input.Clicks);
         coordinator.Stop();
