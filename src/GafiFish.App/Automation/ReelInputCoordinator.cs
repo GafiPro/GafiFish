@@ -60,6 +60,7 @@ public sealed class ReelInputCoordinator
         // above 80% while the fish is inside the calibrated control bar. If
         // the charge meter is uncertain, fall back to normal Reel control.
         if (chargeMeter is { IsUsable: true, Progress: >= 0.80 }
+            && IsChargeObservationFresh(chargeMeter, motion.ObservedAt)
             && fishMarker.CenterX >= controlMarker.Bounds.Left
             && fishMarker.CenterX <= controlMarker.Bounds.Right)
         {
@@ -104,6 +105,14 @@ public sealed class ReelInputCoordinator
             _input.Disarm();
             throw;
         }
+    }
+
+    private static bool IsChargeObservationFresh(
+        RodChargeMeterObservation observation,
+        DateTimeOffset reelObservedAt)
+    {
+        var age = reelObservedAt - observation.CapturedAt;
+        return age >= TimeSpan.Zero && age <= TimeSpan.FromMilliseconds(180);
     }
 
     public void Stop() => _input.Disarm();
