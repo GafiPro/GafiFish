@@ -653,8 +653,8 @@
                                    Text="Select the four-lane region, calibrate the hit line, and sample each lane."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap"
                                    Margin="0,0,0,6" Visibility="Collapsed" />
-                        <TextBlock Text="Rhythm input lead (milliseconds)" Foreground="#9BAAB8"
-                                   Margin="0,0,0,4" />
+                        <TextBlock x:Name="RhythmInputLeadLabel" Text="Rhythm input lead (milliseconds)"
+                                   Foreground="#9BAAB8" Margin="0,0,0,4" Visibility="Collapsed" />
                         <TextBox x:Name="RhythmInputLeadMillisecondsTextBox" Text="60"
                                  Height="30" Padding="8,4" Margin="0,0,0,10"
                                  Background="#263543" Foreground="#EAF0F5"
