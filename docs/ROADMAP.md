@@ -157,8 +157,8 @@ Ainda falta validar a aplicação com capturas reais e várias resoluções: Ree
 Appraise/Treasure Appraiser e Enchant automáticos estão excluídos: a interação e os gastos permanecem manuais.
 - [x] OCR do nome da cana, com região calibrada e associação persistente a perfis.
 - [x] Presets de Reel por perfil de cana, sem assumir que substituem minijogos diferentes.
-- [x] Custom Rod handlers para Standard Reel, Charge Meter Bonus e Dual Fish, com calibração e testes sintéticos.
-- [ ] Custom Rod handlers adicionais para eventos com barra rotativa/deslocável, zonas de bónus ou timing, após recolha de frames reais e validação no jogo.
+- [x] Custom Rod handlers para Standard Reel, Charge Meter Bonus, Dual Fish e Tranquility Rhythm, com calibração por perfil e testes sintéticos.
+- [ ] Custom Rod handlers adicionais para eventos com barra rotativa/deslocável, zonas de bónus ou timing diferente, após recolha de frames reais e validação no jogo.
 - [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.
 - [x] Motor de rotação dia/noite por indicador HUD calibrado, três frames estáveis, baseline inicial sem consumo e execução em Preparing.
 - [ ] Validar com capturas reais do indicador HUD do Fisch, em dia e noite, antes de usar os slots reais.
@@ -340,3 +340,17 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 - [x] Sincronizar o serviço de input entre o thread de automação e o thread de emergência; a paragem fica bloqueada até um novo Arm explícito.
 - [x] Manter fallback WPF quando o Windows não permite reservar a tecla no thread independente e apresentar esse estado no painel de hotkeys.
 - [ ] Validar manualmente em Windows com a janela WPF deliberadamente sem responder e confirmar a libertação real do input.
+
+
+## Tranquility Rhythm — implementação inicial (7 de novembro de 2026)
+
+- [x] Adicionar modo de cana próprio sem depender das cores de fish/control do Standard Reel.
+- [x] Detetar notas descendentes em quatro pistas, com uma amostra HSV independente por pista.
+- [x] Calibrar a linha horizontal de receção por clique na pré-visualização.
+- [x] Ignorar os recetores estáticos sobre a linha de timing.
+- [x] Estimar velocidade apenas com frames monotónicos e prever a aproximação com avanço temporal configurável (0–250 ms).
+- [x] Enviar apenas toques D/F/J/K no estado Reeling, com libertação imediata e desarme em caso de falha.
+- [x] Testes sintéticos para quatro pistas, receptores estáticos, calibração incompleta, timing, frames repetidos, notas atrasadas e paragem.
+- [ ] Validar pistas, cores, velocidade das notas e janela de timing com capturas/replay reais da Tranquility Rod em várias resoluções.
+- [ ] Ajustar o avanço temporal recomendado a partir de medições reais; o valor predefinido é apenas um ponto inicial.
+
