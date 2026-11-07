@@ -197,14 +197,16 @@ A função depende de um indicador HUD real e estável. Se não existir um indic
 
 ## Angler Quest Assist
 
-1. Aceita manualmente um pedido junto do Angler.
-2. Ativa **Angler Quest assist** e escreve no campo de target o nome exato do peixe pedido.
-3. Confirma que tens uma sessão OCR ativa e as regiões de pesca/Perfect Cast calibradas; inicia o macro.
-4. Quando a notificação OCR confirmar o peixe-alvo, o GafiFish pára a pesca.
-5. Entrega o peixe ao Angler manualmente. Depois clica em **I handed the fish to the Angler · start cooldown**.
-6. O GafiFish mostra o cooldown de 120 segundos e impede iniciar outro pedido antes de terminar.
+1. Vai junto do Angler e abre o diálogo do pedido. O GafiFish não movimenta a personagem até ao NPC nem abre o diálogo.
+2. Captura um frame com F6 enquanto o botão **Accept Request** está visível. Usa **Select Accept area** para delimitar o botão e **Sample Accept colour** para amostrar uma cor dentro dele.
+3. Repete o processo com o botão **Submit Fish** visível, usando **Select Submit area** e **Sample Submit colour**. Faz a calibração com os botões no estado ativo e dentro da mesma resolução de jogo que vais usar.
+4. Ativa **Angler Quest assist**, escreve o nome exato do peixe pedido e prime **Arm Auto Accept / Submit**. Volta ao Fisch; o módulo só arma quando o Roblox estiver em primeiro plano.
+5. A aceitação exige três frames novos e estáveis. O GafiFish clica uma vez e espera que o botão desapareça em dois frames posteriores distintos. Depois liberta os inputs; inicia o macro de pesca normalmente.
+6. Confirma que tens uma sessão OCR ativa e as regiões de pesca/Perfect Cast calibradas. Quando o OCR reconhecer o peixe pedido, o macro pára.
+7. Abre o diálogo de entrega junto do Angler e prime novamente **Arm Auto Accept / Submit**. O módulo só tenta a entrega quando o tracker confirma que o peixe-alvo foi capturado. O clique é único e a entrega só é registada depois de o botão calibrado desaparecer em frames posteriores.
+8. O cooldown de 120 segundos começa depois da confirmação visual da entrega. A opção manual **I handed the fish to the Angler · start cooldown (manual)** continua disponível como alternativa.
 
-O GafiFish não aceita pedidos nem entrega peixes ao NPC automaticamente. A captura depende da notificação de captura e da confiança do OCR local. O pedido ativo, a captura pendente de entrega e o cooldown ficam guardados em `%LOCALAPPDATA%\\GafiFish\\angler-quest-state.json`; ao reiniciar a aplicação, o GafiFish recupera o estado. Se o ficheiro estiver danificado, o assistente bloqueia novos pedidos para evitar perder um cooldown.
+O coordenador nunca repete automaticamente um clique que não consiga confirmar: pára e pede intervenção manual. A confirmação é visual — o GafiFish observa o desaparecimento do botão calibrado; não consegue consultar o estado interno da quest no servidor. A captura depende da notificação de captura e da confiança do OCR local. O pedido ativo, a captura pendente de entrega e o cooldown ficam guardados em `%LOCALAPPDATA%\\GafiFish\\angler-quest-state.json`; ao reiniciar a aplicação, o GafiFish recupera o estado. Se o ficheiro estiver danificado, o assistente bloqueia novas ações para evitar perder um cooldown.
 
 ## Appraise, Treasure Appraiser e Enchant
 
