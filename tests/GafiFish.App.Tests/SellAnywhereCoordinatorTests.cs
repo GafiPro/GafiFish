@@ -223,6 +223,39 @@ public sealed class SellAnywhereCoordinatorTests
     }
 
     [Fact]
+    public void ProcessFrame_OutOfOrderFrameCannotAdvanceSaleWorkflow()
+    {
+        var start = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+        var input = new FakeRobloxInput();
+        var schedule = new PeriodicSellSchedule();
+        var machine = CreateCatchDetectedMachine(start);
+        var coordinator = new SellAnywhereCoordinator(
+            input,
+            new SellAnywhereVisionDetector(),
+            schedule,
+            machine);
+
+        coordinator.Start(start);
+        var profile = CreateProfile();
+        var first = start.AddMinutes(10);
+
+        coordinator.ProcessFrame(CreateFrame(first, fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(first.AddMilliseconds(120), fillItems: false), profile, true);
+        Assert.Equal(FishingState.SellingInventory, machine.CurrentState);
+
+        coordinator.ProcessFrame(CreateFrame(first.AddMilliseconds(60), fillItems: false), profile, true);
+        Assert.Equal(FishingState.SellingInventory, machine.CurrentState);
+        Assert.Equal(0, input.ClientClicks);
+        Assert.Contains("duplicate or out-of-order", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+
+        coordinator.ProcessFrame(CreateFrame(first.AddMilliseconds(240), fillItems: false), profile, true);
+        coordinator.ProcessFrame(CreateFrame(first.AddMilliseconds(360), fillItems: false), profile, true);
+        Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
+        Assert.Equal(1, input.ClientClicks);
+        coordinator.Stop();
+    }
+
+    [Fact]
     public void ProcessFrame_DoesNotSellDuringActiveFishingCycle()
     {
         var start = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);

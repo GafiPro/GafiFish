@@ -85,7 +85,9 @@ O agendamento Sell Anywhere só é criado quando, antes de pressionares F8, marc
 
 O fluxo verifica primeiro se o botão já está visível. Se o inventário estiver fechado, abre-o; se já estiver aberto, preserva-o. Depois espera por várias deteções estáveis do botão, envia um único clique e exige uma alteração da lista em dois fotogramas consecutivos. Só fecha o inventário quando foi o próprio GafiFish a abri-lo. Se o botão não for encontrado ou a lista não mudar de forma estável, o GafiFish pára e liberta os inputs; não repete o clique às cegas.
 
-Sell Anywhere vende o que não estiver marcado como favorito. A opção está desligada por defeito e exige confirmação explícita na caixa da interface. Marca como favorito tudo o que pretendes guardar antes de a ativares. O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
+Sell Anywhere vende o que não estiver marcado como favorito. A opção está desligada por defeito e exige confirmação explícita na caixa da interface. Marca como favorito tudo o que pretendes guardar antes de a ativares. Durante a automação, o estado do Sell Anywhere e a hora prevista da próxima venda aparecem junto à deteção do botão. O cronómetro é reiniciado apenas depois de uma venda visualmente confirmada.
+
+O fluxo ainda precisa de validação prática com a tua interface do Fisch e a gamepass ativa.
 
 O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake usa os candidatos de cor/forma na região calibrada. Ambos são opções na interface, desligadas por defeito, e ainda precisam de ser validados com uma captura real. O GafiFish pode equipar a cana no slot escolhido e fazer recast automático. O modo normal limita-se a duas tentativas adicionais sem mordida; o modo “Keep fishing until the first fish is caught” remove esse limite e pára após uma captura confirmada por OCR. A deteção visual ainda requer calibração real. Não alteres o perfil para forçar cliques com coordenadas ou cores adivinhadas.
 

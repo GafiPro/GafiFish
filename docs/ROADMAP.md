@@ -232,6 +232,8 @@ A revisão de código `d0a7c17` passou Restore, Build, todas as suites de testes
 
 A CI confirma compilação e testes com frames sintéticos; não substitui validação no jogo. Continuam pendentes capturas reais para afinar Reel/Perfect Cast/Shake, OCR, Sell Anywhere, Auto Aquarium, o indicador dia/noite, a recuperação efetiva da sessão e a compatibilidade de codecs no PC.
 
+A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas repetidos/fora de ordem e impede que a macro seja armada quando a opção de venda está ativa mas falta sessão OCR ou calibração. A interface mostra agora o estado do coordenador e a hora prevista para a próxima venda. Foi acrescentado um teste para fotogramas duplicados e outro para fotogramas fora de ordem; a validação CI correspondente está documentada na execução 42377816941.
+
 
 ## Replay offline de gravações de vídeo — novembro de 2026
 

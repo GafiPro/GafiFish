@@ -1778,8 +1778,10 @@ public partial class MainWindow : Window
             (AutoTotemCheckBox.IsChecked == true ? 1 : 0)
             + (AutoSecondTotemCheckBox.IsChecked == true ? 1 : 0);
         var sellStatus = SellAnywhereCheckBox.IsChecked == true
-            ? (_activeSessionId.HasValue && _profile.IsSellButtonCalibrated && _profile.IsInventoryVerificationCalibrated
-                ? "READY" : "NEEDS SESSION / CALIBRATION")
+            ? (_activeSessionId.HasValue && _ocr is not null
+                && _profile.IsSellButtonCalibrated && _profile.IsInventoryVerificationCalibrated
+                ? (_sellCoordinator?.IsStarted == true ? "ARMED" : "READY")
+                : "NEEDS OCR SESSION / CALIBRATION")
             : "OFF";
         var dayNightTotemStatus = AutoDayNightTotemCheckBox.IsChecked == true
             ? (_dayNightTotemRotation is not null
@@ -2448,6 +2450,12 @@ public partial class MainWindow : Window
                     frame,
                     _profile,
                     isFishingCycleSafe: _runtimeStateMachine.CurrentState == FishingState.CatchDetected);
+
+                var nextSaleDueAt = _sellCoordinator.NextSaleDueAt;
+                var nextSaleText = nextSaleDueAt.HasValue
+                    ? $" Next sale due at {nextSaleDueAt.Value.ToLocalTime():HH:mm:ss}."
+                    : string.Empty;
+                SellStatusText.Text = $"Sell Anywhere: {_sellCoordinator.LastStatus}{nextSaleText}";
 
                 if (!_sellCoordinator.IsStarted)
                 {
