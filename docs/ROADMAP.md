@@ -44,7 +44,8 @@
 - [x] Equipar a cana por seleção opcional do slot de hotbar 1–0.
 - [x] Timeout de segurança de três minutos no estado Reel.
 - [ ] Validar Auto-cast, Auto-shake, Reel, modo de captura contínua e hotbar numa sessão real do Fisch com diferentes resoluções/canas.
-- [ ] Perfis por cana com calibração real.
+- [x] Perfis nomeados associados pelo utilizador aos slots de hotbar da cana, com carregamento automático ao escolher o slot.
+- [ ] Calibração e afinação de cada perfil com dados reais.
 - [x] Fallback de template local em escala de cinzentos para peixe/barra quando a deteção por cor falha ou fica abaixo da confiança mínima.
 - [ ] Afinar template e tracking temporal com gravações reais do Fisch; a captura de templates é manual e limitada a recortes de 128×128.
 
@@ -93,7 +94,8 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Alertas sonoros locais para espécies configuradas, raridade Legendary+ e mutações detetadas por OCR.
 - [x] HUD de telemetria com posição, erro, confiança, estado, FPS de captura e motivo das decisões.
 - [x] Perfis nomeados manualmente por cana, com calibração visual exportável/importável em JSON.
-- [ ] Seleção automática de perfil por cana e afinação do controlador com dados reais.
+- [x] Seleção automática do perfil de calibração através do slot de hotbar associado pelo utilizador; a associação é persistente e não tenta adivinhar a cana pela imagem.
+- [ ] Afinar o controlador e os perfis com dados medidos em sessões reais.
 - [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.
 - [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
 - [x] Watchdog visual de reconexão com região/cor calibradas, três frames estáveis, clique único e máximo de três tentativas por ativação.
@@ -136,7 +138,7 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Ainda por implementar
 
-Appraise/Treasure Appraise e Auto Enchant continuam sem automação; não devem ser implementados por cliques cegos porque podem consumir moeda/itens. Precisam de capturas reais dos diálogos, dos custos e da confirmação de sucesso. Hunt Detection tem alerta visual calibrável e apenas de leitura; falta validar falsos positivos com frames reais. Angler Quest Assist acompanha o alvo por OCR e o cooldown, mas aceitar e entregar a quest ao NPC continua manual. O watchdog de reconexão, Auto Aquarium, OCR, Perfect Cast, Reel e restantes detetores precisam de calibração e validação no Fisch real. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
+Appraise/Treasure Appraise e Auto Enchant continuam sem automação; não devem ser implementados por cliques cegos porque podem consumir moeda/itens. Precisam de capturas reais dos diálogos, dos custos e da confirmação de sucesso. Hunt Detection tem alerta visual calibrável e apenas de leitura; falta validar falsos positivos com frames reais. Angler Quest Assist acompanha o alvo por OCR e o cooldown, mas aceitar e entregar a quest ao NPC continua manual. O watchdog de reconexão, Auto Aquarium, OCR, Perfect Cast, Reel e restantes detetores precisam de calibração e validação no Fisch real. Os perfis podem ser associados a slots de hotbar para seleção automática quando o utilizador escolhe o slot da cana; identificar automaticamente o modelo da cana sem essa associação continua fora do âmbito. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
 
 
 ## Inspiração ExoPanda — próximos módulos

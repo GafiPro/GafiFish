@@ -73,6 +73,9 @@ public partial class MainWindow : Window
     private readonly FishSessionStore _sessionStore = new();
     private readonly FishCatchTextParser _catchParser = new();
     private readonly AppHotkeySettingsStore _hotkeySettingsStore = new();
+    private readonly RodProfileBindingStore _rodProfileBindingStore = new();
+    private RodProfileSlotBindings _rodProfileBindings = new();
+    private bool _isLoadingBoundRodProfile;
     private readonly CatchAlertSettingsStore _catchAlertSettingsStore = new();
     private readonly AquariumScheduleStore _aquariumScheduleStore = new();
     private AquariumScheduleState _aquariumScheduleState = new();
@@ -255,6 +258,8 @@ public partial class MainWindow : Window
         RodProfileNameTextBox.Text = _activeProfileName;
         _profile = await _profileStore.LoadOrDefaultAsync();
         _hotkeySettings = await _hotkeySettingsStore.LoadAsync();
+        _rodProfileBindings = await _rodProfileBindingStore.LoadAsync();
+        RefreshRodProfileBindingStatus();
         try
         {
             var anglerSnapshot = await _anglerQuestStateStore.LoadAsync();
@@ -1982,6 +1987,12 @@ public partial class MainWindow : Window
 
     private void StartMacro_Click(object sender, RoutedEventArgs e)
     {
+        if (_isLoadingBoundRodProfile)
+        {
+            AutomationStatusText.Text = "The calibration profile for this rod slot is still loading. Press Start again in a moment.";
+            return;
+        }
+
         if (_automationEnabled || _startRequested || _aquariumStartRequested
             || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested
@@ -2179,6 +2190,15 @@ public partial class MainWindow : Window
 
     private void StartAutomation()
     {
+        if (_isLoadingBoundRodProfile)
+        {
+            _startRequested = false;
+            StartMacroButton.IsEnabled = true;
+            StopMacroButton.IsEnabled = false;
+            AutomationStatusText.Text = "The rod calibration profile is still loading. Press Start again after it finishes.";
+            return;
+        }
+
         if (Volatile.Read(ref _emergencyStopLatch) != 0)
         {
             _startRequested = false;
@@ -3822,14 +3842,196 @@ public partial class MainWindow : Window
         return slug;
     }
 
+    private static string GetProfilePath(string name)
+    {
+        var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.Equals(name.Trim(), "Default", StringComparison.OrdinalIgnoreCase))
+            return System.IO.Path.Combine(localData, "GafiFish", "vision-profile.json");
+
+        return System.IO.Path.Combine(
+            localData, "GafiFish", "rod-profiles", $"{ProfileSlug(name)}.json");
+    }
+
     private static VisionProfileStore CreateProfileStore(string name)
     {
         if (string.Equals(name.Trim(), "Default", StringComparison.OrdinalIgnoreCase))
             return new VisionProfileStore();
-        var path = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GafiFish", "rod-profiles", $"{ProfileSlug(name)}.json");
-        return new VisionProfileStore(path);
+        return new VisionProfileStore(GetProfilePath(name));
+    }
+
+    private void RefreshRodProfileBindingStatus()
+    {
+        if (!IsLoaded)
+            return;
+
+        if (EquipRodCheckBox.IsChecked != true)
+        {
+            RodProfileBindingStatusText.Text =
+                "Enable “Equip my rod” and choose its hotbar slot to bind a profile.";
+            return;
+        }
+
+        try
+        {
+            var slot = ReadHotbarSlot(RodSlotComboBox, "rod");
+            RodProfileBindingStatusText.Text = _rodProfileBindings.SlotProfiles.TryGetValue(slot, out var name)
+                ? $"Hotbar slot {slot} → profile “{name}”. It loads automatically when this rod slot is selected."
+                : $"Hotbar slot {slot} has no profile binding. The currently loaded profile will be used.";
+        }
+        catch (InvalidOperationException exception)
+        {
+            RodProfileBindingStatusText.Text = exception.Message;
+        }
+    }
+
+    private async void BindRodProfileToSlot_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            RodProfileBindingStatusText.Text = "Stop the macro and wait for profile loading before changing rod bindings.";
+            return;
+        }
+
+        if (EquipRodCheckBox.IsChecked != true)
+        {
+            RodProfileBindingStatusText.Text = "Enable “Equip my rod” first, then choose the hotbar slot.";
+            return;
+        }
+
+        try
+        {
+            var slot = ReadHotbarSlot(RodSlotComboBox, "rod");
+            var profileName = RodProfileNameTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(profileName)
+                || !string.Equals(profileName, _activeProfileName, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Load or save the profile shown as active before binding it to a rod slot.");
+            }
+
+            var profileStore = CreateProfileStore(profileName);
+            await profileStore.SaveAsync(_profile);
+
+            var updated = new RodProfileSlotBindings
+            {
+                SlotProfiles = new Dictionary<int, string>(_rodProfileBindings.SlotProfiles)
+                {
+                    [slot] = profileName
+                }
+            };
+            await _rodProfileBindingStore.SaveAsync(updated);
+            _rodProfileBindings = updated;
+            _profileStore = profileStore;
+            RefreshRodProfileBindingStatus();
+            AddActivityLog("INFO", "PROFILE", $"Profile '{profileName}' bound to rod hotbar slot {slot}.");
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            RodProfileBindingStatusText.Text = $"Could not bind profile: {exception.Message}";
+        }
+    }
+
+    private void RodSlotComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        RefreshRodProfileBindingStatus();
+        _ = LoadBoundRodProfileForSelectedSlotAsync();
+    }
+
+    private async Task LoadBoundRodProfileForSelectedSlotAsync()
+    {
+        if (!IsLoaded || EquipRodCheckBox.IsChecked != true
+            || _automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+            return;
+
+        int slot;
+        try
+        {
+            slot = ReadHotbarSlot(RodSlotComboBox, "rod");
+        }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+
+        if (!_rodProfileBindings.SlotProfiles.TryGetValue(slot, out var profileName))
+            return;
+
+        if (string.Equals(profileName, _activeProfileName, StringComparison.OrdinalIgnoreCase))
+        {
+            RefreshRodProfileBindingStatus();
+            return;
+        }
+
+        _isLoadingBoundRodProfile = true;
+        try
+        {
+            var path = GetProfilePath(profileName);
+            if (!File.Exists(path))
+                throw new FileNotFoundException(
+                    $"The profile '{profileName}' bound to slot {slot} no longer exists. Rebind this slot after saving the profile.",
+                    path);
+
+            if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
+                StopConnectionRecovery("Rod profile changed; reconnect watchdog was disarmed.");
+
+            var profileStore = CreateProfileStore(profileName);
+            var profile = await profileStore.LoadOrDefaultAsync();
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+                return;
+
+            _profileStore = profileStore;
+            _profile = profile;
+            _activeProfileName = profileName;
+            RodProfileNameTextBox.Text = profileName;
+            _motionTracker.Reset();
+            _castVision.Reset();
+            _huntDetectionCoordinator.Reset();
+
+            CalibrationModeText.Text = $"Automatically loaded profile '{profileName}' for rod slot {slot}.";
+            VisionStatusText.Text = _profile.IsFishingCalibrated
+                ? "Vision: rod profile calibration loaded."
+                : "Vision: rod profile needs fishing calibration.";
+            CastStatusText.Text = _profile.IsCastCalibrated
+                ? "Perfect Cast: rod profile meter calibration loaded."
+                : "Perfect Cast: awaiting meter calibration.";
+            ShakeStatusText.Text = _profile.IsShakeCalibrated
+                ? "Shake: rod profile prompt calibration loaded."
+                : "Shake: awaiting prompt calibration.";
+            SellStatusText.Text = _profile.IsSellButtonCalibrated
+                ? "Sell Anywhere: rod profile button calibration loaded."
+                : "Sell Anywhere: awaiting button calibration.";
+            ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated
+                ? "Reconnect button calibration loaded."
+                : "Reconnect button calibration is missing.";
+            WorldPhaseCalibrationStatusText.Text = _profile.IsWorldPhaseCalibrated
+                ? "Day/night phase calibration loaded."
+                : "Calibrate the phase region and sample both colours.";
+            DayNightTotemStatusText.Text = _profile.IsWorldPhaseCalibrated
+                ? "Phase calibration loaded. The first stable phase will set a baseline."
+                : "Day/night totems need phase calibration.";
+            HuntDetectionStatusText.Text = _profile.IsHuntSignalCalibrated
+                ? "Hunt cue calibration loaded."
+                : "Calibrate the Hunt cue before enabling alerts.";
+            OcrStatusText.Text = _profile.IsCatchNotificationCalibrated
+                ? "Local OCR: catch notification region loaded."
+                : "Local OCR: select the catch notification region before starting a session.";
+            UpdateConnectionRecoveryControls();
+            RefreshModuleQuickInfo();
+            TelemetryText.Text = $"Profile: {_activeProfileName} · auto-selected for slot {slot}.";
+            AddActivityLog("INFO", "PROFILE", $"Automatically loaded profile '{profileName}' for rod hotbar slot {slot}.");
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            RodProfileBindingStatusText.Text = $"Could not load profile for slot {slot}: {exception.Message}";
+            AddActivityLog("ERROR", "PROFILE", $"Automatic rod profile selection failed for slot {slot}: {exception.Message}");
+        }
+        finally
+        {
+            _isLoadingBoundRodProfile = false;
+            RefreshRodProfileBindingStatus();
+        }
     }
 
     private async void ExportRodProfile_Click(object sender, RoutedEventArgs e)
@@ -3942,6 +4144,7 @@ public partial class MainWindow : Window
             _profileStore = CreateProfileStore(_activeProfileName);
             await SaveProfileAsync($"Calibration saved to profile '{_activeProfileName}'.");
             TelemetryText.Text = $"Profile: {_activeProfileName} · saved.";
+            RefreshRodProfileBindingStatus();
         }
         catch (Exception exception)
         {
@@ -3976,6 +4179,7 @@ public partial class MainWindow : Window
             OcrStatusText.Text = _profile.IsCatchNotificationCalibrated ? "Local OCR: catch notification region loaded." : "Local OCR: select the catch notification region before starting a session.";
             UpdateConnectionRecoveryControls();
             TelemetryText.Text = $"Profile: {_activeProfileName} · loaded.";
+            RefreshRodProfileBindingStatus();
             AddActivityLog("INFO", "PROFILE", $"Calibration profile '{_activeProfileName}' loaded.");
         }
         catch (Exception exception)
@@ -4126,6 +4330,9 @@ public partial class MainWindow : Window
         if (!_automationEnabled)
         {
             RodSlotComboBox.IsEnabled = EquipRodCheckBox.IsChecked == true;
+            RefreshRodProfileBindingStatus();
+            if (EquipRodCheckBox.IsChecked == true)
+                _ = LoadBoundRodProfileForSelectedSlotAsync();
         }
         RefreshModuleQuickInfo();
     }

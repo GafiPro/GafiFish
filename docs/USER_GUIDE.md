@@ -94,11 +94,11 @@ O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake us
 
 ## 6. Perfis, consumíveis e diagnóstico
 
-- **Perfis por cana**: escreve um nome no campo Rod calibration profile e usa Load profile ou Save profile. O perfil Default mantém a calibração antiga; os outros são guardados em `%LOCALAPPDATA%\GafiFish\rod-profiles`. A seleção é manual: o programa não identifica automaticamente a cana equipada.
+- **Perfis por cana**: escreve um nome no campo Rod calibration profile e usa Load profile ou Save profile. Para seleção automática, ativa **Equip my rod**, escolhe o slot de hotbar onde está essa cana e prime **Bind active profile to selected rod slot**. Quando selecionares esse slot, o GafiFish carrega o perfil associado. A associação fica guardada em `%LOCALAPPDATA%\GafiFish\rod-profile-bindings.json`; os perfis Default e nomeados continuam em `%LOCALAPPDATA%\GafiFish` e `rod-profiles`. O programa não reconhece o modelo da cana pela imagem: a associação slot/perfil é definida por ti.
 - **Capture performance**: Economy reduz a frequência de análise para diminuir o uso esperado de CPU; Balanced é a opção recomendada; Responsive tenta analisar mais frequentemente e pode aumentar o uso de CPU. A cadência continua adaptativa ao tempo de processamento de cada fotograma.
 - **Perfis transferíveis**: usa Import profile JSON / Export profile JSON para mover calibrações entre PCs. O ficheiro contém apenas parâmetros de calibração, não imagens nem credenciais.
 - **Arquivo completo**: Export all CSV / Export all JSON exporta todas as capturas locais, incluindo o identificador e as horas de início/fim da sessão associada. Export session continua limitado à sessão selecionada.
-- **Auto-totem / Auto-potion**: desligados por defeito. Exigem Auto-cast e Equip my rod. Podes configurar até dois slots de totem e um de poção, cada um com intervalo independente entre 1 e 720 minutos. As ações só correm em Preparing, entre ciclos completos: selecionam o slot, enviam um clique normal único e repõem o slot da cana. Se várias ações ficarem pendentes, são separadas por um intervalo de segurança. Cada uso pode consumir um item e não existe confirmação visual de sucesso; verifica todos os slots antes de ativar. A rotação é por temporizador, não deteta ainda o ciclo dia/noite nem o estado do servidor.
+- **Auto-totem / Auto-potion**: desligados por defeito. Exigem Auto-cast e Equip my rod. Podes configurar até dois slots de totem temporizado e um de poção, cada um com intervalo independente entre 1 e 720 minutos. As ações temporizadas só correm em Preparing, entre ciclos completos: selecionam o slot, enviam um clique normal único e repõem o slot da cana. Em alternativa, a rotação dia/noite usa a região HUD e as cores calibradas para escolher o slot correspondente à fase, sem gastar um item na primeira fase reconhecida. Cada uso temporizado pode consumir um item e ainda não existe confirmação visual de ativação; verifica todos os slots antes de ativar e valida com frames reais.
 - **Telemetria**: mostra estado, posição do peixe e barra, erro estimado, confiança e FPS aproximado da captura.
 - **Diagnóstico**: Export diagnostics guarda um JSON com sistema, perfil, resolução, estado e calibrações, sem imagens nem credenciais. Copy session summary copia o resumo concluído.
 
@@ -130,7 +130,7 @@ O Aquarium Planner não abre o painel, não compra comida, não alimenta peixes 
 
 - **Hotkeys globais**: em Settings, escolhe uma tecla de função diferente (F2–F12) para capturar um frame, observar, iniciar, parar e mostrar/ocultar a janela. As teclas são guardadas em `%LOCALAPPDATA%\GafiFish\app-settings.json`.
 - **Ocultar a janela**: ativa Hide the GafiFish window while the fishing macro is running. Usa a tecla Show / hide configurada (F10 por defeito) para recuperar a janela. A tecla de emergência continua registada com a janela oculta.
-- **Activity & engine log**: a página Logs guarda os 500 eventos mais recentes: ações, sessões, capturas, perfis, hotkeys e erros. Podes copiar, exportar para TXT ou limpar o registo. Os eventos ficam apenas em memória até exportares.
+- **Activity & engine log**: a página Logs mostra os 500 eventos mais recentes e mantém um ficheiro local com rotação automática em `%LOCALAPPDATA%\GafiFish\logs`. Podes pesquisar, filtrar, copiar, exportar para TXT ou limpar o registo.
 - **Dashboard Quick Info**: apresenta o estado dos módulos e requisitos do Sell Anywhere num único painel.
 
 

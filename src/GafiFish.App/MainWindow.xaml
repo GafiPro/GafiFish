@@ -542,8 +542,15 @@
                             <Button Grid.Column="2" Content="Save profile" Click="SaveRodProfile_Click"
                                     Height="32" Background="#294153" Foreground="White" BorderThickness="0" />
                         </Grid>
-                        <TextBlock Text="Create a named visual-calibration profile for each rod. Select the profile manually before fishing."
+                        <TextBlock Text="Create a named visual-calibration profile for each rod. Bind it to the rod hotbar slot below to load it automatically when that slot is selected."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <Button Content="Bind active profile to selected rod slot"
+                                Click="BindRodProfileToSlot_Click" Height="34"
+                                Background="#203847" Foreground="White" BorderThickness="0"
+                                Margin="0,0,0,6" />
+                        <TextBlock x:Name="RodProfileBindingStatusText"
+                                   Text="Enable Equip my rod and choose its hotbar slot to bind a profile."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
                         <TextBlock Text="Capture performance" Foreground="#9BAAB8" Margin="0,0,0,5" />
                         <ComboBox x:Name="CapturePerformanceModeComboBox" SelectedIndex="1" Height="34"
                                   Background="#20313E" Foreground="#EAF0F5" Margin="0,0,0,5">
@@ -644,6 +651,7 @@
                                   Unchecked="EquipRodCheckBox_Changed"
                                   Margin="0,0,0,6" />
                         <ComboBox x:Name="RodSlotComboBox" SelectedIndex="0" IsEnabled="False"
+                                  SelectionChanged="RodSlotComboBox_SelectionChanged"
                                   Height="30" Margin="0,0,0,8"
                                   Background="#263543" Foreground="#EAF0F5">
                             <ComboBoxItem Content="1" />
