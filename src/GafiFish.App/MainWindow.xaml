@@ -711,6 +711,30 @@
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
                     </StackPanel>
                 </Border>
+                <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
+                        CornerRadius="16" Padding="18" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="Connection watchdog" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,7" />
+                        <TextBlock Text="Watch for a reconnect button that you calibrated. The watchdog waits for three stable frames, clicks once, and waits for the button to disappear before another bounded attempt."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,9" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="StartConnectionRecoveryButton" Grid.Column="0" Content="Arm reconnect watchdog"
+                                    Click="StartConnectionRecovery_Click" Height="36" Background="#285B50"
+                                    Foreground="White" BorderThickness="0" IsEnabled="False" />
+                            <Button x:Name="StopConnectionRecoveryButton" Grid.Column="2" Content="Stop watchdog"
+                                    Click="StopConnectionRecovery_Click" Height="36" Background="#6B343D"
+                                    Foreground="White" BorderThickness="0" IsEnabled="False" />
+                        </Grid>
+                        <TextBlock x:Name="ConnectionRecoveryStatusText"
+                                   Text="Calibrate the reconnect button region and colour in Visual calibration first."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,9,0,0" />
+                        <TextBlock Text="At most three clicks per activation. A disappearing button does not prove reconnection. The watchdog never retries while a click is unconfirmed."
+                                   Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
+                    </StackPanel>
+                </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -801,6 +825,12 @@
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button Content="Select catch notification region" Click="SelectCatchNotificationRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Select reconnect button region" Click="SelectReconnectButtonRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample reconnect button colour" Click="SampleReconnectButtonColor_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button Content="Reset calibration" Click="ResetCalibration_Click"

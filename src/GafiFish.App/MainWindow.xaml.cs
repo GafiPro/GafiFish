@@ -58,6 +58,7 @@ public partial class MainWindow : Window
     private readonly CastMeterVisionDetector _castVision = new();
     private readonly ShakePromptVisionDetector _shakeVision = new();
     private readonly SellAnywhereVisionDetector _sellVision = new();
+    private readonly ConnectionRecoveryVisionDetector _connectionRecoveryVision = new();
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private VisionProfileStore _profileStore = new();
@@ -73,6 +74,9 @@ public partial class MainWindow : Window
     private AquariumAutomationCoordinator? _aquariumAutomationCoordinator;
     private RobloxInputService? _aquariumAutomationInput;
     private bool _aquariumStartRequested;
+    private ConnectionRecoveryCoordinator? _connectionRecoveryCoordinator;
+    private RobloxInputService? _connectionRecoveryInput;
+    private bool _connectionRecoveryStartRequested;
     private AquariumActionKind _aquariumCalibrationActionKind = AquariumActionKind.FeedGuppiesBest;
     private readonly DispatcherTimer _aquariumTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _frameReplayTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
@@ -191,6 +195,8 @@ public partial class MainWindow : Window
         SampleSellButton,
         SelectInventoryItemsRegion,
         SelectCatchNotificationRegion,
+        SelectReconnectButtonRegion,
+        SampleReconnectButtonColor,
         SelectAquariumButtonRegion,
         SampleAquariumButtonColor
     }
@@ -290,6 +296,7 @@ public partial class MainWindow : Window
         UpdateTimedItemControls();
         CapturePerformanceMode_SelectionChanged(CapturePerformanceModeComboBox, null!);
         RefreshModuleQuickInfo();
+        UpdateConnectionRecoveryControls();
         await RefreshLifetimeStatisticsAsync();
         await RefreshSessionHistoryAsync();
     }
@@ -929,15 +936,125 @@ public partial class MainWindow : Window
     private void StopAquariumAutomation_Click(object sender, RoutedEventArgs e) =>
         StopAquariumAutomation("Stopped by the user; Auto Aquarium inputs released.");
 
+    private void StartConnectionRecovery_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_profile.IsReconnectButtonCalibrated)
+        {
+            ConnectionRecoveryStatusText.Text = "Calibrate the reconnect button region and colour first.";
+            return;
+        }
+
+        if (_automationEnabled || _startRequested
+            || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true)
+        {
+            ConnectionRecoveryStatusText.Text = "Stop fishing automation and Auto Aquarium before arming reconnect recovery.";
+            return;
+        }
+
+        if (_connectionRecoveryCoordinator?.IsStarted == true || _connectionRecoveryStartRequested)
+            return;
+
+        if (_previewCancellation is null)
+            TogglePreviewLoop();
+
+        _connectionRecoveryStartRequested = true;
+        ConnectionRecoveryStatusText.Text = "Start requested. Focus Roblox; the first fresh frame will arm the watchdog.";
+        UpdateConnectionRecoveryControls();
+    }
+
+    private void StopConnectionRecovery_Click(object sender, RoutedEventArgs e) =>
+        StopConnectionRecovery("Stopped by the user; reconnect watchdog inputs released.");
+
+    private void StartConnectionRecoveryNow(ScreenCaptureFrame firstFrame)
+    {
+        _connectionRecoveryStartRequested = false;
+        RobloxInputService? input = null;
+        try
+        {
+            if (_automationEnabled || _aquariumAutomationCoordinator?.IsStarted == true)
+                throw new InvalidOperationException("Another game automation module is already armed.");
+            input = new RobloxInputService(_capture);
+            var coordinator = new ConnectionRecoveryCoordinator(input, _connectionRecoveryVision);
+            coordinator.Start();
+            _connectionRecoveryInput = input;
+            _connectionRecoveryCoordinator = coordinator;
+            coordinator.ProcessFrame(firstFrame, _profile);
+            ConnectionRecoveryStatusText.Text = coordinator.LastStatus;
+            AddActivityLog("INFO", "RECONNECT", "Calibrated reconnect watchdog armed.");
+        }
+        catch (Exception exception)
+        {
+            try { input?.Dispose(); } catch { }
+            _connectionRecoveryInput = null;
+            _connectionRecoveryCoordinator = null;
+            ConnectionRecoveryStatusText.Text = $"Reconnect watchdog could not arm: {exception.Message}";
+            AddActivityLog("ERROR", "RECONNECT", $"Could not arm reconnect watchdog: {exception.Message}");
+        }
+
+        UpdateConnectionRecoveryControls();
+        RefreshModuleQuickInfo();
+    }
+
+    private void StopConnectionRecovery(string reason, bool log = true, bool coordinatorAlreadyStopped = false)
+    {
+        _connectionRecoveryStartRequested = false;
+        var releaseFailed = false;
+        try
+        {
+            if (!coordinatorAlreadyStopped && _connectionRecoveryCoordinator?.IsStarted == true)
+                _connectionRecoveryCoordinator.Stop();
+            else if (_connectionRecoveryInput is not null)
+                _connectionRecoveryInput.Disarm();
+        }
+        catch
+        {
+            releaseFailed = true;
+        }
+
+        try { _connectionRecoveryInput?.Dispose(); }
+        catch { releaseFailed = true; }
+
+        _connectionRecoveryCoordinator = null;
+        _connectionRecoveryInput = null;
+        ConnectionRecoveryStatusText.Text = releaseFailed
+            ? $"{reason} Warning: could not confirm every input release."
+            : reason;
+        UpdateConnectionRecoveryControls();
+        RefreshModuleQuickInfo();
+
+        if (log)
+            AddActivityLog(releaseFailed ? "WARN" : "INFO", "RECONNECT", ConnectionRecoveryStatusText.Text);
+    }
+
+    private void UpdateConnectionRecoveryControls()
+    {
+        if (StartConnectionRecoveryButton is null || StopConnectionRecoveryButton is null)
+            return;
+
+        var active = _connectionRecoveryStartRequested || _connectionRecoveryCoordinator?.IsStarted == true;
+        var anotherModuleActive = _automationEnabled || _startRequested
+            || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true;
+        StartConnectionRecoveryButton.IsEnabled =
+            !active && !anotherModuleActive && _profile.IsReconnectButtonCalibrated;
+        StopConnectionRecoveryButton.IsEnabled = active;
+    }
+
     private void StartAquariumAutomation_Click(object sender, RoutedEventArgs e)
     {
-        if (_automationEnabled || _startRequested)
+        if (_automationEnabled || _startRequested
+            || _connectionRecoveryStartRequested
+            || _connectionRecoveryCoordinator?.IsStarted == true)
         {
-            AquariumAutomationStatusText.Text = "Stop the fishing macro before arming Auto Aquarium.";
+            AquariumAutomationStatusText.Text = "Stop the fishing macro and connection watchdog before arming Auto Aquarium.";
             return;
         }
         if (_aquariumAutomationCoordinator?.IsStarted == true || _aquariumStartRequested)
             return;
+        if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator?.IsStarted == true)
+        {
+            AquariumAutomationStatusText.Text = "Stop the connection watchdog before arming Auto Aquarium.";
+            return;
+        }
 
         var options = ReadAquariumAutomationOptions();
         if (!options.HasEnabledActions)
@@ -972,8 +1089,9 @@ public partial class MainWindow : Window
         RobloxInputService? input = null;
         try
         {
-            if (_automationEnabled)
-                throw new InvalidOperationException("The fishing macro is already armed.");
+            if (_automationEnabled || _connectionRecoveryStartRequested
+                || _connectionRecoveryCoordinator?.IsStarted == true)
+                throw new InvalidOperationException("Stop the fishing macro and connection watchdog first.");
             input = new RobloxInputService(_capture);
             var coordinator = new AquariumAutomationCoordinator(
                 input,
@@ -1651,6 +1769,7 @@ public partial class MainWindow : Window
             $"Auto-totem rotation: {configuredTotems}/2 slots configured{Environment.NewLine}" +
             $"Auto-potion: {TimedItem(AutoPotionCheckBox.IsChecked == true)}{Environment.NewLine}" +
             $"Sell Anywhere: {sellStatus}{Environment.NewLine}" +
+            $"Reconnect watchdog: {(_connectionRecoveryCoordinator?.IsStarted == true ? "ARMED" : _profile.IsReconnectButtonCalibrated ? "READY" : "NEEDS CALIBRATION")}{Environment.NewLine}" +
             $"Local OCR session: {State(_activeSessionId.HasValue)}";
     }
 
@@ -1687,6 +1806,7 @@ public partial class MainWindow : Window
         else if (id == EmergencyStopHotkeyId)
         {
             StopAquariumAutomation($"Emergency stop ({_hotkeySettings.StopKey}): Auto Aquarium inputs released.");
+            StopConnectionRecovery($"Emergency stop ({_hotkeySettings.StopKey}): reconnect watchdog stopped.");
             StopAutomation($"Emergency stop ({_hotkeySettings.StopKey}): all game inputs released.");
             if (_isUiHidden) RestoreMainWindow();
             handled = true;
@@ -1705,9 +1825,11 @@ public partial class MainWindow : Window
     private void StartMacro_Click(object sender, RoutedEventArgs e)
     {
         if (_automationEnabled || _startRequested || _aquariumStartRequested
-            || _aquariumAutomationCoordinator?.IsStarted == true)
+            || _aquariumAutomationCoordinator?.IsStarted == true
+            || _connectionRecoveryStartRequested
+            || _connectionRecoveryCoordinator?.IsStarted == true)
         {
-            AutomationStatusText.Text = "Stop Auto Aquarium before starting the fishing macro.";
+            AutomationStatusText.Text = "Stop Auto Aquarium and the connection watchdog before starting the fishing macro.";
             return;
         }
 
@@ -1821,9 +1943,11 @@ public partial class MainWindow : Window
 
     private void StartAutomation()
     {
-        if (_aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true)
+        if (_aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
+            || _connectionRecoveryStartRequested
+            || _connectionRecoveryCoordinator?.IsStarted == true)
         {
-            AutomationStatusText.Text = "Stop Auto Aquarium before starting the fishing macro.";
+            AutomationStatusText.Text = "Stop Auto Aquarium and the connection watchdog before starting the fishing macro.";
             return;
         }
 
@@ -2503,6 +2627,8 @@ public partial class MainWindow : Window
 
     private void StopPreviewLoop()
     {
+        if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
+            StopConnectionRecovery("Observation stopped; reconnect watchdog inputs released.");
         if (_automationEnabled)
         {
             StopAutomation("Observation stopped; Reel assist disarmed and all inputs released.");
@@ -2545,6 +2671,10 @@ public partial class MainWindow : Window
                         if (_aquariumStartRequested && !_automationEnabled)
                             StartAquariumAutomationNow();
 
+                        if (_connectionRecoveryStartRequested && !_automationEnabled
+                            && !_aquariumStartRequested)
+                            StartConnectionRecoveryNow(frame);
+
                         if (_startRequested && !_automationEnabled)
                         {
                             _startRequested = false;
@@ -2567,6 +2697,8 @@ public partial class MainWindow : Window
                             StopAutomation($"Screen capture failed; all game inputs were released: {exception.Message}");
                         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
                             StopAquariumAutomation($"Screen capture failed; Auto Aquarium stopped: {exception.Message}");
+                        if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
+                            StopConnectionRecovery($"Screen capture failed; reconnect watchdog stopped: {exception.Message}");
                     }
                 }
                 else
@@ -2575,6 +2707,8 @@ public partial class MainWindow : Window
                         StopAutomation("Roblox lost foreground focus; all Reel inputs were released.");
                     if (_aquariumAutomationCoordinator?.IsStarted == true)
                         StopAquariumAutomation("Roblox lost foreground focus; Auto Aquarium stopped and inputs released.");
+                    if (_connectionRecoveryCoordinator?.IsStarted == true)
+                        StopConnectionRecovery("Roblox lost foreground focus; reconnect watchdog stopped and inputs released.");
                 }
 
                 var processingMilliseconds = Stopwatch.GetElapsedTime(loopStartedAt).TotalMilliseconds;
@@ -3061,6 +3195,14 @@ public partial class MainWindow : Window
 
         if (allowAutomation)
         {
+            if (_connectionRecoveryCoordinator is { IsStarted: true } connectionRecoveryCoordinator)
+            {
+                connectionRecoveryCoordinator.ProcessFrame(frame, _profile);
+                ConnectionRecoveryStatusText.Text = connectionRecoveryCoordinator.LastStatus;
+                if (!connectionRecoveryCoordinator.IsStarted)
+                    StopConnectionRecovery(connectionRecoveryCoordinator.LastStatus, coordinatorAlreadyStopped: true);
+            }
+
             ProcessAutomationFrame(
                 frame,
                 visionResult.FishMarker,
@@ -3433,6 +3575,18 @@ public partial class MainWindow : Window
             "Drag a rectangle around the fish-caught notification. Keep the rectangle tight around the notification text.");
     }
 
+    private void SelectReconnectButtonRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectReconnectButtonRegion,
+            "Drag a tight rectangle around the Roblox reconnect button while it is visible.");
+    }
+
+    private void SampleReconnectButtonColor_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleReconnectButtonColor,
+            "Click a clear pixel inside the reconnect button. Use the same Roblox UI theme and resolution.");
+    }
+
     private void EquipRodCheckBox_Changed(object sender, RoutedEventArgs e)
     {
         if (!_automationEnabled)
@@ -3448,6 +3602,8 @@ public partial class MainWindow : Window
             StopAutomation("Calibration changed; Reel assist was disarmed and all inputs released.");
         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
             StopAquariumAutomation("Calibration changed; Auto Aquarium was disarmed.");
+        if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
+            StopConnectionRecovery("Calibration changed; connection watchdog was disarmed.");
 
         if (_lastFrame is null)
         {
@@ -3474,6 +3630,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleCastTarget
             or CalibrationAction.SampleShakePrompt
             or CalibrationAction.SampleSellButton
+            or CalibrationAction.SampleReconnectButtonColor
             or CalibrationAction.SampleAquariumButtonColor)
         {
             SampleMarkerColor(pixelPoint);
@@ -3487,6 +3644,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectSellButtonRegion
             or CalibrationAction.SelectInventoryItemsRegion
             or CalibrationAction.SelectCatchNotificationRegion
+            or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectAquariumButtonRegion)
         {
             _selectionStartPixel = pixelPoint;
@@ -3509,6 +3667,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectSellButtonRegion
             or CalibrationAction.SelectInventoryItemsRegion
             or CalibrationAction.SelectCatchNotificationRegion
+            or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
@@ -3532,6 +3691,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectSellButtonRegion
             or CalibrationAction.SelectInventoryItemsRegion
             or CalibrationAction.SelectCatchNotificationRegion
+            or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
@@ -3613,6 +3773,13 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectReconnectButtonRegion => _profile with
+            {
+                ReconnectButtonRegion = selectedRegion,
+                ReconnectButtonRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             CalibrationAction.SelectAquariumButtonRegion => WithAquariumButtonRegion(
                 _profile, _aquariumCalibrationActionKind, selectedRegion, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
@@ -3628,6 +3795,7 @@ public partial class MainWindow : Window
             CalibrationAction.SelectSellButtonRegion => "Sell Anywhere button region saved.",
             CalibrationAction.SelectInventoryItemsRegion => "Inventory item-list region saved.",
             CalibrationAction.SelectCatchNotificationRegion => "Catch notification OCR region saved.",
+            CalibrationAction.SelectReconnectButtonRegion => "Reconnect button region saved.",
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
             _ => "Region saved."
         };
@@ -3652,6 +3820,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        var isReconnectColor = _calibrationAction == CalibrationAction.SampleReconnectButtonColor;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
         var index = y * _lastFrame.Stride + x * 4;
@@ -3669,6 +3838,7 @@ public partial class MainWindow : Window
             CalibrationAction.SampleCastTarget => _profile with { CastTargetColor = color },
             CalibrationAction.SampleShakePrompt => _profile with { ShakePromptColor = color },
             CalibrationAction.SampleSellButton => _profile with { SellButtonColor = color },
+            CalibrationAction.SampleReconnectButtonColor => _profile with { ReconnectButtonColor = color },
             CalibrationAction.SampleAquariumButtonColor => WithAquariumButtonColor(
                 _profile, _aquariumCalibrationActionKind, color, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
@@ -3682,6 +3852,11 @@ public partial class MainWindow : Window
 
         _calibrationAction = CalibrationAction.None;
         _motionTracker.Reset();
+        if (isReconnectColor)
+        {
+            ConnectionRecoveryStatusText.Text = "Reconnect button colour saved. The watchdog is ready to be armed.";
+            UpdateConnectionRecoveryControls();
+        }
         await SaveProfileAsync("Marker color saved.");
     }
 
@@ -3691,6 +3866,8 @@ public partial class MainWindow : Window
             StopAutomation("Calibration reset; Reel assist was disarmed and all inputs released.");
         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
             StopAquariumAutomation("Calibration reset; Auto Aquarium was disarmed.");
+        if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
+            StopConnectionRecovery("Calibration reset; connection watchdog was disarmed.");
 
         _profile = new VisionProfile();
         _motionTracker.Reset();
@@ -3702,7 +3879,9 @@ public partial class MainWindow : Window
         CastStatusText.Text = "Perfect Cast: awaiting meter calibration.";
         ShakeStatusText.Text = "Shake: awaiting prompt calibration.";
         SellStatusText.Text = "Sell Anywhere: awaiting button calibration.";
+        ConnectionRecoveryStatusText.Text = "Calibrate the reconnect button region and colour before arming the watchdog.";
         OcrStatusText.Text = "Local OCR: select the catch notification region before starting a session.";
+        UpdateConnectionRecoveryControls();
     }
 
     private async Task SaveProfileAsync(string successMessage)
@@ -4436,6 +4615,7 @@ public partial class MainWindow : Window
         _dashboardSessionTimer.Stop();
         _aquariumTimer.Stop();
         StopAquariumAutomation("Application closing; Auto Aquarium inputs released.", log: false);
+        StopConnectionRecovery("Application closing; reconnect watchdog inputs released.", log: false);
         StopAutomation("Application closing; all inputs released.");
         StopPreviewLoop();
         _isEndingSession = true;
