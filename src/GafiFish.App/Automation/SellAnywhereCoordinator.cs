@@ -177,7 +177,7 @@ public sealed class SellAnywhereCoordinator
 
         if (!_stateMachine.TryTransition(FishingState.OpeningInventory,
                 inventoryAlreadyOpen
-                    ? "Sell Anywhere button already visible; preserving the open inventory."
+                    ? "Sell Anywhere button already visible; inventory will be closed after the sale."
                     : "Fishing cycle finished; opening inventory.",
                 now))
         {
@@ -195,7 +195,7 @@ public sealed class SellAnywhereCoordinator
         ResetButtonStability();
         _verifiedChangeFrames = 0;
         _lastStatus = inventoryAlreadyOpen
-            ? "Inventory is already open; waiting for the calibrated Sell Anywhere button to stabilise."
+            ? "Inventory already open; waiting for the calibrated button before closing it after the sale."
             : "Inventory opened; waiting for the calibrated Sell Anywhere button.";
     }
 

@@ -80,51 +80,58 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
     /// Clicks a point measured in captured Roblox client pixels. The frame must
     /// be recent and the same Roblox window must still be in the foreground.
     /// </summary>
+    public (int X, int Y)? GetCursorClientPosition(ScreenCaptureFrame frame)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(frame);
+        EnsureArmedAndForeground();
+        ValidateClientFrame(frame);
+
+        if (!Native.GetCursorPos(out var cursor))
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not read the mouse position.");
+
+        return (cursor.X - frame.ClientScreenX, cursor.Y - frame.ClientScreenY);
+    }
+
+    public void MoveClient(int clientX, int clientY, ScreenCaptureFrame frame)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(frame);
+        EnsureArmedAndForeground();
+        ValidateClientFrame(frame);
+
+        if (clientX < 0 || clientX >= frame.Width || clientY < 0 || clientY >= frame.Height)
+            throw new ArgumentOutOfRangeException(nameof(clientX), "Cursor coordinates must be inside the captured client area.");
+
+        MoveMouseToScreen(frame.ClientScreenX + clientX, frame.ClientScreenY + clientY);
+
+        // Moving the cursor must not leave input armed for a different Roblox
+        // client that became foreground between validation and the move.
+        if (!_windowCapture.IsRobloxForeground(frame.ProcessId))
+        {
+            Disarm();
+            throw new InvalidOperationException(
+                "The foreground Roblox process changed before cursor restoration; input was released and disarmed.");
+        }
+    }
+
     public void ClickClient(int clientX, int clientY, ScreenCaptureFrame frame)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(frame);
         EnsureArmedAndForeground();
+        ValidateClientFrame(frame);
 
-        var frameAge = DateTimeOffset.UtcNow - frame.CapturedAt;
-        if (frameAge < TimeSpan.Zero || frameAge > TimeSpan.FromMilliseconds(250))
-        {
-            throw new InvalidOperationException("The screen frame is stale; capture a fresh Roblox frame before clicking.");
-        }
-
-        if (frame.ProcessId <= 0
-            || clientX < 0 || clientX >= frame.Width
+        if (clientX < 0 || clientX >= frame.Width
             || clientY < 0 || clientY >= frame.Height)
         {
             throw new ArgumentOutOfRangeException(nameof(clientX), "Click coordinates must be inside the captured client area.");
         }
 
         if (_leftButtonDown)
-        {
             throw new InvalidOperationException("Cannot issue a point click while the left mouse button is held.");
-        }
 
-        if (_armedProcessId != frame.ProcessId
-            || !_windowCapture.IsRobloxForeground(frame.ProcessId))
-        {
-            Disarm();
-            throw new InvalidOperationException(
-                "The captured frame does not belong to the Roblox process armed by F8; input was released and disarmed.");
-        }
-
-        var screenX = frame.ClientScreenX + clientX;
-        var screenY = frame.ClientScreenY + clientY;
-        MoveMouseToScreen(screenX, screenY);
-
-        // Recheck after moving the pointer: another Roblox client may have
-        // become foreground between frame capture and the click.
-        if (!_windowCapture.IsRobloxForeground(frame.ProcessId))
-        {
-            Disarm();
-            throw new InvalidOperationException(
-                "The foreground Roblox process changed before the click; input was released and disarmed.");
-        }
-
+        MoveClient(clientX, clientY, frame);
         SetLeftButton(true);
         try
         {
@@ -238,6 +245,24 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
         finally
         {
             _disposed = true;
+        }
+    }
+
+    private void ValidateClientFrame(ScreenCaptureFrame frame)
+    {
+        var frameAge = DateTimeOffset.UtcNow - frame.CapturedAt;
+        if (frameAge < TimeSpan.Zero || frameAge > TimeSpan.FromMilliseconds(250))
+            throw new InvalidOperationException("The screen frame is stale; capture a fresh Roblox frame before using the cursor.");
+
+        if (frame.ProcessId <= 0)
+            throw new ArgumentException("The captured frame has an invalid Roblox process id.", nameof(frame));
+
+        if (_armedProcessId != frame.ProcessId
+            || !_windowCapture.IsRobloxForeground(frame.ProcessId))
+        {
+            Disarm();
+            throw new InvalidOperationException(
+                "The captured frame does not belong to the Roblox process armed by F8; input was released and disarmed.");
         }
     }
 
@@ -407,6 +432,17 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             public uint Time;
             public UIntPtr ExtraInfo;
         }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct NativePoint
+        {
+            public int X;
+            public int Y;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetCursorPos(out NativePoint point);
 
         [DllImport("user32.dll", SetLastError = true)]
         internal static extern uint SendInput(uint inputCount, [In] Input[] inputs, int size);

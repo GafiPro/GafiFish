@@ -19,7 +19,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Alimentação, reposição e claim do Aquarium são opções independentes e desligadas por defeito; a reposição pode gastar moeda do jogo e exige ativação explícita.
 - Aquarium Planner com registo manual, temporizadores horários persistentes e alerta sonoro opcional quando cada ação fica pronta.
 - Botões visíveis Start macro / Stop macro, além dos atalhos F8/F9. O modo de recast contínuo exige Auto-cast, sessão OCR ativa e região de notificação calibrada; o timeout de Reel liberta o controlo e reinicia o ciclo, sem eliminar os stops de emergência.
-- Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
+- Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário. Guarda/restaura a posição do cursor e fecha o inventário mesmo quando já estava aberto, antes de retomar a pesca.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
 - Histórico local SQLite, explorador das 20 sessões mais recentes, detalhes das últimas 15 capturas por sessão e novo Catchbook pesquisável para consultar o arquivo completo, filtrar por raridade/mutação/espécies e exportar resultados CSV.
 - Replay offline de sequências de imagens e gravações de vídeo MP4/M4V/AVI/MOV/MKV/WMV/WEBM, com descodificação frame a frame e detetores visuais; sem inputs ou registos OCR durante o replay.

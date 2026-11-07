@@ -47,6 +47,7 @@ public sealed class SellAnywhereCoordinatorTests
         Assert.Equal(start.AddMinutes(20).AddMilliseconds(1250), schedule.NextDueAt);
         Assert.Equal(2, input.InventoryTogglePresses);
         Assert.Equal(1, input.ClientClicks);
+        Assert.Equal((17, 23), input.LastMovedClientPosition);
         Assert.Contains("visually verified", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
 
         coordinator.Stop();
@@ -55,7 +56,7 @@ public sealed class SellAnywhereCoordinatorTests
 
 
     [Fact]
-    public void ProcessFrame_PreservesInventoryThatWasAlreadyOpen()
+    public void ProcessFrame_ClosesInventoryAlreadyOpenAndRestoresCursorAfterSale()
     {
         var start = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
         var input = new FakeRobloxInput();
@@ -84,10 +85,38 @@ public sealed class SellAnywhereCoordinatorTests
         coordinator.ProcessFrame(CreateFrame(start.AddMinutes(10).AddMilliseconds(1220), fillItems: true), profile, true);
 
         Assert.Equal(FishingState.Preparing, machine.CurrentState);
-        Assert.Equal(0, input.InventoryTogglePresses);
+        Assert.Equal(1, input.InventoryTogglePresses);
         Assert.Equal(1, input.ClientClicks);
+        Assert.Equal((17, 23), input.LastMovedClientPosition);
         Assert.False(schedule.SalePending);
         Assert.Contains("visually verified", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ProcessFrame_RefusesSaleWhenCursorCannotBePreservedInsideClient()
+    {
+        var start = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+        var input = new FakeRobloxInput { CursorPosition = (-1, 30) };
+        var schedule = new PeriodicSellSchedule();
+        var machine = CreateCatchDetectedMachine(start);
+        var coordinator = new SellAnywhereCoordinator(
+            input,
+            new SellAnywhereVisionDetector(),
+            schedule,
+            machine);
+
+        coordinator.Start(start);
+        coordinator.ProcessFrame(
+            CreateFrame(start.AddMinutes(10), fillItems: false),
+            CreateProfile(),
+            isFishingCycleSafe: true);
+
+        Assert.False(coordinator.IsStarted);
+        Assert.Equal(FishingState.Error, machine.CurrentState);
+        Assert.Equal(0, input.InventoryTogglePresses);
+        Assert.Equal(0, input.ClientClicks);
+        Assert.False(input.IsArmed);
+        Assert.Contains("mouse position", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -371,6 +400,8 @@ public sealed class SellAnywhereCoordinatorTests
         public bool IsArmed { get; private set; }
         public int ClientClicks { get; private set; }
         public int InventoryTogglePresses { get; private set; }
+        public (int X, int Y) LastMovedClientPosition { get; private set; }
+        public (int X, int Y)? CursorPosition { get; set; } = (17, 23);
         private readonly HashSet<ushort> _pressedKeys = [];
 
         public void Arm() => IsArmed = true;
@@ -396,6 +427,18 @@ public sealed class SellAnywhereCoordinatorTests
             {
                 _pressedKeys.Remove(virtualKey);
             }
+        }
+
+        public (int X, int Y)? GetCursorClientPosition(ScreenCaptureFrame frame)
+        {
+            EnsureArmed();
+            return CursorPosition;
+        }
+
+        public void MoveClient(int clientX, int clientY, ScreenCaptureFrame frame)
+        {
+            EnsureArmed();
+            LastMovedClientPosition = (clientX, clientY);
         }
 
         public void ClickClient(int clientX, int clientY, ScreenCaptureFrame frame)
