@@ -3361,7 +3361,7 @@ public partial class MainWindow : Window
                     controlMarker,
                     motion,
                     chargeMeter,
-                    requireDualFishCoverage: isDualFishMode);
+                    requireDualFishCoverage: _profile.RodMinigameMode == RodMinigameMode.DualFish);
 
                 if (_runtimeStateMachine.CurrentState == FishingState.Reeling)
                 {
@@ -4178,9 +4178,9 @@ public partial class MainWindow : Window
 
     private static DetectedMarker CreateDualFishTrackingMarker(DetectedMarker first, DetectedMarker second)
     {
-        var left = Math.Min(first.Bounds.Left, second.Bounds.Left);
+        var left = (int)Math.Floor(Math.Min(first.CenterX, second.CenterX));
         var top = Math.Min(first.Bounds.Top, second.Bounds.Top);
-        var right = Math.Max(first.Bounds.Right, second.Bounds.Right);
+        var right = (int)Math.Ceiling(Math.Max(first.CenterX, second.CenterX));
         var bottom = Math.Max(first.Bounds.Bottom, second.Bounds.Bottom);
         var bounds = new OpenCvSharp.Rect(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
         return new DetectedMarker(

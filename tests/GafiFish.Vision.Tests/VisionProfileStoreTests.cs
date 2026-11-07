@@ -16,7 +16,9 @@ public sealed class VisionProfileStoreTests
             ReferenceHeight = 1080,
             FishingRegion = new NormalizedRegion(0.20, 0.70, 0.60, 0.20),
             FishingRegionCalibrated = true,
+            RodMinigameMode = GafiFish.Core.Control.RodMinigameMode.DualFish,
             FishMarkerColor = new HsvColorRange(20, 100, 80, 40, 255, 255),
+            SecondaryFishMarkerColor = new HsvColorRange(50, 100, 80, 70, 255, 255),
             ControlMarkerColor = new HsvColorRange(0, 0, 160, 10, 80, 255),
             ReconnectButtonRegion = new NormalizedRegion(0.35, 0.25, 0.20, 0.08),
             ReconnectButtonRegionCalibrated = true,
@@ -38,6 +40,9 @@ public sealed class VisionProfileStoreTests
             Assert.Equal(profile.ReferenceHeight, loaded.ReferenceHeight);
             Assert.Equal(profile.FishingRegion, loaded.FishingRegion);
             Assert.Equal(profile.FishMarkerColor, loaded.FishMarkerColor);
+            Assert.Equal(profile.SecondaryFishMarkerColor, loaded.SecondaryFishMarkerColor);
+            Assert.Equal(profile.RodMinigameMode, loaded.RodMinigameMode);
+            Assert.True(loaded.IsDualFishCalibrated);
             Assert.Equal(profile.ControlMarkerColor, loaded.ControlMarkerColor);
             Assert.Equal(profile.ReconnectButtonRegion, loaded.ReconnectButtonRegion);
             Assert.Equal(profile.ReconnectButtonColor, loaded.ReconnectButtonColor);

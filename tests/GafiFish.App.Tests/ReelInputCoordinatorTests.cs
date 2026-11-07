@@ -236,6 +236,30 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_DualFishCoverageGuardAllowsBothCentresWhenBarIsWideEnough()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fishTargets = new DetectedMarker(
+            50, 40, new OpenCvSharp.Rect(40, 37, 20, 6), 120, 0.95);
+        var controlBar = new DetectedMarker(
+            50, 40, new OpenCvSharp.Rect(40, 37, 20, 6), 120, 0.95);
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fishTargets,
+            controlBar,
+            Motion(50, now),
+            requireDualFishCoverage: true);
+
+        Assert.DoesNotContain("too far apart", decision.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.True(input.IsArmed);
+    }
+
+    [Fact]
     public void Stop_DisarmsAndReleasesAllInputs()
     {
         var input = new FakeRobloxInput();
