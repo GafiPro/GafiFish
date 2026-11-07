@@ -573,6 +573,25 @@
                         <TextBlock x:Name="RodReelPresetStatusText"
                                    Text="Balanced · default Reel response."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                        <TextBlock Text="Rod minigame mechanic" Foreground="#9BAAB8" Margin="0,0,0,5" />
+                        <ComboBox x:Name="RodMinigameModeComboBox" SelectedValuePath="Tag"
+                                  SelectionChanged="RodMinigameModeComboBox_SelectionChanged"
+                                  Height="32" Margin="0,0,0,5"
+                                  Background="#263543" Foreground="#EAF0F5">
+                            <ComboBoxItem Content="Standard Reel" Tag="StandardReel" />
+                            <ComboBoxItem Content="Charge Meter Bonus" Tag="ChargeMeterBonus" />
+                        </ComboBox>
+                        <TextBlock x:Name="RodMinigameModeStatusText"
+                                   Text="Standard Reel · shared fish/bar controller."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6" />
+                        <CheckBox x:Name="RodChargeMeterFillFromRightCheckBox"
+                                  Content="Charge meter fills from right to left"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,5"
+                                  Checked="RodChargeMeterFillDirection_Changed"
+                                  Unchecked="RodChargeMeterFillDirection_Changed" />
+                        <TextBlock x:Name="RodChargeMeterStatusText"
+                                   Text="Charge Meter Bonus requires its own calibrated HUD track and fill colour."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
                         <Separator Margin="0,8,0,8" Background="#33414F" />
                         <TextBlock Text="Automatic rod recognition" Foreground="#9BAAB8" Margin="0,0,0,5" />
                         <CheckBox x:Name="AutoDetectRodCheckBox"
@@ -1016,6 +1035,16 @@
                         <Button Content="Select Enchant altar text region" Click="SelectEnchantPanelRegion_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Separator Margin="0,10,0,8" Background="#33414F" />
+                        <TextBlock Text="Rod charge-meter calibration" FontWeight="SemiBold" Margin="0,0,0,7" />
+                        <Button Content="Select complete charge-meter track" Click="SelectRodChargeMeterRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample charge-meter fill colour" Click="SampleRodChargeMeterColor_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <TextBlock Text="Select the whole horizontal 0–100% track, then sample the inner fill. This detector never guesses the track position or colour."
+                                   Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7" />
                         <Button Content="Select reconnect button region" Click="SelectReconnectButtonRegion_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
