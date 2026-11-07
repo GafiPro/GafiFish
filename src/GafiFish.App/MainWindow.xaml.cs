@@ -60,6 +60,7 @@ public partial class MainWindow : Window
 
     private readonly RobloxWindowCapture _capture = new();
     private readonly FishingVisionDetector _vision = new();
+    private readonly RhythmNoteVisionDetector _rhythmVision = new();
     private readonly RodChargeMeterVisionDetector _rodChargeMeterVision = new();
     private readonly CastMeterVisionDetector _castVision = new();
     private readonly ShakePromptVisionDetector _shakeVision = new();
@@ -3188,7 +3189,8 @@ public partial class MainWindow : Window
         DetectedMarker? controlMarker,
         FishMotionEstimate? motion,
         CastMeterObservation? castObservation,
-        IReadOnlyList<DetectedMarker> shakePrompts)
+        IReadOnlyList<DetectedMarker> shakePrompts,
+        RhythmNoteVisionResult? rhythmObservation)
     {
         if (!_automationEnabled
             || _reelCoordinator is null
@@ -3253,8 +3255,11 @@ public partial class MainWindow : Window
                 if (_rhythmCoordinator is null)
                     throw new InvalidOperationException("Tranquility Rhythm coordinator is not available.");
 
-                var rhythmObservation = _rhythmCoordinator.ProcessFrame(
-                    frame,
+                if (rhythmObservation is null)
+                    throw new InvalidOperationException("Tranquility rhythm observation was not produced.");
+
+                _ = _rhythmCoordinator.ProcessObservation(
+                    rhythmObservation,
                     _profile,
                     allowInput: _runtimeStateMachine.CurrentState == FishingState.Reeling);
                 RhythmNoteStatusText.Text = _rhythmCoordinator.LastStatus;
@@ -4150,6 +4155,16 @@ public partial class MainWindow : Window
         ResolutionText.Text = $"{frame.Width} × {frame.Height}";
 
         var visionResult = _vision.Detect(frame, _profile);
+        var rhythmObservation = _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm
+            ? _rhythmVision.Detect(frame, _profile)
+            : null;
+        if (rhythmObservation is not null)
+        {
+            RhythmNoteStatusText.Text = rhythmObservation.Status;
+            RhythmCalibrationStatusText.Text = rhythmObservation.IsCalibrated
+                ? "Rhythm lanes are calibrated. Replay is visual-only and will not send key taps."
+                : rhythmObservation.Status;
+        }
         DrawMarker(_fishMarkerOverlay, visionResult.FishMarker);
         DrawMarker(_secondaryFishMarkerOverlay, visionResult.SecondaryFishMarker);
         DrawMarker(_controlMarkerOverlay, visionResult.ControlMarker);
@@ -4272,7 +4287,8 @@ public partial class MainWindow : Window
                 visionResult.ControlMarker,
                 motion,
                 castObservation,
-                shakeResult.Prompts);
+                shakeResult.Prompts,
+                rhythmObservation);
 
             TryStartCatchRecognition(frame);
             TryStartRodNameRecognition(frame);
