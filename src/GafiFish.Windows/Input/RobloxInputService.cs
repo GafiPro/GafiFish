@@ -11,11 +11,13 @@ namespace GafiFish.Windows.Input;
 /// </summary>
 public sealed class RobloxInputService : IRobloxInput, IDisposable
 {
+    private readonly object _sync = new();
     private readonly IRobloxWindowCapture _windowCapture;
     private readonly IWindowsInputSink _inputSink;
     private readonly HashSet<ushort> _pressedKeys = [];
     private bool _leftButtonDown;
     private bool _isArmed;
+    private bool _emergencyStopLatched;
     private bool _disposed;
     private int? _armedProcessId;
 
@@ -27,12 +29,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
         _inputSink = inputSink ?? new WindowsInputSink();
     }
 
-    public bool IsArmed => _isArmed;
-    public bool IsLeftButtonDown => _leftButtonDown;
-    public int? ArmedProcessId => _armedProcessId;
+    public bool IsArmed { get { lock (_sync) return _isArmed; } }
+    public bool IsLeftButtonDown { get { lock (_sync) return _leftButtonDown; } }
+    public int? ArmedProcessId { get { lock (_sync) return _armedProcessId; } }
 
     public void Arm()
     {
+        lock (_sync)
+        {
         ThrowIfDisposed();
 
         if (_isArmed)
@@ -56,10 +60,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             throw new InvalidOperationException(
                 "Input refused: Roblox lost foreground focus while the macro was arming.");
         }
+    
+        }
     }
 
     public void SetLeftButton(bool isDown)
     {
+        lock (_sync)
+        {
         ThrowIfDisposed();
 
         if (!isDown)
@@ -75,10 +83,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
         EnsureArmedAndForeground();
         _inputSink.SetLeftButton(true);
         _leftButtonDown = true;
+    
+        }
     }
 
     public (int X, int Y)? GetCursorClientPosition(ScreenCaptureFrame frame)
     {
+        lock (_sync)
+        {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(frame);
         EnsureArmedAndForeground();
@@ -88,10 +100,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not read the mouse position.");
 
         return (cursor.X - frame.ClientScreenX, cursor.Y - frame.ClientScreenY);
+    
+        }
     }
 
     public void MoveClient(int clientX, int clientY, ScreenCaptureFrame frame)
     {
+        lock (_sync)
+        {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(frame);
         EnsureArmedAndForeground();
@@ -110,10 +126,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             throw new InvalidOperationException(
                 "The foreground Roblox process changed during cursor movement; input was released and disarmed.");
         }
+    
+        }
     }
 
     public void ClickClient(int clientX, int clientY, ScreenCaptureFrame frame)
     {
+        lock (_sync)
+        {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(frame);
         EnsureArmedAndForeground();
@@ -143,10 +163,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             catch { /* Keep the held state tracked for a later best-effort release. */ }
             throw;
         }
+    
+        }
     }
 
     public void SetKey(ushort virtualKey, bool isDown)
     {
+        lock (_sync)
+        {
         ThrowIfDisposed();
         if (virtualKey == 0)
             throw new ArgumentOutOfRangeException(nameof(virtualKey));
@@ -164,10 +188,34 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
         EnsureArmedAndForeground();
         _inputSink.SetKey(virtualKey, true);
         _pressedKeys.Add(virtualKey);
+    
+        }
+    }
+
+    public void EmergencyStop()
+    {
+        lock (_sync)
+        {
+            if (_disposed)
+                return;
+
+            _emergencyStopLatched = true;
+            _isArmed = false;
+            try
+            {
+                ReleaseAll();
+            }
+            finally
+            {
+                _armedProcessId = null;
+            }
+        }
     }
 
     public void Disarm()
     {
+        lock (_sync)
+        {
         if (_disposed)
             return;
 
@@ -180,10 +228,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
         {
             _armedProcessId = null;
         }
+    
+        }
     }
 
     public void ReleaseAll()
     {
+        lock (_sync)
+        {
         List<Exception>? failures = null;
 
         try { ReleaseLeftButton(); }
@@ -199,10 +251,14 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             throw new AggregateException(
                 "Windows rejected one or more input-release events; unresolved input states remain tracked.",
                 failures);
+    
+        }
     }
 
     public void Dispose()
     {
+        lock (_sync)
+        {
         if (_disposed)
             return;
 
@@ -212,6 +268,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
         {
             _armedProcessId = null;
             _disposed = true;
+        }
+    
         }
     }
 
@@ -236,6 +294,10 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
 
     private void EnsureArmedAndForeground()
     {
+        if (_emergencyStopLatched)
+            throw new InvalidOperationException(
+                "Input refused: emergency stop is latched. Start the macro again explicitly to re-arm.");
+
         if (!_isArmed)
             throw new InvalidOperationException(
                 "Input refused: macro is disarmed. Arm it while the Roblox game window is foreground.");
