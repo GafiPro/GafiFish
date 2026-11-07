@@ -56,6 +56,19 @@ public sealed class RodChargeMeterVisionDetectorTests
     }
 
     [Fact]
+    public void Detect_ReturnsUnusableObservationWhenOnlyAFewScanLinesMatch()
+    {
+        var frame = CreateFrame(fillWidth: 65, fromRight: false, visibleRows: 2);
+        var result = new RodChargeMeterVisionDetector().Detect(
+            frame,
+            CreateProfile(fillFromRight: false));
+
+        Assert.NotNull(result);
+        Assert.False(result.IsUsable);
+        Assert.True(result.Confidence < 0.55);
+    }
+
+    [Fact]
     public void VisionProfile_RequiresChargeCalibrationOnlyForSelectedMode()
     {
         var standard = new VisionProfile
@@ -82,7 +95,7 @@ public sealed class RodChargeMeterVisionDetectorTests
         RodChargeMeterFillFromRight = fillFromRight
     };
 
-    private static ScreenCaptureFrame CreateFrame(int fillWidth, bool fromRight)
+    private static ScreenCaptureFrame CreateFrame(int fillWidth, bool fromRight, int visibleRows = 16)
     {
         const int width = 100;
         const int height = 50;
@@ -91,7 +104,7 @@ public sealed class RodChargeMeterVisionDetectorTests
             pixels[i + 3] = 255;
 
         var left = fromRight ? 90 - fillWidth : 10;
-        for (var y = 12; y < 28; y++)
+        for (var y = 12; y < 12 + visibleRows; y++)
         for (var x = left; x < left + fillWidth; x++)
         {
             var index = (y * width + x) * 4;
