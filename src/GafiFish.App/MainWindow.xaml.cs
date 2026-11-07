@@ -1954,7 +1954,7 @@ public partial class MainWindow : Window
 
         if (!_emergencyStopHotkeyRegistered)
         {
-            _emergencyStopHotkeyListener.Dispose();
+            _emergencyStopHotkeyListener?.Dispose();
             _emergencyStopHotkeyListener = null;
 
             // Retain the normal WPF hotkey as a fallback if the dedicated listener
