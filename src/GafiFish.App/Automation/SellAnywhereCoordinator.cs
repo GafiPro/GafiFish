@@ -22,6 +22,7 @@ public sealed class SellAnywhereCoordinator
     private readonly SellAnywhereSettings _settings;
 
     private DateTimeOffset _phaseStartedAt;
+    private DateTimeOffset? _lastProcessedFrameAt;
     private ScreenCaptureFrame? _beforeSaleFrame;
     private DetectedMarker? _lastButton;
     private int _stableButtonFrames;
@@ -58,6 +59,7 @@ public sealed class SellAnywhereCoordinator
 
         _input.Arm();
         _schedule.Start(now);
+        _lastProcessedFrameAt = null;
         _started = true;
         _lastStatus = "Sell Anywhere scheduler started; first sale is due in 10 minutes.";
     }
@@ -79,6 +81,17 @@ public sealed class SellAnywhereCoordinator
             _lastStatus = "Sell Anywhere is stopped.";
             return;
         }
+
+        // Replayed or duplicated frames must never count as fresh visual
+        // confirmation. In particular, the same screenshot cannot satisfy
+        // the multi-frame stability threshold and trigger a click.
+        if (_lastProcessedFrameAt.HasValue && frame.CapturedAt <= _lastProcessedFrameAt.Value)
+        {
+            _lastStatus = "Ignored duplicate or out-of-order capture frame; no input was sent.";
+            return;
+        }
+
+        _lastProcessedFrameAt = frame.CapturedAt;
 
         try
         {
@@ -128,6 +141,7 @@ public sealed class SellAnywhereCoordinator
         _input.Disarm();
         _started = false;
         _beforeSaleFrame = null;
+        _lastProcessedFrameAt = null;
         _lastButton = null;
         _stableButtonFrames = 0;
         _verifiedChangeFrames = 0;
@@ -373,6 +387,7 @@ public sealed class SellAnywhereCoordinator
         _input.Disarm();
         _started = false;
         _beforeSaleFrame = null;
+        _lastProcessedFrameAt = null;
         ResetButtonStability();
         _verifiedChangeFrames = 0;
         _inventoryOpenedByCoordinator = false;

@@ -2105,6 +2105,17 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (SellAnywhereCheckBox.IsChecked == true
+            && (!_activeSessionId.HasValue
+                || _ocr is null
+                || !_profile.IsSellButtonCalibrated
+                || !_profile.IsInventoryVerificationCalibrated))
+        {
+            AutomationStatusText.Text =
+                "Sell Anywhere is selected, but it needs an active local OCR session plus calibrated Sell button and inventory verification regions. Start the OCR session and finish both calibrations first.";
+            return;
+        }
+
         RobloxInputService? input = null;
         try
         {
@@ -2195,6 +2206,7 @@ public partial class MainWindow : Window
             var canScheduleSales =
                 SellAnywhereCheckBox.IsChecked == true
                 && _activeSessionId.HasValue
+                && _ocr is not null
                 && _profile.IsSellButtonCalibrated
                 && _profile.IsInventoryVerificationCalibrated;
 

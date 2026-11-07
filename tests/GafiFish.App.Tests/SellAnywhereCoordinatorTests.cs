@@ -175,6 +175,54 @@ public sealed class SellAnywhereCoordinatorTests
     }
 
     [Fact]
+    public void ProcessFrame_DuplicateFrameDoesNotSatisfyStableButtonThreshold()
+    {
+        var start = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
+        var input = new FakeRobloxInput();
+        var schedule = new PeriodicSellSchedule();
+        var machine = CreateCatchDetectedMachine(start);
+        var coordinator = new SellAnywhereCoordinator(
+            input,
+            new SellAnywhereVisionDetector(),
+            schedule,
+            machine);
+
+        coordinator.Start(start);
+        var profile = CreateProfile();
+        var firstDueFrame = CreateFrame(start.AddMinutes(10), fillItems: false);
+
+        coordinator.ProcessFrame(firstDueFrame, profile, true);
+        Assert.Equal(FishingState.OpeningInventory, machine.CurrentState);
+
+        // Passing the exact same capture again must not count as a second
+        // independent observation of the Sell button.
+        coordinator.ProcessFrame(firstDueFrame, profile, true);
+        Assert.Equal(FishingState.OpeningInventory, machine.CurrentState);
+        Assert.Equal(0, input.ClientClicks);
+        Assert.Contains("duplicate or out-of-order", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+
+        coordinator.ProcessFrame(
+            CreateFrame(start.AddMinutes(10).AddMilliseconds(120), fillItems: false),
+            profile,
+            true);
+        Assert.Equal(FishingState.SellingInventory, machine.CurrentState);
+        Assert.Equal(0, input.ClientClicks);
+
+        coordinator.ProcessFrame(
+            CreateFrame(start.AddMinutes(10).AddMilliseconds(240), fillItems: false),
+            profile,
+            true);
+        coordinator.ProcessFrame(
+            CreateFrame(start.AddMinutes(10).AddMilliseconds(360), fillItems: false),
+            profile,
+            true);
+
+        Assert.Equal(FishingState.VerifyingSale, machine.CurrentState);
+        Assert.Equal(1, input.ClientClicks);
+        coordinator.Stop();
+    }
+
+    [Fact]
     public void ProcessFrame_DoesNotSellDuringActiveFishingCycle()
     {
         var start = new DateTimeOffset(2026, 11, 5, 10, 0, 0, TimeSpan.Zero);
