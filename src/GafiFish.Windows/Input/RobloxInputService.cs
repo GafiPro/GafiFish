@@ -60,7 +60,10 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             throw new InvalidOperationException(
                 "Input refused: Roblox lost foreground focus while the macro was arming.");
         }
-    
+
+        // Only an explicit new Arm call clears the emergency-stop latch.
+        _emergencyStopLatched = false;
+
         }
     }
 
