@@ -4441,6 +4441,42 @@ public partial class MainWindow : Window
         await RecognizeRodNameFrameAsync(_lastFrame, automatic: false);
     }
 
+    private async void AutoDetectRodCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded)
+            return;
+
+        if (AutoDetectRodCheckBox.IsChecked != true)
+        {
+            _pendingRodNameKey = null;
+            _pendingRodNameFrames = 0;
+            RodNameRecognitionStatusText.Text = "Automatic rod recognition is disabled.";
+            return;
+        }
+
+        if (!_profile.RodNameRegionCalibrated)
+        {
+            AutoDetectRodCheckBox.IsChecked = false;
+            RodNameRecognitionStatusText.Text =
+                "Select and save the rod-name OCR region before enabling automatic recognition.";
+            return;
+        }
+
+        RodNameRecognitionStatusText.Text = "Preparing local OCR for automatic rod recognition…";
+        try
+        {
+            await EnsureLocalOcrEngineAsync();
+            RodNameRecognitionStatusText.Text =
+                "Automatic rod recognition is ready. Keep the equipped rod name visible while observing.";
+        }
+        catch (Exception exception)
+        {
+            AutoDetectRodCheckBox.IsChecked = false;
+            RodNameRecognitionStatusText.Text =
+                $"Could not initialise local rod OCR: {exception.Message}";
+        }
+    }
+
     private void TryStartRodNameRecognition(ScreenCaptureFrame frame)
     {
         if (AutoDetectRodCheckBox.IsChecked != true
