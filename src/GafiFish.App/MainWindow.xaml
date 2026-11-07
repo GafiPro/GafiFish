@@ -560,6 +560,47 @@
                         <TextBlock x:Name="RodProfileBindingStatusText"
                                    Text="Enable Equip my rod and choose its hotbar slot to bind a profile."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                        <TextBlock Text="Rod-specific Reel profile" Foreground="#9BAAB8" Margin="0,0,0,5" />
+                        <ComboBox x:Name="RodReelPresetComboBox" SelectedValuePath="Tag"
+                                  SelectionChanged="RodReelPresetComboBox_SelectionChanged"
+                                  Height="32" Margin="0,0,0,5"
+                                  Background="#263543" Foreground="#EAF0F5">
+                            <ComboBoxItem Content="Balanced · default" Tag="Balanced" />
+                            <ComboBoxItem Content="Precision · quicker correction" Tag="Precision" />
+                            <ComboBoxItem Content="Heavy fish · more smoothing" Tag="HeavyFish" />
+                            <ComboBoxItem Content="Stable · slower correction" Tag="Stable" />
+                        </ComboBox>
+                        <TextBlock x:Name="RodReelPresetStatusText"
+                                   Text="Balanced · default Reel response."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
+                        <Separator Margin="0,8,0,8" Background="#33414F" />
+                        <TextBlock Text="Automatic rod recognition" Foreground="#9BAAB8" Margin="0,0,0,5" />
+                        <CheckBox x:Name="AutoDetectRodCheckBox"
+                                  Content="Recognize rod name while observing"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,6" />
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="Select name area"
+                                    Click="SelectRodNameRegion_Click" Height="31"
+                                    Background="#294153" Foreground="#EAF0F5" />
+                            <Button Grid.Column="2" Content="Recognize now"
+                                    Click="RecognizeRodNow_Click" Height="31"
+                                    Background="#294153" Foreground="#EAF0F5" />
+                        </Grid>
+                        <TextBox x:Name="RecognizedRodNameTextBox" IsReadOnly="True"
+                                 Text="No rod name recognized yet." Height="31"
+                                 Padding="7,5" Margin="0,0,0,6"
+                                 Background="#263543" Foreground="#EAF0F5" />
+                        <Button Content="Bind detected name to active profile"
+                                Click="BindDetectedRodNameToProfile_Click" Height="31"
+                                Background="#203847" Foreground="#EAF0F5" Margin="0,0,0,5" />
+                        <TextBlock x:Name="RodNameRecognitionStatusText"
+                                   Text="Calibrate the rod-name area and recognize a name before binding it to a profile."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
                         <TextBlock Text="Capture performance" Foreground="#9BAAB8" Margin="0,0,0,5" />
                         <ComboBox x:Name="CapturePerformanceModeComboBox" SelectedIndex="1" Height="34"
                                   Background="#20313E" Foreground="#EAF0F5" Margin="0,0,0,5">
@@ -818,6 +859,33 @@
                 <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
                         CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>
+                        <TextBlock Text="Appraiser and Enchant panel reader" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,7" />
+                        <TextBlock Text="Read the visible panel text locally to inspect options and displayed costs. This helper is read-only: it never clicks, appraises, spends C$, uses Relics or enchants."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,10" />
+                        <TextBlock Text="Appraiser / Treasure Appraiser" Foreground="#9BAAB8" Margin="0,0,0,5" />
+                        <Button Content="Read Appraiser panel" Click="ReadAppraisalPanel_Click"
+                                Height="32" Margin="0,0,0,6" Background="#294153" Foreground="#EAF0F5" />
+                        <TextBox x:Name="AppraisalPanelOcrTextBox" IsReadOnly="True" AcceptsReturn="True"
+                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78"
+                                 Background="#263543" Foreground="#EAF0F5" Padding="7,5" />
+                        <TextBlock x:Name="AppraisalPanelStatusText"
+                                   Text="Calibrate the Appraiser text area in the Calibration tab."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,10" />
+                        <Separator Margin="0,6,0,8" Background="#33414F" />
+                        <TextBlock Text="Enchant altar" Foreground="#9BAAB8" Margin="0,0,0,5" />
+                        <Button Content="Read Enchant panel" Click="ReadEnchantPanel_Click"
+                                Height="32" Margin="0,0,0,6" Background="#294153" Foreground="#EAF0F5" />
+                        <TextBox x:Name="EnchantPanelOcrTextBox" IsReadOnly="True" AcceptsReturn="True"
+                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78"
+                                 Background="#263543" Foreground="#EAF0F5" Padding="7,5" />
+                        <TextBlock x:Name="EnchantPanelStatusText"
+                                   Text="Calibrate the Enchant altar text area in the Calibration tab."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
+                        CornerRadius="16" Padding="18" Margin="0,0,0,14">
+                    <StackPanel>
                         <TextBlock Text="Connection watchdog" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,7" />
                         <TextBlock Text="Watch for a reconnect button that you calibrated. The watchdog waits for three stable frames, clicks once, and waits for the button to disappear before another bounded attempt."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,9" />
@@ -937,6 +1005,15 @@
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button Content="Select catch notification region" Click="SelectCatchNotificationRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Select rod-name OCR region" Click="SelectRodNameRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Select Appraiser panel text region" Click="SelectAppraisalPanelRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Select Enchant altar text region" Click="SelectEnchantPanelRegion_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
                         <Button Content="Select reconnect button region" Click="SelectReconnectButtonRegion_Click"
