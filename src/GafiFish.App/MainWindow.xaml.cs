@@ -1005,7 +1005,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_automationEnabled || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
+        if (_automationEnabled || _startRequested || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested || _connectionRecoveryCoordinator?.IsStarted == true)
         {
             AnglerQuestAutomationStatusText.Text =
@@ -1082,12 +1082,12 @@ public partial class MainWindow : Window
                 throw new InvalidOperationException("Submit Fish button calibration is missing.");
 
             var input = new RobloxInputService();
+            _anglerQuestAutomationInput = input;
             var coordinator = new AnglerQuestAutomationCoordinator(
                 input,
                 _anglerQuestButtonVision,
                 AnglerQuestActionConfirmed);
             coordinator.Start();
-            _anglerQuestAutomationInput = input;
             _anglerQuestAutomationCoordinator = coordinator;
             _anglerQuestStartRequested = false;
             AnglerQuestAutomationStatusText.Text = coordinator.LastStatus;
@@ -3461,6 +3461,8 @@ public partial class MainWindow : Window
                             StopAquariumAutomation($"Screen capture failed; Auto Aquarium stopped: {exception.Message}");
                         if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
                             StopConnectionRecovery($"Screen capture failed; reconnect watchdog stopped: {exception.Message}");
+                        if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
+                            StopAnglerQuestAutomation($"Screen capture failed; Angler automation stopped: {exception.Message}");
                     }
                 }
                 else
@@ -3471,6 +3473,8 @@ public partial class MainWindow : Window
                         StopAquariumAutomation("Roblox lost foreground focus; Auto Aquarium stopped and inputs released.");
                     if (_connectionRecoveryCoordinator?.IsStarted == true)
                         StopConnectionRecovery("Roblox lost foreground focus; reconnect watchdog stopped and inputs released.");
+                    if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true)
+                        StopAnglerQuestAutomation("Roblox lost foreground focus; Angler inputs released.");
                 }
 
                 var processingMilliseconds = Stopwatch.GetElapsedTime(loopStartedAt).TotalMilliseconds;
