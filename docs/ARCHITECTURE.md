@@ -154,3 +154,8 @@ O replay usa `DisplayFrame(..., allowAutomation: false)`: os detetores e overlay
 ## 12. Watchdog de reconexão
 
 O detetor `ConnectionRecoveryVisionDetector` procura apenas a região e a cor HSV calibradas pelo utilizador. O `ConnectionRecoveryCoordinator` exige três frames estáveis, envia um clique normal do Windows e aguarda dois frames sem o botão. Aplica um intervalo de segurança e um máximo de três tentativas por ativação. Se o botão não desaparecer dentro do timeout, desarma sem repetir. Não infere que a sessão foi recuperada e não pode correr em simultâneo com a pesca ou o Aquarium.
+
+
+## 13. Rotação de totens dia/noite
+
+O `WorldPhaseVisionDetector` compara duas gamas HSV calibradas pelo utilizador numa região fixa do HUD. Se ambas surgirem ao mesmo tempo, se nenhuma surgir ou se a confiança for baixa, o estado é `Unknown`. O `DayNightTotemRotationCoordinator` usa a primeira fase estável apenas como baseline; uma transição posterior precisa de três frames consistentes e só executa em `Preparing`. Um clique normal seleciona o slot do totem correspondente e restaura o slot da cana. A opção não usa relógios ou durações presumidas do ciclo do jogo.

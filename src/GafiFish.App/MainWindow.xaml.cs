@@ -59,6 +59,7 @@ public partial class MainWindow : Window
     private readonly ShakePromptVisionDetector _shakeVision = new();
     private readonly SellAnywhereVisionDetector _sellVision = new();
     private readonly ConnectionRecoveryVisionDetector _connectionRecoveryVision = new();
+    private readonly WorldPhaseVisionDetector _worldPhaseVision = new();
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private VisionProfileStore _profileStore = new();
@@ -77,6 +78,7 @@ public partial class MainWindow : Window
     private ConnectionRecoveryCoordinator? _connectionRecoveryCoordinator;
     private RobloxInputService? _connectionRecoveryInput;
     private bool _connectionRecoveryStartRequested;
+    private DayNightTotemRotationCoordinator? _dayNightTotemRotation;
     private AquariumActionKind _aquariumCalibrationActionKind = AquariumActionKind.FeedGuppiesBest;
     private readonly DispatcherTimer _aquariumTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _frameReplayTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
@@ -197,6 +199,9 @@ public partial class MainWindow : Window
         SelectCatchNotificationRegion,
         SelectReconnectButtonRegion,
         SampleReconnectButtonColor,
+        SelectWorldPhaseRegion,
+        SampleDayPhaseColor,
+        SampleNightPhaseColor,
         SelectAquariumButtonRegion,
         SampleAquariumButtonColor
     }
@@ -292,6 +297,12 @@ public partial class MainWindow : Window
         ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated
             ? "Reconnect button calibration loaded. Watchdog ready."
             : "Calibrate the reconnect button region and colour before arming the watchdog.";
+        WorldPhaseCalibrationStatusText.Text = _profile.IsWorldPhaseCalibrated
+            ? "Day/night phase calibration loaded."
+            : "Calibrate the phase region and sample the day and night colours.";
+        DayNightTotemStatusText.Text = _profile.IsWorldPhaseCalibrated
+            ? "Phase calibration loaded. The first stable phase will set a baseline."
+            : "Day/night totems need phase calibration.";
         OcrStatusText.Text = _profile.IsCatchNotificationCalibrated
             ? "Local OCR: catch notification region loaded; start a session to initialise the engine."
             : "Local OCR: select the catch notification region before starting a session.";
@@ -1764,12 +1775,16 @@ public partial class MainWindow : Window
             ? (_activeSessionId.HasValue && _profile.IsSellButtonCalibrated && _profile.IsInventoryVerificationCalibrated
                 ? "READY" : "NEEDS SESSION / CALIBRATION")
             : "OFF";
+        var dayNightTotemStatus = AutoDayNightTotemCheckBox.IsChecked == true
+            ? (_profile.IsWorldPhaseCalibrated ? "READY · TWO SLOTS" : "NEEDS PHASE CALIBRATION")
+            : "OFF";
         ModuleQuickInfoText.Text =
             $"Fishing vision: {(_profile.IsFishingCalibrated ? "READY" : "NEEDS CALIBRATION")}{Environment.NewLine}" +
             $"Reel assist: {State(_automationEnabled)}{Environment.NewLine}" +
             $"Auto-cast: {Readiness(AutoCastCheckBox.IsChecked == true, _profile.IsCastCalibrated)}{Environment.NewLine}" +
             $"Auto-shake: {Readiness(AutoShakeCheckBox.IsChecked == true, _profile.IsShakeCalibrated)}{Environment.NewLine}" +
-            $"Auto-totem rotation: {configuredTotems}/2 slots configured{Environment.NewLine}" +
+            $"Timed totems: {configuredTotems}/2 slots configured{Environment.NewLine}" +
+            $"Day/night totems: {dayNightTotemStatus}{Environment.NewLine}" +
             $"Auto-potion: {TimedItem(AutoPotionCheckBox.IsChecked == true)}{Environment.NewLine}" +
             $"Sell Anywhere: {sellStatus}{Environment.NewLine}" +
             $"Reconnect watchdog: {(_connectionRecoveryCoordinator?.IsStarted == true ? "ARMED" : _profile.IsReconnectButtonCalibrated ? "READY" : "NEEDS CALIBRATION")}{Environment.NewLine}" +
@@ -1873,18 +1888,39 @@ public partial class MainWindow : Window
         RefreshModuleQuickInfo();
     }
 
+    private void DayNightTotemCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (AutoDayNightTotemCheckBox.IsChecked == true)
+        {
+            AutoTotemCheckBox.IsChecked = false;
+            AutoSecondTotemCheckBox.IsChecked = false;
+        }
+
+        UpdateTimedItemControls();
+        DayNightTotemStatusText.Text = _profile.IsWorldPhaseCalibrated
+            ? "Calibrated. The first stable phase only sets a baseline; no totem is used at startup."
+            : "Calibrate the world phase region, day colour and night colour first.";
+        RefreshModuleQuickInfo();
+    }
+
     private void UpdateTimedItemControls()
     {
         var enabled = AutoCastCheckBox.IsChecked == true && !_automationEnabled;
-        AutoTotemCheckBox.IsEnabled = enabled;
-        AutoSecondTotemCheckBox.IsEnabled = enabled;
+        var dayNightEnabled = AutoDayNightTotemCheckBox.IsChecked == true;
+        AutoTotemCheckBox.IsEnabled = enabled && !dayNightEnabled;
+        AutoSecondTotemCheckBox.IsEnabled = enabled && !dayNightEnabled;
+        AutoDayNightTotemCheckBox.IsEnabled = enabled;
         AutoPotionCheckBox.IsEnabled = enabled;
-        TotemSlotComboBox.IsEnabled = enabled && AutoTotemCheckBox.IsChecked == true;
-        TotemIntervalTextBox.IsEnabled = enabled && AutoTotemCheckBox.IsChecked == true;
-        SecondTotemSlotComboBox.IsEnabled = enabled && AutoSecondTotemCheckBox.IsChecked == true;
-        SecondTotemIntervalTextBox.IsEnabled = enabled && AutoSecondTotemCheckBox.IsChecked == true;
+        TotemSlotComboBox.IsEnabled = enabled && !dayNightEnabled && AutoTotemCheckBox.IsChecked == true;
+        TotemIntervalTextBox.IsEnabled = enabled && !dayNightEnabled && AutoTotemCheckBox.IsChecked == true;
+        SecondTotemSlotComboBox.IsEnabled = enabled && !dayNightEnabled && AutoSecondTotemCheckBox.IsChecked == true;
+        SecondTotemIntervalTextBox.IsEnabled = enabled && !dayNightEnabled && AutoSecondTotemCheckBox.IsChecked == true;
+        DayTotemSlotComboBox.IsEnabled = enabled && dayNightEnabled;
+        NightTotemSlotComboBox.IsEnabled = enabled && dayNightEnabled;
         PotionSlotComboBox.IsEnabled = enabled && AutoPotionCheckBox.IsChecked == true;
         PotionIntervalTextBox.IsEnabled = enabled && AutoPotionCheckBox.IsChecked == true;
+        if (!dayNightEnabled && _dayNightTotemRotation is null && _profile.IsWorldPhaseCalibrated)
+            DayNightTotemStatusText.Text = "Day/night phase calibrated. Enable the option to arm the rotation.";
         RefreshModuleQuickInfo();
     }
 
@@ -1933,6 +1969,7 @@ public partial class MainWindow : Window
             TargetFishCheckBox.IsChecked = false;
             AutoTotemCheckBox.IsChecked = false;
             AutoSecondTotemCheckBox.IsChecked = false;
+            AutoDayNightTotemCheckBox.IsChecked = false;
             AutoPotionCheckBox.IsChecked = false;
         }
         UpdateTimedItemControls();
@@ -1986,6 +2023,7 @@ public partial class MainWindow : Window
         var autoShakeEnabled = AutoShakeCheckBox.IsChecked == true;
         var autoTotemEnabled = AutoTotemCheckBox.IsChecked == true;
         var autoSecondTotemEnabled = AutoSecondTotemCheckBox.IsChecked == true;
+        var autoDayNightTotemEnabled = AutoDayNightTotemCheckBox.IsChecked == true;
         var autoPotionEnabled = AutoPotionCheckBox.IsChecked == true;
         var keepFishingUntilCatch = KeepFishingUntilCatchCheckBox.IsChecked == true;
         var targetFishEnabled = TargetFishCheckBox.IsChecked == true;
@@ -2012,12 +2050,22 @@ public partial class MainWindow : Window
             return;
         }
 
-        if ((autoTotemEnabled || autoSecondTotemEnabled || autoPotionEnabled) && !autoCastEnabled)
+        if (autoDayNightTotemEnabled && (autoTotemEnabled || autoSecondTotemEnabled))
+        {
+            AutomationStatusText.Text = "Choose either day/night totem rotation or timed totems, not both.";
+            return;
+        }
+        if (autoDayNightTotemEnabled && !_profile.IsWorldPhaseCalibrated)
+        {
+            AutomationStatusText.Text = "Day/night totems require a calibrated phase region and both day/night colours.";
+            return;
+        }
+        if ((autoTotemEnabled || autoSecondTotemEnabled || autoDayNightTotemEnabled || autoPotionEnabled) && !autoCastEnabled)
         {
             AutomationStatusText.Text = "Timed consumables require Auto-cast so they are only used between fishing cycles.";
             return;
         }
-        if ((autoTotemEnabled || autoSecondTotemEnabled || autoPotionEnabled) && EquipRodCheckBox.IsChecked != true)
+        if ((autoTotemEnabled || autoSecondTotemEnabled || autoDayNightTotemEnabled || autoPotionEnabled) && EquipRodCheckBox.IsChecked != true)
         {
             AutomationStatusText.Text = "Timed consumables require Equip my rod so the rod slot can be restored afterwards.";
             return;
@@ -2094,6 +2142,18 @@ public partial class MainWindow : Window
             var rodSlot = EquipRodCheckBox.IsChecked == true
                 ? ReadHotbarSlot(RodSlotComboBox, "rod")
                 : (int?)null;
+            int? dayTotemSlot = null;
+            int? nightTotemSlot = null;
+            if (autoDayNightTotemEnabled)
+            {
+                dayTotemSlot = ReadHotbarSlot(DayTotemSlotComboBox, "day totem");
+                nightTotemSlot = ReadHotbarSlot(NightTotemSlotComboBox, "night totem");
+                if (dayTotemSlot == nightTotemSlot
+                    || dayTotemSlot == rodSlot
+                    || nightTotemSlot == rodSlot)
+                    throw new InvalidOperationException("Day, night and rod must use three different hotbar slots.");
+            }
+
             var timedActions = new List<TimedHotbarAction>();
             if (autoTotemEnabled)
             {
@@ -2114,7 +2174,10 @@ public partial class MainWindow : Window
             if (autoPotionEnabled)
             {
                 var slot = ReadHotbarSlot(PotionSlotComboBox, "potion");
-                if (slot == rodSlot || timedActions.Any(action => action.HotbarSlot == slot))
+                if (slot == rodSlot
+                    || slot == dayTotemSlot
+                    || slot == nightTotemSlot
+                    || timedActions.Any(action => action.HotbarSlot == slot))
                     throw new InvalidOperationException("Each totem, potion and rod must use a different hotbar slot.");
                 timedActions.Add(new TimedHotbarAction(TimedHotbarActionKind.Potion, slot, ReadItemInterval(PotionIntervalTextBox, "Potion")));
             }
@@ -2145,8 +2208,19 @@ public partial class MainWindow : Window
             _sellSchedule = sellSchedule;
             _castCoordinator = castCoordinator;
             _shakeCoordinator = shakeCoordinator;
-            _hotbarItemCoordinator = timedActions.Count > 0 ? new HotbarItemCoordinator(input) : null;
-            _timedItemSchedule = timedActions.Count > 0 ? new TimedHotbarActionSchedule(timedActions, DateTimeOffset.UtcNow) : null;
+            _hotbarItemCoordinator = timedActions.Count > 0 || autoDayNightTotemEnabled
+                ? new HotbarItemCoordinator(input)
+                : null;
+            _timedItemSchedule = timedActions.Count > 0
+                ? new TimedHotbarActionSchedule(timedActions, DateTimeOffset.UtcNow)
+                : null;
+            _dayNightTotemRotation = autoDayNightTotemEnabled
+                ? new DayNightTotemRotationCoordinator(
+                    _hotbarItemCoordinator!,
+                    rodSlot!.Value,
+                    dayTotemSlot!.Value,
+                    nightTotemSlot!.Value)
+                : null;
             _activeRodSlot = rodSlot;
             _resumeCastingAfter = DateTimeOffset.MinValue;
             _autoTotemEnabled = autoTotemEnabled;
@@ -2169,9 +2243,15 @@ public partial class MainWindow : Window
             TargetFishTextBox.IsEnabled = false;
             TargetFishCatchGoalTextBox.IsEnabled = false;
             AutoTotemCheckBox.IsEnabled = false;
+            AutoSecondTotemCheckBox.IsEnabled = false;
+            AutoDayNightTotemCheckBox.IsEnabled = false;
             AutoPotionCheckBox.IsEnabled = false;
             TotemSlotComboBox.IsEnabled = false;
             TotemIntervalTextBox.IsEnabled = false;
+            SecondTotemSlotComboBox.IsEnabled = false;
+            SecondTotemIntervalTextBox.IsEnabled = false;
+            DayTotemSlotComboBox.IsEnabled = false;
+            NightTotemSlotComboBox.IsEnabled = false;
             PotionSlotComboBox.IsEnabled = false;
             PotionIntervalTextBox.IsEnabled = false;
             AutoShakeCheckBox.IsEnabled = false;
@@ -2184,6 +2264,7 @@ public partial class MainWindow : Window
             if (keepFishingUntilCatch) enabledModes.Add("until first confirmed catch");
             if (targetFishEnabled) enabledModes.Add($"target: {targetFishName}");
             if (autoTotemEnabled) enabledModes.Add("Auto-totem");
+            if (autoDayNightTotemEnabled) enabledModes.Add("Day/night totem rotation");
             if (autoPotionEnabled) enabledModes.Add("Auto-potion");
             if (autoShakeEnabled) enabledModes.Add("Auto-shake");
             if (sellCoordinator is not null) enabledModes.Add("Sell Anywhere / 10 min");
@@ -2278,6 +2359,7 @@ public partial class MainWindow : Window
         _shakeCoordinator = null;
         _hotbarItemCoordinator = null;
         _timedItemSchedule = null;
+        _dayNightTotemRotation = null;
         _activeRodSlot = null;
         _resumeCastingAfter = DateTimeOffset.MinValue;
         _autoTotemEnabled = false;
@@ -2380,7 +2462,27 @@ public partial class MainWindow : Window
                     frame.CapturedAt);
             }
 
-            // Auto-cast is opt-in. The rod remains in the selected hotbar slot.            // Timed consumables run only in Preparing, between completed cycles.
+            // The phase detector runs throughout the live fishing loop. It only
+            // spends a totem after a stable transition and while Preparing is safe.
+            if (_dayNightTotemRotation is not null)
+            {
+                var phaseObservation = _worldPhaseVision.Detect(frame, _profile);
+                var usedPhaseTotem = _dayNightTotemRotation.ProcessObservation(
+                    phaseObservation,
+                    isSafeState: _runtimeStateMachine.CurrentState == FishingState.Preparing
+                        && DateTimeOffset.UtcNow >= _resumeCastingAfter);
+                DayNightTotemStatusText.Text = _dayNightTotemRotation.LastStatus;
+
+                if (usedPhaseTotem)
+                {
+                    _resumeCastingAfter = DateTimeOffset.UtcNow.AddSeconds(2);
+                    AutomationStatusText.Text = _dayNightTotemRotation.LastStatus;
+                    return;
+                }
+            }
+
+            // Auto-cast is opt-in. The rod remains in the selected hotbar slot.
+            // Timed consumables run only in Preparing, between completed cycles.
             // One click selects the requested item; the configured rod slot is restored.
             if (_runtimeStateMachine.CurrentState == FishingState.Preparing
                 && _timedItemSchedule is not null
@@ -3452,6 +3554,8 @@ public partial class MainWindow : Window
             ShakeStatusText.Text = _profile.IsShakeCalibrated ? "Shake: profile calibration loaded." : "Shake: awaiting prompt calibration.";
             SellStatusText.Text = _profile.IsSellButtonCalibrated ? "Sell Anywhere: profile calibration loaded." : "Sell Anywhere: awaiting button calibration.";
             ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated ? "Reconnect button calibration imported." : "Reconnect button calibration is missing.";
+            WorldPhaseCalibrationStatusText.Text = _profile.IsWorldPhaseCalibrated ? "Day/night phase calibration imported." : "Day/night phase calibration is missing.";
+            DayNightTotemStatusText.Text = _profile.IsWorldPhaseCalibrated ? "Phase calibration imported." : "Calibrate both day and night colours.";
             OcrStatusText.Text = _profile.IsCatchNotificationCalibrated ? "Local OCR: catch notification region loaded." : "Local OCR: select the catch notification region before starting a session.";
             UpdateConnectionRecoveryControls();
             TelemetryText.Text = $"Profile: {_activeProfileName} · imported.";
@@ -3504,6 +3608,8 @@ public partial class MainWindow : Window
             ShakeStatusText.Text = _profile.IsShakeCalibrated ? "Shake: profile calibration loaded." : "Shake: awaiting prompt calibration.";
             SellStatusText.Text = _profile.IsSellButtonCalibrated ? "Sell Anywhere: profile calibration loaded." : "Sell Anywhere: awaiting button calibration.";
             ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated ? "Reconnect button calibration loaded." : "Reconnect button calibration is missing.";
+            WorldPhaseCalibrationStatusText.Text = _profile.IsWorldPhaseCalibrated ? "Day/night phase calibration loaded." : "Day/night phase calibration is missing.";
+            DayNightTotemStatusText.Text = _profile.IsWorldPhaseCalibrated ? "Phase calibration loaded." : "Calibrate both day and night colours.";
             OcrStatusText.Text = _profile.IsCatchNotificationCalibrated ? "Local OCR: catch notification region loaded." : "Local OCR: select the catch notification region before starting a session.";
             UpdateConnectionRecoveryControls();
             TelemetryText.Text = $"Profile: {_activeProfileName} · loaded.";
@@ -3599,6 +3705,24 @@ public partial class MainWindow : Window
             "Click a clear pixel inside the reconnect button. Use the same Roblox UI theme and resolution.");
     }
 
+    private void SelectWorldPhaseRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectWorldPhaseRegion,
+            "Select a small, fixed HUD indicator that changes between day and night. Avoid the sky or animated scenery.");
+    }
+
+    private void SampleDayPhaseColor_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleDayPhaseColor,
+            "Click a clear pixel inside the indicator while the world is in its DAY phase.");
+    }
+
+    private void SampleNightPhaseColor_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleNightPhaseColor,
+            "Click a clear pixel inside the same indicator while the world is in its NIGHT phase.");
+    }
+
     private void EquipRodCheckBox_Changed(object sender, RoutedEventArgs e)
     {
         if (!_automationEnabled)
@@ -3643,6 +3767,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleShakePrompt
             or CalibrationAction.SampleSellButton
             or CalibrationAction.SampleReconnectButtonColor
+            or CalibrationAction.SampleDayPhaseColor
+            or CalibrationAction.SampleNightPhaseColor
             or CalibrationAction.SampleAquariumButtonColor)
         {
             SampleMarkerColor(pixelPoint);
@@ -3657,6 +3783,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectInventoryItemsRegion
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
+            or CalibrationAction.SelectWorldPhaseRegion
             or CalibrationAction.SelectAquariumButtonRegion)
         {
             _selectionStartPixel = pixelPoint;
@@ -3680,6 +3807,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectInventoryItemsRegion
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
+            or CalibrationAction.SelectWorldPhaseRegion
             or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
@@ -3704,6 +3832,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectInventoryItemsRegion
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
+            or CalibrationAction.SelectWorldPhaseRegion
             or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
@@ -3792,6 +3921,13 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectWorldPhaseRegion => _profile with
+            {
+                WorldPhaseRegion = selectedRegion,
+                WorldPhaseRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             CalibrationAction.SelectAquariumButtonRegion => WithAquariumButtonRegion(
                 _profile, _aquariumCalibrationActionKind, selectedRegion, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
@@ -3808,6 +3944,7 @@ public partial class MainWindow : Window
             CalibrationAction.SelectInventoryItemsRegion => "Inventory item-list region saved.",
             CalibrationAction.SelectCatchNotificationRegion => "Catch notification OCR region saved.",
             CalibrationAction.SelectReconnectButtonRegion => "Reconnect button region saved.",
+            CalibrationAction.SelectWorldPhaseRegion => "Day/night phase indicator region saved.",
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
             _ => "Region saved."
         };
@@ -3833,6 +3970,8 @@ public partial class MainWindow : Window
         }
 
         var isReconnectColor = _calibrationAction == CalibrationAction.SampleReconnectButtonColor;
+        var isDayPhaseColor = _calibrationAction == CalibrationAction.SampleDayPhaseColor;
+        var isNightPhaseColor = _calibrationAction == CalibrationAction.SampleNightPhaseColor;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
         var index = y * _lastFrame.Stride + x * 4;
@@ -3851,6 +3990,8 @@ public partial class MainWindow : Window
             CalibrationAction.SampleShakePrompt => _profile with { ShakePromptColor = color },
             CalibrationAction.SampleSellButton => _profile with { SellButtonColor = color },
             CalibrationAction.SampleReconnectButtonColor => _profile with { ReconnectButtonColor = color },
+            CalibrationAction.SampleDayPhaseColor => _profile with { DayPhaseColor = color },
+            CalibrationAction.SampleNightPhaseColor => _profile with { NightPhaseColor = color },
             CalibrationAction.SampleAquariumButtonColor => WithAquariumButtonColor(
                 _profile, _aquariumCalibrationActionKind, color, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
@@ -3868,6 +4009,18 @@ public partial class MainWindow : Window
         {
             ConnectionRecoveryStatusText.Text = "Reconnect button colour saved. The watchdog is ready to be armed.";
             UpdateConnectionRecoveryControls();
+        }
+        if (isDayPhaseColor || isNightPhaseColor)
+        {
+            WorldPhaseCalibrationStatusText.Text = _profile.IsWorldPhaseCalibrated
+                ? "Day/night phase calibration complete."
+                : isDayPhaseColor
+                    ? "Day colour saved. Capture a night frame and sample its indicator colour."
+                    : "Night colour saved. Capture a day frame and sample its indicator colour.";
+            DayNightTotemStatusText.Text = _profile.IsWorldPhaseCalibrated
+                ? "Phase calibration complete. Day/night rotation is ready."
+                : "Both day and night colours are required before arming.";
+            UpdateTimedItemControls();
         }
         await SaveProfileAsync("Marker color saved.");
     }
@@ -3892,6 +4045,8 @@ public partial class MainWindow : Window
         ShakeStatusText.Text = "Shake: awaiting prompt calibration.";
         SellStatusText.Text = "Sell Anywhere: awaiting button calibration.";
         ConnectionRecoveryStatusText.Text = "Calibrate the reconnect button region and colour before arming the watchdog.";
+        WorldPhaseCalibrationStatusText.Text = "Calibrate the phase region and sample the day and night colours.";
+        DayNightTotemStatusText.Text = "Day/night totems need phase calibration.";
         OcrStatusText.Text = "Local OCR: select the catch notification region before starting a session.";
         UpdateConnectionRecoveryControls();
     }

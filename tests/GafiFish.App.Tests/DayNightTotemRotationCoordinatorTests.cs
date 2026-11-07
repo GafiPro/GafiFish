@@ -82,6 +82,21 @@ public sealed class DayNightTotemRotationCoordinatorTests
     }
 
     [Fact]
+    public void UnknownPhaseAfterAQueuedTransitionClearsThePendingTotem()
+    {
+        var input = new RecordingInput();
+        var coordinator = CreateCoordinator(input);
+        SetBaselineDay(coordinator);
+        SetStableNight(coordinator);
+        Assert.Equal(DayNightPhase.Night, coordinator.PendingPhase);
+
+        var unknown = new DayNightPhaseObservation(DayNightPhase.Unknown, 0, "Indicator disappeared.");
+        Assert.False(coordinator.ProcessObservation(unknown, true));
+        Assert.Equal(DayNightPhase.Unknown, coordinator.PendingPhase);
+        Assert.Empty(input.Events);
+    }
+
+    [Fact]
     public void RejectsConflictingHotbarSlots()
     {
         var input = new RecordingInput();

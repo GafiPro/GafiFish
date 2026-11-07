@@ -177,3 +177,15 @@ O motor espera por três frames estáveis antes de enviar um clique único. Só 
 6. Se o botão não desaparecer no timeout, o watchdog pára sem repetir. O desaparecimento do botão não confirma que voltaste à sessão; verifica o jogo manualmente antes de rearmar o macro.
 
 O watchdog não funciona ao mesmo tempo que Reel assist ou Auto Aquarium. A calibração depende da resolução, escala e aparência do botão; repete-a quando a UI mudar.
+
+
+## Rotação de totens dia/noite
+
+1. Confirma que tens um indicador fixo na HUD do Fisch que muda visivelmente entre dia e noite. Não uses o céu, sombras ou elementos animados.
+2. Em **Calibration**, captura F6 durante o dia, seleciona uma pequena região à volta do indicador e amostra a cor diurna.
+3. Faz o mesmo durante a noite, na mesma região, e amostra a cor noturna. Guarda o perfil.
+4. Na página **Fishing**, ativa Auto-cast e Equip my rod. Ativa **Use day/night totems on phase change** e escolhe dois slots diferentes para os totens de dia e de noite. Os slots têm de ser diferentes do slot da cana e de qualquer poção.
+5. A rotação não usa item na primeira fase reconhecida. Exige três frames estáveis para confirmar uma mudança e só usa o totem quando a pesca estiver em **Preparing**. O slot da cana é reposto após o clique.
+6. Não atives simultaneamente os dois temporizadores de totem: escolhe a rotação dia/noite ou os temporizadores normais. A ativação do item não é confirmada visualmente pelo jogo; verifica os slots e testa primeiro com atenção.
+
+A função depende de um indicador HUD real e estável. Se não existir um indicador com cores claramente distintas, não inventes uma região/cor: deixa a opção desligada.

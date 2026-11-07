@@ -95,7 +95,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 
 ## Próximo bloqueio técnico
 
-O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e testes sintéticos. Os inputs automáticos continuam opt-in e exigem calibração manual. A nova opção de tentativas ilimitadas e os botões da janela já estão no código, mas ainda precisam de compilação/testes CI nesta revisão e validação prática com frames reais do Fisch, sobretudo a deteção da notificação de captura e os tempos do medidor/prompt.
+O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e testes sintéticos. Os inputs automáticos continuam opt-in e exigem calibração manual. A nova opção de tentativas ilimitadas e os botões da janela já estão no código. O watchdog de reconexão e o motor visual dia/noite também têm testes sintéticos e build CI; todos continuam a precisar de validação prática com frames reais do Fisch, sobretudo a deteção da notificação de captura, o indicador dia/noite e os tempos do medidor/prompt.
 
 ## Funcionalidades que não fazem parte do plano
 
@@ -244,3 +244,14 @@ A validação que falta nesta fase não pode ser provada por frames sintéticos 
 - [x] Intervalo de segurança de 20 segundos e máximo de três cliques por ativação.
 - [x] Desarmar sem retry quando o botão não desaparece no timeout.
 - [ ] Validar com diferentes ecrãs reais de desconexão e confirmar visualmente a entrada na sessão.
+
+
+## Rotação de totens dia/noite — novembro de 2026
+
+- [x] Calibrar região fixa e cores HSV separadas para dia e noite.
+- [x] Exigir três frames consistentes e tratar leituras ambíguas/ausentes como desconhecidas.
+- [x] Usar a primeira fase estável apenas como baseline, sem gastar um totem no arranque.
+- [x] Guardar uma mudança confirmada até o estado de pesca ser Preparing.
+- [x] Selecionar o slot correspondente, clicar uma vez e repor o slot da cana.
+- [x] Impedir conflito com temporizadores de totem e validar slots distintos.
+- [ ] Validar com capturas reais do indicador HUD do Fisch, em dia e noite, antes de usar os slots reais.

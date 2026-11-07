@@ -64,6 +64,7 @@ public sealed class DayNightTotemRotationCoordinator
         {
             _candidatePhase = DayNightPhase.Unknown;
             _candidateFrames = 0;
+            _pendingPhase = DayNightPhase.Unknown;
             _lastStatus = observation.Status;
             return false;
         }

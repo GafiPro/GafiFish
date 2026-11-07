@@ -705,7 +705,40 @@
                                      Padding="6,4" Background="#263543" Foreground="#EAF0F5" IsEnabled="False" />
                             <TextBlock Grid.Column="2" Text="min" VerticalAlignment="Center" Foreground="#9BAAB8" Margin="6,0,0,0" />
                         </Grid>
-                        <TextBlock Text="Requires Auto-cast and Equip my rod. Each configured item has its own interval and is used only between completed fishing cycles; the rod slot is then restored. Every use may consume an item and is not verified by the game."
+                        <CheckBox x:Name="AutoDayNightTotemCheckBox"
+                                  Content="Use day/night totems on phase change"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,8,0,6"
+                                  Checked="DayNightTotemCheckBox_Changed"
+                                  Unchecked="DayNightTotemCheckBox_Changed" />
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <TextBlock Text="Day totem slot" Foreground="#9BAAB8" FontSize="11" />
+                                <ComboBox x:Name="DayTotemSlotComboBox" SelectedIndex="2" Height="30"
+                                          Background="#263543" Foreground="#EAF0F5" IsEnabled="False">
+                                    <ComboBoxItem Content="1" /><ComboBoxItem Content="2" /><ComboBoxItem Content="3" />
+                                    <ComboBoxItem Content="4" /><ComboBoxItem Content="5" /><ComboBoxItem Content="6" />
+                                    <ComboBoxItem Content="7" /><ComboBoxItem Content="8" /><ComboBoxItem Content="9" />
+                                    <ComboBoxItem Content="0" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                <TextBlock Text="Night totem slot" Foreground="#9BAAB8" FontSize="11" />
+                                <ComboBox x:Name="NightTotemSlotComboBox" SelectedIndex="3" Height="30"
+                                          Background="#263543" Foreground="#EAF0F5" IsEnabled="False">
+                                    <ComboBoxItem Content="1" /><ComboBoxItem Content="2" /><ComboBoxItem Content="3" />
+                                    <ComboBoxItem Content="4" /><ComboBoxItem Content="5" /><ComboBoxItem Content="6" />
+                                    <ComboBoxItem Content="7" /><ComboBoxItem Content="8" /><ComboBoxItem Content="9" />
+                                    <ComboBoxItem Content="0" />
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock x:Name="DayNightTotemStatusText"
+                                   Text="Calibrate a fixed day/night HUD indicator before enabling this option."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,7" />
+                        <TextBlock Text="Requires Auto-cast and Equip my rod. Uses the matching totem only after a stable phase change and while Preparing. The first phase sets a baseline without consuming an item. The rod slot is restored after each use."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,4" />
                         <TextBlock x:Name="HotkeyStatusText" Text="Global hotkeys: registering…"
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,10,0,0" />
@@ -833,6 +866,20 @@
                         <Button Content="Sample reconnect button colour" Click="SampleReconnectButtonColor_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Separator Margin="0,10,0,8" Background="#33414F" />
+                        <TextBlock Text="Day/night totem calibration" FontWeight="SemiBold" Margin="0,0,0,7" />
+                        <Button Content="Select day/night HUD indicator region" Click="SelectWorldPhaseRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample DAY indicator colour" Click="SampleDayPhaseColor_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample NIGHT indicator colour" Click="SampleNightPhaseColor_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <TextBlock x:Name="WorldPhaseCalibrationStatusText"
+                                   Text="Select one fixed HUD indicator and sample its colours during both phases."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,3,0,8" />
                         <Button Content="Reset calibration" Click="ResetCalibration_Click"
                                 Height="34" Background="#4A3037" Foreground="White" BorderThickness="0" />
                         <TextBlock x:Name="CalibrationModeText"
