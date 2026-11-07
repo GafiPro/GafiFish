@@ -880,33 +880,6 @@
                 <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
                         CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>
-                        <TextBlock Text="Appraiser and Enchant panel reader" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,7" />
-                        <TextBlock Text="Read the visible panel text locally to inspect options and displayed costs. This helper is read-only: it never clicks, appraises, spends C$, uses Relics or enchants."
-                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,10" />
-                        <TextBlock Text="Appraiser / Treasure Appraiser" Foreground="#9BAAB8" Margin="0,0,0,5" />
-                        <Button Content="Read Appraiser panel" Click="ReadAppraisalPanel_Click"
-                                Height="32" Margin="0,0,0,6" Background="#294153" Foreground="#EAF0F5" />
-                        <TextBox x:Name="AppraisalPanelOcrTextBox" IsReadOnly="True" AcceptsReturn="True"
-                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78"
-                                 Background="#263543" Foreground="#EAF0F5" Padding="7,5" />
-                        <TextBlock x:Name="AppraisalPanelStatusText"
-                                   Text="Calibrate the Appraiser text area in the Calibration tab."
-                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,10" />
-                        <Separator Margin="0,6,0,8" Background="#33414F" />
-                        <TextBlock Text="Enchant altar" Foreground="#9BAAB8" Margin="0,0,0,5" />
-                        <Button Content="Read Enchant panel" Click="ReadEnchantPanel_Click"
-                                Height="32" Margin="0,0,0,6" Background="#294153" Foreground="#EAF0F5" />
-                        <TextBox x:Name="EnchantPanelOcrTextBox" IsReadOnly="True" AcceptsReturn="True"
-                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="78"
-                                 Background="#263543" Foreground="#EAF0F5" Padding="7,5" />
-                        <TextBlock x:Name="EnchantPanelStatusText"
-                                   Text="Calibrate the Enchant altar text area in the Calibration tab."
-                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" />
-                    </StackPanel>
-                </Border>
-                <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
-                        CornerRadius="16" Padding="18" Margin="0,0,0,14">
-                    <StackPanel>
                         <TextBlock Text="Connection watchdog" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,7" />
                         <TextBlock Text="Watch for a reconnect button that you calibrated. The watchdog waits for three stable frames, clicks once, and waits for the button to disappear before another bounded attempt."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,9" />
@@ -1031,12 +1004,8 @@
                         <Button Content="Select rod-name OCR region" Click="SelectRodNameRegion_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
-                        <Button Content="Select Appraiser panel text region" Click="SelectAppraisalPanelRegion_Click"
-                                Height="34" Margin="0,0,0,7"
-                                Background="#294153" Foreground="White" BorderThickness="0" />
-                        <Button Content="Select Enchant altar text region" Click="SelectEnchantPanelRegion_Click"
-                                Height="34" Margin="0,0,0,7"
-                                Background="#294153" Foreground="White" BorderThickness="0" />
+
+
                         <Separator Margin="0,10,0,8" Background="#33414F" />
                         <TextBlock Text="Rod charge-meter calibration" FontWeight="SemiBold" Margin="0,0,0,7" />
                         <Button Content="Select complete charge-meter track" Click="SelectRodChargeMeterRegion_Click"
