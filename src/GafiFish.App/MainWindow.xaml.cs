@@ -2263,7 +2263,8 @@ public partial class MainWindow : Window
         if (_automationEnabled || _startRequested || _aquariumStartRequested
             || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested
-            || _connectionRecoveryCoordinator?.IsStarted == true)
+            || _connectionRecoveryCoordinator?.IsStarted == true
+            || _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true)
         {
             AutomationStatusText.Text = "Stop Auto Aquarium and the connection watchdog before starting the fishing macro.";
             return;
@@ -2300,6 +2301,8 @@ public partial class MainWindow : Window
         StopAutomation("Macro stopped by the user; all game inputs released.");
         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
             StopAquariumAutomation("Stopped by the user; Auto Aquarium inputs released.");
+        if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
+            StopAnglerQuestAutomation("Stopped by the user; Angler inputs released.");
         if (_isUiHidden) RestoreMainWindow();
     }
 
@@ -2479,7 +2482,8 @@ public partial class MainWindow : Window
 
         if (_aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested
-            || _connectionRecoveryCoordinator?.IsStarted == true)
+            || _connectionRecoveryCoordinator?.IsStarted == true
+            || _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true)
         {
             AutomationStatusText.Text = "Stop Auto Aquarium and the connection watchdog before starting the fishing macro.";
             return;
@@ -4487,7 +4491,9 @@ public partial class MainWindow : Window
                 || importedProfile.IsInventoryVerificationCalibrated
                 || importedProfile.IsCatchNotificationCalibrated
                 || importedProfile.IsReconnectButtonCalibrated
-                || importedProfile.IsWorldPhaseCalibrated;
+                || importedProfile.IsWorldPhaseCalibrated
+                || importedProfile.IsAnglerAcceptButtonCalibrated
+                || importedProfile.IsAnglerSubmitButtonCalibrated;
             if (!hasCalibration)
                 throw new InvalidDataException("The selected JSON does not contain a usable GafiFish calibration profile.");
 
