@@ -171,7 +171,9 @@ public sealed class AnglerQuestAutomationCoordinator
         catch (Exception exception) when (
             exception is InvalidOperationException
             or System.ComponentModel.Win32Exception
-            or ArgumentException)
+            or ArgumentException
+            or System.IO.IOException
+            or UnauthorizedAccessException)
         {
             Fail($"Angler automation stopped safely: {exception.Message}");
         }
