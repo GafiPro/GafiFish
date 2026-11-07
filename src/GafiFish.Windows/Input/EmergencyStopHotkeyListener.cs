@@ -61,10 +61,17 @@ public sealed class EmergencyStopHotkeyListener : IDisposable
     private void MessagePump()
     {
         var threadId = Native.GetCurrentThreadId();
+
+        // Force creation of this thread's message queue before publishing its id.
+        // Dispose can then safely post WM_QUIT as soon as it sees a non-zero id.
+        _ = Native.PeekMessage(out _, IntPtr.Zero, 0, 0, PmNoRemove);
         Volatile.Write(ref _threadId, unchecked((int)threadId));
 
-        // Force creation of this thread's message queue before RegisterHotKey.
-        _ = Native.PeekMessage(out _, IntPtr.Zero, 0, 0, PmNoRemove);
+        if (Volatile.Read(ref _disposed) == 1)
+        {
+            _ready.Set();
+            return;
+        }
 
         if (!Native.RegisterHotKey(IntPtr.Zero, HotkeyId, ModNoRepeat, _virtualKey))
         {
