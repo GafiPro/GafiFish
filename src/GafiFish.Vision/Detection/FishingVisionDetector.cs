@@ -24,6 +24,17 @@ public sealed class FishingVisionDetector
             throw new ArgumentException("Frame pixel buffer is invalid.", nameof(frame));
         }
 
+        if (profile.RodMinigameMode == GafiFish.Core.Control.RodMinigameMode.TranquilityRhythm)
+        {
+            var calibrated = profile.IsTranquilityRhythmCalibrated;
+            return new FishingVisionResult(
+                frame.CapturedAt, frame.Width, frame.Height,
+                null, null, calibrated,
+                calibrated
+                    ? "Tranquility Rhythm uses its dedicated four-lane note detector."
+                    : "Calibrate the four Tranquility note lanes and hit line before starting.");
+        }
+
         if (profile.RodMinigameMode == GafiFish.Core.Control.RodMinigameMode.DualFish
             && !profile.IsDualFishCalibrated)
         {
