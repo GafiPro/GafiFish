@@ -1,3 +1,4 @@
+using Xunit;
 using GafiFish.App.Automation;
 using GafiFish.Vision.Detection;
 

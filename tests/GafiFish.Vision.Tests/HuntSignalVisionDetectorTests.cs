@@ -1,3 +1,4 @@
+using Xunit;
 using GafiFish.Vision.Calibration;
 using GafiFish.Vision.Detection;
 using GafiFish.Windows.Capture;
