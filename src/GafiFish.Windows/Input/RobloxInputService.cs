@@ -7,8 +7,8 @@ namespace GafiFish.Windows.Input;
 /// <summary>
 /// Sends ordinary Windows mouse/keyboard input only while the Roblox window is
 /// foreground and after an explicit Arm call. Disarming releases every held
-/// input. This service is not connected to automatic gameplay in the current
-/// observation build.
+/// input. Explicitly armed automation coordinators use this adapter for
+/// ordinary Windows input; it does not access Roblox memory or inject code.
 /// </summary>
 public sealed class RobloxInputService : IRobloxInput, IDisposable
 {
