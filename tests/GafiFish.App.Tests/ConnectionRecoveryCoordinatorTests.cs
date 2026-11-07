@@ -79,8 +79,8 @@ public sealed class ConnectionRecoveryCoordinatorTests
         SendStableButton(coordinator, profile, start.AddSeconds(3));
         Assert.Equal(2, input.Clicks);
 
-        coordinator.ProcessFrame(CreateFrame(start.AddSeconds(3).AddMilliseconds(120), false), profile);
-        coordinator.ProcessFrame(CreateFrame(start.AddSeconds(3).AddMilliseconds(240), false), profile);
+        coordinator.ProcessFrame(CreateFrame(start.AddSeconds(3).AddMilliseconds(360), false), profile);
+        coordinator.ProcessFrame(CreateFrame(start.AddSeconds(3).AddMilliseconds(480), false), profile);
 
         Assert.False(coordinator.IsStarted);
         Assert.Equal(2, input.Clicks);
