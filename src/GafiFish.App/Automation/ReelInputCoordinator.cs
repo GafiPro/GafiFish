@@ -3,7 +3,6 @@ using GafiFish.Windows.Input;
 using GafiFish.Core.Control;
 using GafiFish.Vision.Detection;
 using GafiFish.Vision.Tracking;
-using GafiFish.Core.Control;
 
 namespace GafiFish.App.Automation;
 
