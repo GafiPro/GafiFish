@@ -193,3 +193,19 @@ O watchdog não funciona ao mesmo tempo que Reel assist ou Auto Aquarium. A cali
 6. Não atives simultaneamente os dois temporizadores de totem: escolhe a rotação dia/noite ou os temporizadores normais. A ativação do item não é confirmada visualmente pelo jogo; verifica os slots e testa primeiro com atenção.
 
 A função depende de um indicador HUD real e estável. Se não existir um indicador com cores claramente distintas, não inventes uma região/cor: deixa a opção desligada.
+
+
+## Angler Quest Assist
+
+1. Aceita manualmente um pedido junto do Angler.
+2. Ativa **Angler Quest assist** e escreve no campo de target o nome exato do peixe pedido.
+3. Confirma que tens uma sessão OCR ativa e as regiões de pesca/Perfect Cast calibradas; inicia o macro.
+4. Quando a notificação OCR confirmar o peixe-alvo, o GafiFish pára a pesca.
+5. Entrega o peixe ao Angler manualmente. Depois clica em **I handed the fish to the Angler · start cooldown**.
+6. O GafiFish mostra o cooldown de 120 segundos e impede iniciar outro pedido antes de terminar.
+
+O GafiFish não aceita pedidos nem entrega peixes ao NPC automaticamente. A captura depende da notificação de captura e da confiança do OCR local.
+
+## Appraise, Treasure Appraiser e Enchant
+
+Estas ações usam custos ou itens do jogo e podem produzir resultados aleatórios. O GafiFish não repete automaticamente Appraise/Treasure Appraise nem consome Enchant Relics em cadeia. Confirma sempre o peixe, o custo e o resultado pretendido no próprio jogo; estas ações permanecem manuais nesta versão.

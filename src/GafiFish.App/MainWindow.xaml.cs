@@ -179,6 +179,8 @@ public partial class MainWindow : Window
     private IReadOnlyList<FishCatch> _dashboardSessionCatches = Array.Empty<FishCatch>();
     private readonly DispatcherTimer _dashboardSessionTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private CatchGoalProgress? _targetCatchProgress;
+    private readonly AnglerQuestTracker _anglerQuestTracker = new();
+    private bool _anglerQuestAssistEnabled;
     private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
     private string? _lastCatchFingerprint;
@@ -871,6 +873,8 @@ public partial class MainWindow : Window
     {
         var now = DateTimeOffset.UtcNow;
         RefreshAquariumPlannerDisplay(now);
+        if (_anglerQuestTracker.HasCatchToSubmit || _anglerQuestTracker.IsInCooldown)
+            AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(now);
 
         if (!_aquariumScheduleState.ReadySoundEnabled)
             return;
@@ -1806,6 +1810,7 @@ public partial class MainWindow : Window
             $"Sell Anywhere: {sellStatus}{Environment.NewLine}" +
             $"Reconnect watchdog: {(_connectionRecoveryCoordinator?.IsStarted == true ? "ARMED" : _profile.IsReconnectButtonCalibrated ? "READY" : "NEEDS CALIBRATION")}{Environment.NewLine}" +
             $"Hunt alerts: {(HuntDetectionEnabledCheckBox.IsChecked == true ? (_profile.IsHuntSignalCalibrated ? "ON · MONITORING" : "NEEDS CALIBRATION") : "OFF")}{Environment.NewLine}" +
+            $"Angler quest: {(AnglerQuestAssistCheckBox.IsChecked == true ? "ASSIST ENABLED" : "OFF")}{Environment.NewLine}" +
             $"Local OCR session: {State(_activeSessionId.HasValue)}";
     }
 
@@ -1960,12 +1965,46 @@ public partial class MainWindow : Window
     private void TargetFishCheckBox_Changed(object sender, RoutedEventArgs e)
     {
         var enabled = AutoCastCheckBox.IsChecked == true
-            && TargetFishCheckBox.IsChecked == true
+            && (TargetFishCheckBox.IsChecked == true || AnglerQuestAssistCheckBox.IsChecked == true)
             && !_automationEnabled;
         TargetFishTextBox.IsEnabled = enabled;
         TargetFishCatchGoalTextBox.IsEnabled = enabled;
         TargetFishProgressText.Text = $"Target progress · 0 / {ReadTargetCatchGoalOrDefault()}";
         RefreshModuleQuickInfo();
+    }
+
+    private void AnglerQuestAssistCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled) return;
+
+        if (AnglerQuestAssistCheckBox.IsChecked == true)
+        {
+            AutoCastCheckBox.IsChecked = true;
+            TargetFishCatchGoalTextBox.Text = "1";
+            AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
+        }
+        else if (!_anglerQuestTracker.HasCatchToSubmit && _anglerQuestTracker.IsTracking)
+        {
+            AnglerQuestStatusText.Text = "Angler Quest assist disabled. The current quest tracker has been left unchanged.";
+        }
+
+        TargetFishCheckBox_Changed(TargetFishCheckBox, null!);
+        RefreshModuleQuickInfo();
+    }
+
+    private void ConfirmAnglerQuestSubmitted_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _anglerQuestTracker.ConfirmQuestSubmitted(DateTimeOffset.UtcNow);
+            AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
+            AnglerQuestSubmittedButton.IsEnabled = false;
+            AddActivityLog("INFO", "ANGLER", "Quest fish hand-in confirmed manually. The 120-second request cooldown has started.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            AnglerQuestStatusText.Text = exception.Message;
+        }
     }
 
     private void AutoCastCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -1978,7 +2017,8 @@ public partial class MainWindow : Window
         var autoCastEnabled = AutoCastCheckBox.IsChecked == true;
         KeepFishingUntilCatchCheckBox.IsEnabled = autoCastEnabled;
         TargetFishCheckBox.IsEnabled = autoCastEnabled;
-        var targetModeEnabled = autoCastEnabled && TargetFishCheckBox.IsChecked == true;
+        var targetModeEnabled = autoCastEnabled
+            && (TargetFishCheckBox.IsChecked == true || AnglerQuestAssistCheckBox.IsChecked == true);
         TargetFishTextBox.IsEnabled = targetModeEnabled;
         TargetFishCatchGoalTextBox.IsEnabled = targetModeEnabled;
         if (!autoCastEnabled)
@@ -2044,15 +2084,23 @@ public partial class MainWindow : Window
         var autoDayNightTotemEnabled = AutoDayNightTotemCheckBox.IsChecked == true;
         var autoPotionEnabled = AutoPotionCheckBox.IsChecked == true;
         var keepFishingUntilCatch = KeepFishingUntilCatchCheckBox.IsChecked == true;
-        var targetFishEnabled = TargetFishCheckBox.IsChecked == true;
+        var anglerQuestAssistEnabled = AnglerQuestAssistCheckBox.IsChecked == true;
+        var targetFishEnabled = TargetFishCheckBox.IsChecked == true || anglerQuestAssistEnabled;
         var targetFishName = TargetFishTextBox.Text.Trim();
-        var targetCatchGoal = ReadTargetCatchGoalOrDefault();
+        var targetCatchGoal = anglerQuestAssistEnabled ? 1 : ReadTargetCatchGoalOrDefault();
 
-        if (targetFishEnabled
+        if (targetFishEnabled && !anglerQuestAssistEnabled
             && (!int.TryParse(TargetFishCatchGoalTextBox.Text.Trim(), out targetCatchGoal)
                 || targetCatchGoal is < 1 or > 100))
         {
             AutomationStatusText.Text = "Target catch goal must be a whole number between 1 and 100.";
+            return;
+        }
+
+        if (anglerQuestAssistEnabled && !_anglerQuestTracker.CanStartNewQuest(DateTimeOffset.UtcNow))
+        {
+            AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
+            AutomationStatusText.Text = "The current Angler request or 120-second cooldown must finish before starting another quest.";
             return;
         }
 
@@ -2266,6 +2314,13 @@ public partial class MainWindow : Window
             _targetFishEnabled = targetFishEnabled;
             _targetFishName = targetFishEnabled ? targetFishName : null;
             _targetCatchProgress = targetFishEnabled ? new CatchGoalProgress(targetCatchGoal) : null;
+            _anglerQuestAssistEnabled = anglerQuestAssistEnabled;
+            if (anglerQuestAssistEnabled)
+            {
+                _anglerQuestTracker.StartTarget(targetFishName, DateTimeOffset.UtcNow);
+                AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
+                AnglerQuestSubmittedButton.IsEnabled = false;
+            }
             TargetFishProgressText.Text = $"Target progress · 0 / {targetCatchGoal}";
             _missedBiteRetries = new MissedBiteRetryPolicy(unlimitedRetries: keepFishingUntilCatch || targetFishEnabled);
             _automationEnabled = true;
@@ -2277,6 +2332,8 @@ public partial class MainWindow : Window
             TargetFishCheckBox.IsEnabled = false;
             TargetFishTextBox.IsEnabled = false;
             TargetFishCatchGoalTextBox.IsEnabled = false;
+            AnglerQuestAssistCheckBox.IsEnabled = false;
+            AnglerQuestSubmittedButton.IsEnabled = false;
             AutoTotemCheckBox.IsEnabled = false;
             AutoSecondTotemCheckBox.IsEnabled = false;
             AutoDayNightTotemCheckBox.IsEnabled = false;
@@ -2411,6 +2468,8 @@ public partial class MainWindow : Window
         _keepFishingUntilCatchEnabled = false;
         _targetFishEnabled = false;
         _targetFishName = null;
+        _anglerQuestAssistEnabled = false;
+        AnglerQuestAssistCheckBox.IsEnabled = true;
         StartMacroButton.IsEnabled = true;
         StopMacroButton.IsEnabled = false;
         InvertReelDirectionCheckBox.IsEnabled = true;
@@ -2418,7 +2477,8 @@ public partial class MainWindow : Window
         KeepFishingUntilCatchCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
         TargetFishCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
         TargetFishTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true && TargetFishCheckBox.IsChecked == true;
-        TargetFishCatchGoalTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true && TargetFishCheckBox.IsChecked == true;
+        TargetFishCatchGoalTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true
+            && (TargetFishCheckBox.IsChecked == true || AnglerQuestAssistCheckBox.IsChecked == true);
         UpdateTimedItemControls();
         AutoShakeCheckBox.IsEnabled = true;
         SellAnywhereCheckBox.IsEnabled = true;
@@ -4917,6 +4977,13 @@ public partial class MainWindow : Window
                 targetGoalReached = _targetCatchProgress.RecordMatch();
                 TargetFishProgressText.Text =
                     $"Target progress · {_targetCatchProgress.Caught} / {_targetCatchProgress.Goal}";
+                if (targetGoalReached && _anglerQuestAssistEnabled)
+                {
+                    _anglerQuestTracker.MarkTargetFishCaught(_targetFishName!, frame.CapturedAt);
+                    AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(frame.CapturedAt);
+                    AnglerQuestSubmittedButton.IsEnabled = true;
+                    AddActivityLog("INFO", "ANGLER", $"Angler target caught: {_targetFishName}. Hand it in manually to start the cooldown.");
+                }
             }
 
             var stopAfterFirstCatch = _automationEnabled

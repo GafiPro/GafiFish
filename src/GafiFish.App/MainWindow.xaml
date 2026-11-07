@@ -618,6 +618,21 @@
                                    Foreground="#67D5B5" FontSize="11" Margin="0,0,0,8" />
                         <TextBlock Text="Target matching checks the catch notification text (case-insensitive, punctuation-insensitive). It does not stop for unrelated catches."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <Separator Margin="0,8,0,8" Background="#33414F" />
+                        <CheckBox x:Name="AnglerQuestAssistCheckBox"
+                                  Content="Angler Quest assist · catch one requested fish"
+                                  Foreground="#EAF0F5" IsChecked="False" IsEnabled="True"
+                                  Margin="0,0,0,6"
+                                  Checked="AnglerQuestAssistCheckBox_Changed"
+                                  Unchecked="AnglerQuestAssistCheckBox_Changed" />
+                        <TextBlock Text="Accept the request manually and enter the requested fish above. GafiFish fishes for one exact OCR-confirmed target and stops. You must hand in the fish yourself; the 120-second cooldown begins only after you confirm that hand-in below."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,7" FontSize="11" />
+                        <Button x:Name="AnglerQuestSubmittedButton" Content="I handed the fish to the Angler · start cooldown"
+                                Click="ConfirmAnglerQuestSubmitted_Click" IsEnabled="False"
+                                Height="34" Margin="0,0,0,7" Background="#294153" />
+                        <TextBlock x:Name="AnglerQuestStatusText"
+                                   Text="Angler Quest assist is off. Accept a quest manually and enter its requested fish to begin."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,8" />
                         <CheckBox x:Name="AutoShakeCheckBox"
                                   Content="Auto-shake (stable prompts; detects end of prompt sequence)"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8"

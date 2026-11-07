@@ -291,3 +291,15 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Calibração incluída nos perfis de cana e testes sintéticos do detetor/coordenador.
 - [ ] Calibrar com uma imagem real da mensagem/indicador de Hunt na versão atual do Fisch e verificar falsos positivos.
 - [ ] Appraise, Treasure Appraise, Auto Enchant e Angler Quest continuam por implementar automaticamente até existirem frames reais dos respetivos diálogos, botões e estados de sucesso/custo. Não são usados alvos, preços ou coordenadas inventados.
+
+
+## Angler Quest Assist — novembro de 2026
+
+- [x] Integra o pedido manual do Angler com o target-fish OCR existente.
+- [x] Define automaticamente o objetivo para uma captura confirmada do peixe pedido.
+- [x] Pára o macro quando o alvo é reconhecido com confiança suficiente.
+- [x] A entrega ao NPC é manual; o utilizador confirma a entrega para iniciar o cooldown de 120 segundos.
+- [x] Mostra o tempo restante e bloqueia o pedido seguinte antes do fim do cooldown.
+- [x] Testes para alvo, captura, entrega, cooldown e pedido seguinte.
+- [ ] Validar o OCR dos nomes dos peixes em diálogos reais do Angler e diferentes resoluções.
+- [ ] Aceitação e entrega da quest ao NPC continuam manuais.
