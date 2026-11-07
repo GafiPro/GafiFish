@@ -64,6 +64,8 @@ public partial class MainWindow : Window
     private readonly SellAnywhereVisionDetector _sellVision = new();
     private readonly ConnectionRecoveryVisionDetector _connectionRecoveryVision = new();
     private readonly WorldPhaseVisionDetector _worldPhaseVision = new();
+    private readonly HuntSignalVisionDetector _huntSignalVision = new();
+    private readonly HuntDetectionCoordinator _huntDetectionCoordinator = new();
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private VisionProfileStore _profileStore = new();
@@ -208,6 +210,8 @@ public partial class MainWindow : Window
         SelectWorldPhaseRegion,
         SampleDayPhaseColor,
         SampleNightPhaseColor,
+        SelectHuntSignalRegion,
+        SampleHuntSignalColor,
         SelectAquariumButtonRegion,
         SampleAquariumButtonColor
     }
@@ -309,6 +313,9 @@ public partial class MainWindow : Window
         DayNightTotemStatusText.Text = _profile.IsWorldPhaseCalibrated
             ? "Phase calibration loaded. The first stable phase will set a baseline."
             : "Day/night totems need phase calibration.";
+        HuntDetectionStatusText.Text = _profile.IsHuntSignalCalibrated
+            ? "Hunt cue calibration loaded. Enable alerts to monitor live frames."
+            : "Select the hunt cue region and sample its colour in a visible hunt frame.";
         OcrStatusText.Text = _profile.IsCatchNotificationCalibrated
             ? "Local OCR: catch notification region loaded; start a session to initialise the engine."
             : "Local OCR: select the catch notification region before starting a session.";
@@ -1798,6 +1805,7 @@ public partial class MainWindow : Window
             $"Auto-potion: {TimedItem(AutoPotionCheckBox.IsChecked == true)}{Environment.NewLine}" +
             $"Sell Anywhere: {sellStatus}{Environment.NewLine}" +
             $"Reconnect watchdog: {(_connectionRecoveryCoordinator?.IsStarted == true ? "ARMED" : _profile.IsReconnectButtonCalibrated ? "READY" : "NEEDS CALIBRATION")}{Environment.NewLine}" +
+            $"Hunt alerts: {(HuntDetectionEnabledCheckBox.IsChecked == true ? (_profile.IsHuntSignalCalibrated ? "ON · MONITORING" : "NEEDS CALIBRATION") : "OFF")}{Environment.NewLine}" +
             $"Local OCR session: {State(_activeSessionId.HasValue)}";
     }
 
@@ -3371,6 +3379,24 @@ public partial class MainWindow : Window
             : "Sell Anywhere: select the button region and sample its color.";
         DrawMarker(_sellButtonOverlay, sellResult.SellButton);
 
+        if (allowAutomation && HuntDetectionEnabledCheckBox.IsChecked == true)
+        {
+            if (!_profile.IsHuntSignalCalibrated)
+            {
+                HuntDetectionStatusText.Text = "Hunt alerts enabled, but calibration is missing.";
+            }
+            else
+            {
+                var huntObservation = _huntSignalVision.Detect(frame, _profile);
+                if (_huntDetectionCoordinator.ProcessObservation(huntObservation))
+                {
+                    System.Media.SystemSounds.Asterisk.Play();
+                    AddActivityLog("INFO", "HUNT", "A calibrated hunt cue was detected. No game input was sent.");
+                }
+                HuntDetectionStatusText.Text = _huntDetectionCoordinator.LastStatus;
+            }
+        }
+
         if (allowAutomation)
         {
             if (_connectionRecoveryCoordinator is { IsStarted: true } connectionRecoveryCoordinator)
@@ -3809,6 +3835,29 @@ public partial class MainWindow : Window
             "Click a clear pixel inside the same indicator while the world is in its NIGHT phase.");
     }
 
+    private void SelectHuntSignalRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectHuntSignalRegion,
+            "Drag a tight rectangle around the visible hunt announcement or HUD cue. Calibrate it while the cue is on screen.");
+    }
+
+    private void SampleHuntSignalColor_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleHuntSignalColor,
+            "Click a clear, solid-colour pixel inside the hunt announcement or HUD cue.");
+    }
+
+    private void HuntDetectionEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        _huntDetectionCoordinator.Reset();
+        HuntDetectionStatusText.Text = HuntDetectionEnabledCheckBox.IsChecked == true
+            ? _profile.IsHuntSignalCalibrated
+                ? "Hunt alerts enabled. Start live preview to monitor the calibrated cue."
+                : "Hunt alerts enabled, but the cue region and colour still need calibration."
+            : "Hunt alerts are disabled.";
+        RefreshModuleQuickInfo();
+    }
+
     private void EquipRodCheckBox_Changed(object sender, RoutedEventArgs e)
     {
         if (!_automationEnabled)
@@ -3855,6 +3904,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleReconnectButtonColor
             or CalibrationAction.SampleDayPhaseColor
             or CalibrationAction.SampleNightPhaseColor
+            or CalibrationAction.SampleHuntSignalColor
             or CalibrationAction.SampleAquariumButtonColor)
         {
             SampleMarkerColor(pixelPoint);
@@ -3870,6 +3920,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
+            or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion)
@@ -3896,6 +3947,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
+            or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion)
@@ -3923,6 +3975,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
+            or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion)
@@ -4028,6 +4081,13 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectHuntSignalRegion => _profile with
+            {
+                HuntSignalRegion = selectedRegion,
+                HuntSignalRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             CalibrationAction.CaptureFishMarkerTemplate => _profile with
             {
                 FishMarkerTemplatePng = EncodeMarkerTemplate(_lastFrame, selectedRegion),
@@ -4057,6 +4117,7 @@ public partial class MainWindow : Window
             CalibrationAction.SelectCatchNotificationRegion => "Catch notification OCR region saved.",
             CalibrationAction.SelectReconnectButtonRegion => "Reconnect button region saved.",
             CalibrationAction.SelectWorldPhaseRegion => "Day/night phase indicator region saved.",
+            CalibrationAction.SelectHuntSignalRegion => "Hunt cue region saved.",
             CalibrationAction.CaptureFishMarkerTemplate => "Fish marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.CaptureControlMarkerTemplate => "Control marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
@@ -4101,6 +4162,7 @@ public partial class MainWindow : Window
         var isReconnectColor = _calibrationAction == CalibrationAction.SampleReconnectButtonColor;
         var isDayPhaseColor = _calibrationAction == CalibrationAction.SampleDayPhaseColor;
         var isNightPhaseColor = _calibrationAction == CalibrationAction.SampleNightPhaseColor;
+        var isHuntSignalColor = _calibrationAction == CalibrationAction.SampleHuntSignalColor;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
         var index = y * _lastFrame.Stride + x * 4;
@@ -4121,6 +4183,7 @@ public partial class MainWindow : Window
             CalibrationAction.SampleReconnectButtonColor => _profile with { ReconnectButtonColor = color },
             CalibrationAction.SampleDayPhaseColor => _profile with { DayPhaseColor = color },
             CalibrationAction.SampleNightPhaseColor => _profile with { NightPhaseColor = color },
+            CalibrationAction.SampleHuntSignalColor => _profile with { HuntSignalColor = color },
             CalibrationAction.SampleAquariumButtonColor => WithAquariumButtonColor(
                 _profile, _aquariumCalibrationActionKind, color, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
@@ -4138,6 +4201,12 @@ public partial class MainWindow : Window
         {
             ConnectionRecoveryStatusText.Text = "Reconnect button colour saved. The watchdog is ready to be armed.";
             UpdateConnectionRecoveryControls();
+        }
+        if (isHuntSignalColor)
+        {
+            HuntDetectionStatusText.Text = _profile.IsHuntSignalCalibrated
+                ? "Hunt cue calibration complete. Enable alerts to monitor live frames."
+                : "Hunt cue colour saved. Select the cue region to complete calibration.";
         }
         if (isDayPhaseColor || isNightPhaseColor)
         {
@@ -4175,6 +4244,7 @@ public partial class MainWindow : Window
         SellStatusText.Text = "Sell Anywhere: awaiting button calibration.";
         ConnectionRecoveryStatusText.Text = "Calibrate the reconnect button region and colour before arming the watchdog.";
         WorldPhaseCalibrationStatusText.Text = "Calibrate the phase region and sample the day and night colours.";
+        HuntDetectionStatusText.Text = "Hunt cue calibration was reset.";
         DayNightTotemStatusText.Text = "Day/night totems need phase calibration.";
         OcrStatusText.Text = "Local OCR: select the catch notification region before starting a session.";
         UpdateConnectionRecoveryControls();
@@ -4190,6 +4260,7 @@ public partial class MainWindow : Window
             // fish velocity or cast-indicator history across profile edits.
             _motionTracker.Reset();
             _castVision.Reset();
+            _huntDetectionCoordinator.Reset();
 
             UpdateConnectionRecoveryControls();
             CalibrationModeText.Text = successMessage;
