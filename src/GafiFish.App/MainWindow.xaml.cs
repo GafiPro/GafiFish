@@ -165,6 +165,7 @@ public partial class MainWindow : Window
     private bool _keepFishingUntilCatchEnabled;
     private bool _targetFishEnabled;
     private string? _targetFishName;
+    private DateTimeOffset? _targetFishStartedAt;
     private bool _startRequested;
     private MissedBiteRetryPolicy _missedBiteRetries = new();
     private bool _automationEnabled;
@@ -2021,6 +2022,7 @@ public partial class MainWindow : Window
             AnglerQuestStatusText.Text =
                 $"Warning: {reason} The current state could not be saved and may not survive an application restart. {exception.Message}";
             AddActivityLog("ERROR", "ANGLER", $"Quest state persistence failed: {exception.Message}");
+            _anglerQuestStateAvailable = false;
         }
     }
 
@@ -2360,13 +2362,16 @@ public partial class MainWindow : Window
             _keepFishingUntilCatchEnabled = keepFishingUntilCatch;
             _targetFishEnabled = targetFishEnabled;
             _targetFishName = targetFishEnabled ? targetFishName : null;
+            _targetFishStartedAt = targetFishEnabled ? DateTimeOffset.UtcNow : null;
             _targetCatchProgress = targetFishEnabled ? new CatchGoalProgress(targetCatchGoal) : null;
             _anglerQuestAssistEnabled = anglerQuestAssistEnabled;
             if (anglerQuestAssistEnabled)
             {
-                _anglerQuestTracker.StartTarget(targetFishName, DateTimeOffset.UtcNow);
+                _anglerQuestTracker.StartTarget(targetFishName, _targetFishStartedAt ?? DateTimeOffset.UtcNow);
                 AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
                 SaveAnglerQuestState("New Angler target started.");
+                if (!_anglerQuestStateAvailable)
+                    throw new InvalidOperationException("Angler Quest state could not be saved. Fix local storage before starting the fishing macro.");
                 AnglerQuestSubmittedButton.IsEnabled = false;
             }
             TargetFishProgressText.Text = $"Target progress · 0 / {targetCatchGoal}";
@@ -2516,6 +2521,7 @@ public partial class MainWindow : Window
         _keepFishingUntilCatchEnabled = false;
         _targetFishEnabled = false;
         _targetFishName = null;
+        _targetFishStartedAt = null;
         _anglerQuestAssistEnabled = false;
         AnglerQuestAssistCheckBox.IsEnabled = true;
         StartMacroButton.IsEnabled = true;
@@ -5016,10 +5022,9 @@ public partial class MainWindow : Window
             var targetFishMatched = _automationEnabled
                 && _targetFishEnabled
                 && !string.IsNullOrWhiteSpace(_targetFishName)
-                && FishCatchTargetMatcher.MatchesSpecies(fishCatch.Species, _targetFishName)
-                && (!_anglerQuestAssistEnabled
-                    || !_anglerQuestTracker.TargetStartedAt.HasValue
-                    || frame.CapturedAt >= _anglerQuestTracker.TargetStartedAt.Value)
+                && _targetFishStartedAt.HasValue
+                && FishCatchTargetMatcher.MatchesSpecies(
+                    fishCatch.Species, _targetFishName, frame.CapturedAt, _targetFishStartedAt.Value)
                 && result.Confidence >= 0.90
                 && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
 

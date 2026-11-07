@@ -33,4 +33,14 @@ public sealed class FishCatchTargetMatcherTests
     {
         Assert.Equal(expected, FishCatchTargetMatcher.Matches(recognizedText, target));
     }
+    [Fact]
+    public void MatchesSpecies_RejectsNotificationCapturedBeforeRequestStart()
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        Assert.False(FishCatchTargetMatcher.MatchesSpecies(
+            "Wrath Scylla", "Wrath Scylla", startedAt.AddMilliseconds(-1), startedAt));
+        Assert.True(FishCatchTargetMatcher.MatchesSpecies(
+            "Wrath Scylla", "Wrath Scylla", startedAt.AddMilliseconds(1), startedAt));
+    }
+
 }

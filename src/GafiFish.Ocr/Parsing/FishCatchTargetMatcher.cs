@@ -34,6 +34,13 @@ public static class FishCatchTargetMatcher
         return match.Success && MatchesSpecies(match.Groups["species"].Value, target);
     }
 
+    public static bool MatchesSpecies(
+        string? recognizedSpecies,
+        string? target,
+        DateTimeOffset capturedAt,
+        DateTimeOffset requestStartedAt) =>
+        capturedAt >= requestStartedAt && MatchesSpecies(recognizedSpecies, target);
+
     private static string Normalize(string value) =>
         string.Concat(value.Where(char.IsLetterOrDigit)).ToUpperInvariant();
 }
