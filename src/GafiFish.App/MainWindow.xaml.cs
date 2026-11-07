@@ -172,6 +172,7 @@ public partial class MainWindow : Window
     private int _emergencyStopLatch;
     private RobloxInputService? _automationInput;
     private ReelInputCoordinator? _reelCoordinator;
+    private RhythmNoteInputCoordinator? _rhythmCoordinator;
     private FishingStateMachine? _runtimeStateMachine;
     private PeriodicSellSchedule? _sellSchedule;
     private SellAnywhereCoordinator? _sellCoordinator;
@@ -259,7 +260,12 @@ public partial class MainWindow : Window
         SampleAnglerSubmitButtonColor,
         SelectRodNameRegion,
         SelectRodChargeMeterRegion,
-        SampleRodChargeMeterColor
+        SampleRodChargeMeterColor,
+        SelectRhythmHitLine,
+        SampleRhythmLaneDColor,
+        SampleRhythmLaneFColor,
+        SampleRhythmLaneJColor,
+        SampleRhythmLaneKColor
     }
 
     public MainWindow()
