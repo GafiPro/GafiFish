@@ -17,7 +17,7 @@ public sealed partial class FishCatchTextParser
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex SpeciesRegex = new(
-        @"\b(?:you\s+)?caught\s+(?:a|an|the)?\s*(?<species>[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,48}?)(?=\s*(?:[!.,;\r\n]|\bweigh(?:ing|t)?\b|\bworth\b|\bwith\s+[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,24}?\s+mutation\b|\bmutation\b|\$|$))",
+        @"\b(?:you\s+)?caught(?:\s*:\s*|\s+)(?:a|an|the)?\s*(?<species>[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,48}?)(?=\s*(?:[!.,;\r\n]|\bweigh(?:ing|t)?\b|\bworth\b|\bwith\s+[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,24}?\s+mutation\b|\bmutation\b|\$|$))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex WeightRegex = new(

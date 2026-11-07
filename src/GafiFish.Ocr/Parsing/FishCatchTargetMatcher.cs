@@ -29,7 +29,7 @@ public static class FishCatchTargetMatcher
 
         var match = Regex.Match(
             recognizedText,
-            @"\b(?:you\s+)?caught\s+(?:a|an|the)?\s*(?<species>[^!.,;\r\n]+?)(?=\s*(?:[!.,;]|\bweigh(?:ing|t)?\b|\bworth\b|\bwith\s+[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,24}?\s+mutation\b|\bmutation\b|\$|$))",
+            @"\b(?:you\s+)?caught(?:\s*:\s*|\s+)(?:a|an|the)?\s*(?<species>[^!.,;\r\n]+?)(?=\s*(?:[!.,;]|\bweigh(?:ing|t)?\b|\bworth\b|\bwith\s+[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,24}?\s+mutation\b|\bmutation\b|\$|$))",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         return match.Success && MatchesSpecies(match.Groups["species"].Value, target);
     }
