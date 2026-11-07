@@ -27,7 +27,8 @@ public sealed class SellAnywhereCoordinator
     private DetectedMarker? _lastButton;
     private int _stableButtonFrames;
     private int _verifiedChangeFrames;
-    private bool _inventoryOpenedByCoordinator;
+    private bool _inventoryIsOpen;
+    private (int X, int Y)? _cursorBeforeSale;
     private string _lastStatus = "Sell Anywhere is stopped.";
     private bool _started;
 
@@ -48,7 +49,6 @@ public sealed class SellAnywhereCoordinator
 
     public string LastStatus => _lastStatus;
     public bool IsStarted => _started;
-    public bool SaleCompletedThisFrame { get; private set; }
     public DateTimeOffset? NextSaleDueAt => _schedule.NextDueAt;
 
     public void Start(DateTimeOffset now)
@@ -79,12 +79,9 @@ public sealed class SellAnywhereCoordinator
 
         if (!_started)
         {
-            SaleCompletedThisFrame = false;
             _lastStatus = "Sell Anywhere is stopped.";
             return;
         }
-
-        SaleCompletedThisFrame = false;
 
         // Replayed or duplicated frames must never count as fresh visual
         // confirmation. In particular, the same screenshot cannot satisfy
@@ -149,7 +146,8 @@ public sealed class SellAnywhereCoordinator
         _lastButton = null;
         _stableButtonFrames = 0;
         _verifiedChangeFrames = 0;
-        _inventoryOpenedByCoordinator = false;
+        _inventoryIsOpen = false;
+        _cursorBeforeSale = null;
         _lastStatus = "Sell Anywhere stopped; all inputs released.";
     }
 
@@ -167,6 +165,15 @@ public sealed class SellAnywhereCoordinator
         }
 
         var now = frame.CapturedAt;
+        _cursorBeforeSale = _input.GetCursorClientPosition(frame);
+        if (_cursorBeforeSale is not { } cursor
+            || cursor.X < 0 || cursor.X >= frame.Width
+            || cursor.Y < 0 || cursor.Y >= frame.Height)
+        {
+            Fail("Could not save a valid mouse position inside the Roblox client before selling. Keep the cursor inside the game window and try again.");
+            return;
+        }
+
         var preflight = _detector.DetectButton(frame, profile);
         var inventoryAlreadyOpen =
             preflight.IsCalibrated
@@ -189,10 +196,11 @@ public sealed class SellAnywhereCoordinator
             return;
         }
 
-        _inventoryOpenedByCoordinator = !inventoryAlreadyOpen;
-        if (_inventoryOpenedByCoordinator)
+        _inventoryIsOpen = inventoryAlreadyOpen;
+        if (!_inventoryIsOpen)
         {
             ToggleInventory();
+            _inventoryIsOpen = true;
         }
 
         _phaseStartedAt = now;
@@ -304,10 +312,20 @@ public sealed class SellAnywhereCoordinator
 
         if (_verifiedChangeFrames >= _settings.RequiredVerificationFrames)
         {
-            if (_inventoryOpenedByCoordinator)
+            // Fishing must never resume with the inventory still open. Close it
+            // even when it was open before the sale, then restore the pointer
+            // to its pre-sale water/casting position.
+            if (!_inventoryIsOpen)
             {
-                ToggleInventory();
+                Fail("Inventory state was not confirmed open after a visually verified sale.");
+                return;
             }
+
+            ToggleInventory();
+            _inventoryIsOpen = false;
+
+            if (_cursorBeforeSale is { } originalCursor)
+                _input.MoveClient(originalCursor.X, originalCursor.Y, frame);
 
             if (!_stateMachine.TryTransition(
                     FishingState.ClosingInventory,
@@ -331,8 +349,8 @@ public sealed class SellAnywhereCoordinator
 
             _beforeSaleFrame = null;
             _verifiedChangeFrames = 0;
-            _inventoryOpenedByCoordinator = false;
-            SaleCompletedThisFrame = true;
+            _inventoryIsOpen = false;
+            _cursorBeforeSale = null;
             _lastStatus = $"Sale visually verified across {_settings.RequiredVerificationFrames} frames ({changedRatio:P1} inventory change). Next sale due in 10 minutes.";
             return;
         }
@@ -395,13 +413,17 @@ public sealed class SellAnywhereCoordinator
         _lastProcessedFrameAt = null;
         ResetButtonStability();
         _verifiedChangeFrames = 0;
-        _inventoryOpenedByCoordinator = false;
+        var inventoryMayRemainOpen = _inventoryIsOpen;
+        _inventoryIsOpen = false;
+        _cursorBeforeSale = null;
 
         if (_stateMachine.CurrentState != FishingState.Error)
         {
             _ = _stateMachine.TryTransition(FishingState.Error, reason);
         }
 
-        _lastStatus = reason;
+        _lastStatus = inventoryMayRemainOpen
+            ? $"{reason} The inventory may still be open; close it manually before resuming."
+            : reason;
     }
 }
