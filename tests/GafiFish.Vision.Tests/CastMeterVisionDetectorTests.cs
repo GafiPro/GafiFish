@@ -76,6 +76,25 @@ public sealed class CastMeterVisionDetectorTests
     }
 
     [Fact]
+    public void Reset_ClearsVelocityHistoryBetweenCalibrationProfiles()
+    {
+        var detector = new CastMeterVisionDetector();
+        var profile = CreateProfile();
+        var start = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
+
+        _ = detector.Detect(CreateFrame(start, indicatorLeft: 20), profile);
+        var beforeReset = detector.Detect(CreateFrame(start.AddMilliseconds(100), indicatorLeft: 30), profile);
+        Assert.NotNull(beforeReset);
+        Assert.InRange(beforeReset.IndicatorVelocityPerSecond, 0.9, 1.1);
+
+        detector.Reset();
+        var afterReset = detector.Detect(CreateFrame(start.AddMilliseconds(200), indicatorLeft: 40), profile);
+
+        Assert.NotNull(afterReset);
+        Assert.Equal(0, afterReset.IndicatorVelocityPerSecond, precision: 5);
+    }
+
+    [Fact]
     public void Detect_ReturnsNullWhenColorsWereSampledButRegionWasNotSelected()
     {
         var frame = CreateFrame(DateTimeOffset.UtcNow, indicatorLeft: 20);

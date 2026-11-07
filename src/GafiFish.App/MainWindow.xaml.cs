@@ -4154,6 +4154,12 @@ public partial class MainWindow : Window
         try
         {
             await _profileStore.SaveAsync(_profile);
+
+            // Calibration changes invalidate temporal estimates. Never carry
+            // fish velocity or cast-indicator history across profile edits.
+            _motionTracker.Reset();
+            _castVision.Reset();
+
             UpdateConnectionRecoveryControls();
             CalibrationModeText.Text = successMessage;
             if (_lastFrame is not null)
