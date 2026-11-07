@@ -122,6 +122,13 @@ public partial class MainWindow : Window
         IsHitTestVisible = false,
         Visibility = Visibility.Collapsed
     };
+    private readonly Rectangle _secondaryFishMarkerOverlay = new()
+    {
+        Stroke = Brushes.Magenta,
+        StrokeThickness = 2,
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed
+    };
     private readonly Rectangle _controlMarkerOverlay = new()
     {
         Stroke = Brushes.DeepSkyBlue,
@@ -219,6 +226,7 @@ public partial class MainWindow : Window
         None,
         SelectRegion,
         SampleFishMarker,
+        SampleSecondaryFishMarker,
         SampleControlMarker,
         SelectCastRegion,
         SampleCastIndicator,
@@ -256,6 +264,7 @@ public partial class MainWindow : Window
         _aquariumTimer.Tick += AquariumTimer_Tick;
         _frameReplayTimer.Tick += FrameReplayTimer_Tick;
         PreviewOverlay.Children.Add(_fishMarkerOverlay);
+        PreviewOverlay.Children.Add(_secondaryFishMarkerOverlay);
         PreviewOverlay.Children.Add(_controlMarkerOverlay);
         PreviewOverlay.Children.Add(_castTargetOverlay);
         PreviewOverlay.Children.Add(_castIndicatorOverlay);
@@ -2647,6 +2656,12 @@ public partial class MainWindow : Window
                 "This rod profile uses Charge Meter Bonus. Calibrate the complete meter track and its fill colour in Calibration first.";
             return;
         }
+        if (_profile.RodMinigameMode == RodMinigameMode.DualFish && !_profile.IsDualFishCalibrated)
+        {
+            AutomationStatusText.Text =
+                "Dual Fish mode requires a calibrated search region, two fish-marker colours and the control-bar colour.";
+            return;
+        }
 
         if (autoShakeEnabled && !_profile.IsShakeCalibrated)
         {
@@ -3345,7 +3360,8 @@ public partial class MainWindow : Window
                     fishMarker,
                     controlMarker,
                     motion,
-                    chargeMeter);
+                    chargeMeter,
+                    requireDualFishCoverage: _profile.RodMinigameMode == RodMinigameMode.DualFish);
 
                 if (_runtimeStateMachine.CurrentState == FishingState.Reeling)
                 {
@@ -3946,11 +3962,22 @@ public partial class MainWindow : Window
 
         var visionResult = _vision.Detect(frame, _profile);
         DrawMarker(_fishMarkerOverlay, visionResult.FishMarker);
+        DrawMarker(_secondaryFishMarkerOverlay, visionResult.SecondaryFishMarker);
         DrawMarker(_controlMarkerOverlay, visionResult.ControlMarker);
 
-        var motion = _motionTracker.Update(visionResult.FishMarker, frame.CapturedAt);
-        VisionStatusText.Text = motion is not null && visionResult.FishMarker is not null
-            ? $"Vision: {visionResult.Status} Fish X={motion.PositionX:F0}px · {motion.VelocityPixelsPerSecond:+0.0;-0.0;0} px/s · confidence {motion.Confidence:P0}"
+        var trackingMarker = visionResult.FishMarker;
+        if (_profile.RodMinigameMode == RodMinigameMode.DualFish)
+        {
+            trackingMarker = visionResult.FishMarker is not null && visionResult.SecondaryFishMarker is not null
+                ? CreateDualFishTrackingMarker(visionResult.FishMarker, visionResult.SecondaryFishMarker)
+                : null;
+        }
+
+        var motion = _motionTracker.Update(trackingMarker, frame.CapturedAt);
+        VisionStatusText.Text = motion is not null && trackingMarker is not null
+            ? _profile.RodMinigameMode == RodMinigameMode.DualFish
+                ? $"Vision: {visionResult.Status} · dual target centre X={motion.PositionX:F0}px · confidence {motion.Confidence:P0}"
+                : $"Vision: {visionResult.Status} Fish X={motion.PositionX:F0}px · {motion.VelocityPixelsPerSecond:+0.0;-0.0;0} px/s · confidence {motion.Confidence:P0}"
             : $"Vision: {visionResult.Status}";
         var fishX = motion is null ? "—" : $"{motion.PositionX:F0}px";
         var controlX = visionResult.ControlMarker is null ? "—" : $"{visionResult.ControlMarker.CenterX:F0}px";
@@ -4035,7 +4062,7 @@ public partial class MainWindow : Window
 
             ProcessAutomationFrame(
                 frame,
-                visionResult.FishMarker,
+                trackingMarker,
                 visionResult.ControlMarker,
                 motion,
                 castObservation,
@@ -4132,8 +4159,20 @@ public partial class MainWindow : Window
         overlay.Visibility = Visibility.Visible;
     }
 
-    private void DrawMarker(Rectangle overlay, DetectedMarker? marker)
+    private static DetectedMarker CreateDualFishTrackingMarker(DetectedMarker first, DetectedMarker second)
     {
+        var left = Math.Min(first.Bounds.Left, second.Bounds.Left);
+        var top = Math.Min(first.Bounds.Top, second.Bounds.Top);
+        var right = Math.Max(first.Bounds.Right, second.Bounds.Right);
+        var bottom = Math.Max(first.Bounds.Bottom, second.Bounds.Bottom);
+        var bounds = new OpenCvSharp.Rect(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
+        return new DetectedMarker(
+            (first.CenterX + second.CenterX) / 2d, (first.CenterY + second.CenterY) / 2d,
+            bounds, first.Area + second.Area, Math.Min(first.Confidence, second.Confidence));
+    }
+
+    private void DrawMarker(Rectangle overlay, DetectedMarker? marker)
+{
         if (marker is null || PreviewImage.Source is not BitmapSource bitmap)
         {
             overlay.Visibility = Visibility.Collapsed;
@@ -4268,6 +4307,16 @@ public partial class MainWindow : Window
             RodReelPreset.Stable => "Stable · slower, steadier corrections.",
             _ => "Unknown preset."
         };
+        RodMinigameModeStatusText.Text = _profile.RodMinigameMode switch
+        {
+            RodMinigameMode.ChargeMeterBonus => _profile.IsRodChargeMeterCalibrated
+                ? "Charge Meter Bonus · calibrated."
+                : "Charge Meter Bonus · calibration required.",
+            RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
+                ? "Dual Fish · both target colours are calibrated."
+                : "Dual Fish · calibration required.",
+            _ => "Standard Reel · shared marker-based controller."
+        };
     }
 
     private async void RodReelPresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -4315,11 +4364,17 @@ public partial class MainWindow : Window
 
         _profile = _profile with { RodMinigameMode = mode };
         await SaveProfileAsync($"Rod minigame mode changed to {mode}.");
-        RodMinigameModeStatusText.Text = mode == RodMinigameMode.ChargeMeterBonus
-            ? _profile.IsRodChargeMeterCalibrated
+        RodMinigameModeStatusText.Text = mode switch
+        {
+            RodMinigameMode.ChargeMeterBonus => _profile.IsRodChargeMeterCalibrated
                 ? "Charge Meter Bonus · calibrated. The macro releases at 80% while the fish is in the control bar."
-                : "Charge Meter Bonus · calibrate the meter region and fill colour before starting."
-            : "Standard Reel · uses the shared marker-based controller.";
+                : "Charge Meter Bonus · calibrate the meter region and fill colour before starting.",
+            RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
+                ? "Dual Fish · tracks both targets and aims for their shared centre. The bar must be wide enough to cover both."
+                : "Dual Fish · sample both fish-marker colours in Calibration before starting.",
+            _ => "Standard Reel · uses the shared marker-based controller."
+        };
+        _motionTracker.Reset();
         RefreshRodReelPresetControls();
     }
 
@@ -5058,7 +5113,13 @@ public partial class MainWindow : Window
     private void SampleFishMarker_Click(object sender, RoutedEventArgs e)
     {
         SetCalibrationAction(CalibrationAction.SampleFishMarker,
-            "Click a clear pixel inside the moving fish marker on the captured frame.");
+            "Click a clear pixel inside the first fish marker on the captured frame.");
+    }
+
+    private void SampleSecondaryFishMarker_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleSecondaryFishMarker,
+            "For Dual Fish rods, click a clear pixel inside the second fish marker. Use the same colour sample again if both markers look identical.");
     }
 
     private void SampleControlMarker_Click(object sender, RoutedEventArgs e)
@@ -5236,6 +5297,7 @@ public partial class MainWindow : Window
         }
 
         if (_calibrationAction is CalibrationAction.SampleFishMarker
+            or CalibrationAction.SampleSecondaryFishMarker
             or CalibrationAction.SampleControlMarker
             or CalibrationAction.SampleCastIndicator
             or CalibrationAction.SampleCastTarget
@@ -5543,6 +5605,7 @@ public partial class MainWindow : Window
         var isAnglerButtonColor = _calibrationAction is CalibrationAction.SampleAnglerAcceptButtonColor
             or CalibrationAction.SampleAnglerSubmitButtonColor;
         var isRodChargeMeterColor = _calibrationAction == CalibrationAction.SampleRodChargeMeterColor;
+        var isSecondaryFishColor = _calibrationAction == CalibrationAction.SampleSecondaryFishMarker;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
         var index = y * _lastFrame.Stride + x * 4;
@@ -5555,6 +5618,7 @@ public partial class MainWindow : Window
         _profile = _calibrationAction switch
         {
             CalibrationAction.SampleFishMarker => _profile with { FishMarkerColor = color },
+            CalibrationAction.SampleSecondaryFishMarker => _profile with { SecondaryFishMarkerColor = color },
             CalibrationAction.SampleControlMarker => _profile with { ControlMarkerColor = color },
             CalibrationAction.SampleCastIndicator => _profile with { CastIndicatorColor = color },
             CalibrationAction.SampleCastTarget => _profile with { CastTargetColor = color },
@@ -5605,6 +5669,12 @@ public partial class MainWindow : Window
                 : "Charge fill colour saved. Select the full meter track to finish calibration.";
             RodChargeMeterStatusText.Text = "Charge meter calibration updated.";
         }
+        if (isSecondaryFishColor)
+        {
+            RodMinigameModeStatusText.Text = _profile.IsDualFishCalibrated
+                ? "Dual Fish · both fish colours and the control bar are calibrated."
+                : "Second fish colour saved. Finish the other fish/bar calibrations before starting Dual Fish.";
+        }
 
         if (isDayPhaseColor || isNightPhaseColor)
         {
@@ -5635,6 +5705,7 @@ public partial class MainWindow : Window
         _profile = new VisionProfile();
         _motionTracker.Reset();
         _fishMarkerOverlay.Visibility = Visibility.Collapsed;
+        _secondaryFishMarkerOverlay.Visibility = Visibility.Collapsed;
         _controlMarkerOverlay.Visibility = Visibility.Collapsed;
         _calibrationAction = CalibrationAction.None;
         await SaveProfileAsync("Calibration reset.");

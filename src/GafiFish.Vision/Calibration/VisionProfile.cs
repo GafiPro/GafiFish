@@ -42,6 +42,7 @@ public sealed record VisionProfile
     public bool SellButtonRegionCalibrated { get; init; }
     public bool InventoryItemsRegionCalibrated { get; init; }
     public HsvColorRange? FishMarkerColor { get; init; }
+    public HsvColorRange? SecondaryFishMarkerColor { get; init; }
     public HsvColorRange? ControlMarkerColor { get; init; }
     public byte[]? FishMarkerTemplatePng { get; init; }
     public byte[]? ControlMarkerTemplatePng { get; init; }
@@ -78,6 +79,9 @@ public sealed record VisionProfile
     public bool IsHuntSignalCalibrated => HuntSignalRegionCalibrated && HuntSignalColor.HasValue;
     public bool IsRodChargeMeterCalibrated =>
         RodChargeMeterRegionCalibrated && RodChargeMeterColor.HasValue;
+    public bool IsDualFishCalibrated =>
+        FishingRegionCalibrated && FishMarkerColor.HasValue
+        && SecondaryFishMarkerColor.HasValue && ControlMarkerColor.HasValue;
 
     public void Validate()
     {
@@ -113,6 +117,7 @@ public sealed record VisionProfile
         }
 
         FishMarkerColor?.Validate();
+        SecondaryFishMarkerColor?.Validate();
         ControlMarkerColor?.Validate();
         ValidateTemplate(FishMarkerTemplatePng, nameof(FishMarkerTemplatePng));
         ValidateTemplate(ControlMarkerTemplatePng, nameof(ControlMarkerTemplatePng));

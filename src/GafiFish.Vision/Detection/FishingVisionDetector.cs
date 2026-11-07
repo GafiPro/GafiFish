@@ -24,6 +24,15 @@ public sealed class FishingVisionDetector
             throw new ArgumentException("Frame pixel buffer is invalid.", nameof(frame));
         }
 
+        if (profile.RodMinigameMode == GafiFish.Core.Control.RodMinigameMode.DualFish
+            && !profile.IsDualFishCalibrated)
+        {
+            return new FishingVisionResult(
+                frame.CapturedAt, frame.Width, frame.Height,
+                null, null, false,
+                "Dual Fish mode requires the fishing region, both fish-marker colours and the control-marker colour.");
+        }
+
         if (!profile.IsFishingCalibrated)
         {
             return new FishingVisionResult(
@@ -45,18 +54,33 @@ public sealed class FishingVisionDetector
         using var hsvRoi = new Mat(hsv, region);
         using var bgrRoi = new Mat(bgr, region);
 
-        var fish = profile.FishMarkerColor.HasValue
-            ? FindLargestMarker(
-                hsvRoi, region.X, region.Y, profile.FishMarkerColor.Value, profile.MinimumBlobArea)
-            : null;
-        if ((fish is null || fish.Confidence < profile.MinimumConfidence)
-            && profile.FishMarkerTemplatePng is { Length: > 0 })
+        DetectedMarker? fish;
+        DetectedMarker? secondaryFish = null;
+        if (profile.RodMinigameMode == GafiFish.Core.Control.RodMinigameMode.DualFish)
         {
-            fish = FindTemplateMarker(
-                bgrRoi, region.X, region.Y,
-                profile.FishMarkerTemplatePng,
-                frame.Width, frame.Height,
-                profile.ReferenceWidth, profile.ReferenceHeight) ?? fish;
+            var targets = FindLargestMarkers(
+                hsvRoi, region.X, region.Y,
+                profile.FishMarkerColor!.Value,
+                profile.SecondaryFishMarkerColor!.Value,
+                profile.MinimumBlobArea);
+            fish = targets.ElementAtOrDefault(0);
+            secondaryFish = targets.ElementAtOrDefault(1);
+        }
+        else
+        {
+            fish = profile.FishMarkerColor.HasValue
+                ? FindLargestMarker(
+                    hsvRoi, region.X, region.Y, profile.FishMarkerColor.Value, profile.MinimumBlobArea)
+                : null;
+            if ((fish is null || fish.Confidence < profile.MinimumConfidence)
+                && profile.FishMarkerTemplatePng is { Length: > 0 })
+            {
+                fish = FindTemplateMarker(
+                    bgrRoi, region.X, region.Y,
+                    profile.FishMarkerTemplatePng,
+                    frame.Width, frame.Height,
+                    profile.ReferenceWidth, profile.ReferenceHeight) ?? fish;
+            }
         }
 
         var control = profile.ControlMarkerColor.HasValue
@@ -73,20 +97,31 @@ public sealed class FishingVisionDetector
                 profile.ReferenceWidth, profile.ReferenceHeight) ?? control;
         }
 
-        var enoughConfidence =
-            fish is not null && control is not null
-            && fish.Confidence >= profile.MinimumConfidence
+        var dualFishMode = profile.RodMinigameMode == GafiFish.Core.Control.RodMinigameMode.DualFish;
+        var enoughFish = dualFishMode
+            ? fish is not null && secondaryFish is not null
+            : fish is not null;
+        var enoughConfidence = enoughFish && control is not null
+            && fish!.Confidence >= profile.MinimumConfidence
+            && (!dualFishMode || secondaryFish!.Confidence >= profile.MinimumConfidence)
             && control.Confidence >= profile.MinimumConfidence;
 
-        var status = enoughConfidence
-            ? "Both markers detected."
-            : fish is null && control is null
-                ? "No calibrated markers found in the search region."
-                : "Only one marker found or detection confidence is low.";
+        var status = dualFishMode
+            ? enoughConfidence
+                ? "Both fish targets and the control bar detected."
+                : fish is null && secondaryFish is null
+                    ? "Neither fish target was detected in the calibrated region."
+                    : secondaryFish is null
+                        ? "Only one of the two fish targets was detected; Dual Fish control is paused."
+                        : "A marker was detected with insufficient confidence; Dual Fish control is paused."
+            : enoughConfidence
+                ? "Both markers detected."
+                : fish is null && control is null
+                    ? "No calibrated markers found in the search region."
+                    : "Only one marker found or detection confidence is low.";
 
         return new FishingVisionResult(
-            frame.CapturedAt, frame.Width, frame.Height,
-            fish, control, true, status);
+            frame.CapturedAt, frame.Width, frame.Height, fish, control, true, status, secondaryFish);
     }
 
     private static DetectedMarker? FindTemplateMarker(
@@ -146,6 +181,44 @@ public sealed class FishingVisionDetector
             bounds,
             bounds.Width * (double)bounds.Height,
             Math.Clamp(maximumScore, 0, 1));
+    }
+
+    internal static IReadOnlyList<DetectedMarker> FindLargestMarkers(
+        Mat hsvRegion, int offsetX, int offsetY,
+        HsvColorRange firstColor, HsvColorRange secondColor,
+        double minimumArea, int maximumMarkers = 2)
+    {
+        if (maximumMarkers is < 1 or > 8)
+            throw new ArgumentOutOfRangeException(nameof(maximumMarkers));
+        if (!double.IsFinite(minimumArea) || minimumArea < 1)
+            throw new ArgumentOutOfRangeException(nameof(minimumArea));
+
+        using var firstMask = new Mat();
+        using var secondMask = new Mat();
+        using var mask = new Mat();
+        Cv2.InRange(hsvRegion, firstColor.Lower, firstColor.Upper, firstMask);
+        Cv2.InRange(hsvRegion, secondColor.Lower, secondColor.Upper, secondMask);
+        Cv2.BitwiseOr(firstMask, secondMask, mask);
+        using var kernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3));
+        Cv2.MorphologyEx(mask, mask, MorphTypes.Open, kernel);
+        Cv2.FindContours(mask, out Point[][] contours, out _,
+            RetrievalModes.External, ContourApproximationModes.ApproxSimple);
+
+        return contours
+            .Select(contour => new { Area = Cv2.ContourArea(contour), Bounds = Cv2.BoundingRect(contour) })
+            .Where(item => item.Area >= minimumArea)
+            .OrderByDescending(item => item.Area)
+            .Take(maximumMarkers)
+            .Select(item =>
+            {
+                var bounds = new Rect(item.Bounds.X + offsetX, item.Bounds.Y + offsetY, item.Bounds.Width, item.Bounds.Height);
+                var boxArea = Math.Max(1, bounds.Width * bounds.Height);
+                var fillRatio = Math.Clamp(item.Area / boxArea, 0, 1);
+                var areaScore = Math.Clamp(item.Area / (minimumArea * 8), 0, 1);
+                var confidence = Math.Clamp(0.55 + 0.25 * areaScore + 0.20 * fillRatio, 0, 1);
+                return new DetectedMarker(bounds.X + bounds.Width / 2d, bounds.Y + bounds.Height / 2d, bounds, item.Area, confidence);
+            })
+            .ToArray();
     }
 
     internal static DetectedMarker? FindLargestMarker(

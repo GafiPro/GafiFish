@@ -34,7 +34,8 @@ public sealed class ReelInputCoordinator
         DetectedMarker? fishMarker,
         DetectedMarker? controlMarker,
         FishMotionEstimate? motion,
-        RodChargeMeterObservation? chargeMeter = null)
+        RodChargeMeterObservation? chargeMeter = null,
+        bool requireDualFishCoverage = false)
     {
         if (state != FishingState.Reeling)
         {
@@ -50,6 +51,14 @@ public sealed class ReelInputCoordinator
             return new ReelControlDecision(
                 ReelCommand.Neutral, 0, 0,
                 "A marker or fresh motion estimate is missing; mouse input released.");
+        }
+
+        if (requireDualFishCoverage && fishMarker.Bounds.Width > controlMarker.Bounds.Width)
+        {
+            _input.SetLeftButton(false);
+            return new ReelControlDecision(
+                ReelCommand.Neutral, fishMarker.CenterX - controlMarker.CenterX, fishMarker.Bounds.Width,
+                "The two fish markers are too far apart for the control bar to cover; input released.");
         }
 
         var confidence = Math.Min(

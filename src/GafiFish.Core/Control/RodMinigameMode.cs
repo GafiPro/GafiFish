@@ -8,5 +8,6 @@ namespace GafiFish.Core.Control;
 public enum RodMinigameMode
 {
     StandardReel,
-    ChargeMeterBonus
+    ChargeMeterBonus,
+    DualFish
 }

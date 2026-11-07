@@ -7,4 +7,5 @@ public sealed record FishingVisionResult(
     DetectedMarker? FishMarker,
     DetectedMarker? ControlMarker,
     bool IsCalibrated,
-    string Status);
+    string Status,
+    DetectedMarker? SecondaryFishMarker = null);

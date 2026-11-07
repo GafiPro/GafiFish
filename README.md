@@ -29,6 +29,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Reconhecimento OCR do nome da cana por região calibrada: exige duas leituras estáveis e só muda para um perfil previamente associado pelo utilizador.
 - Quatro afinações do controlador Reel (Balanced, Precision, Heavy fish e Stable), guardadas no perfil individual de cada cana.
 - Modo Charge Meter Bonus por perfil de cana: lê uma barra horizontal calibrada e liberta aos 80% apenas quando o peixe está dentro da barra.
+- Modo Dual Fish para perfis com dois alvos: deteção de dois marcadores calibrados e controlo pelo centro comum, com paragem segura se algum alvo faltar ou a barra não conseguir cobrir a distância entre ambos.
 - Interface WPF reorganizada em Dashboard, Fishing, Calibration, Sessions e Settings, com botões arredondados e animações subtis de hover.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR, persistência, objetivos e cadência.
 - O estado do Angler Quest (pedido ativo, peixe por entregar e cooldown de 120 segundos) é persistido localmente entre reinícios.

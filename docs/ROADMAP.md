@@ -97,6 +97,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Seleção automática do perfil pelo slot de hotbar ou pelo nome da cana reconhecido em OCR, após duas leituras estáveis e associação explícita.
 - [x] Presets Balanced, Precision, Heavy fish e Stable do controlador Reel, guardados individualmente em cada perfil de cana.
 - [x] Minijogo Charge Meter Bonus calibrável: leitura percentual do medidor e libertação aos 80% apenas quando o peixe está dentro da barra.
+- [x] Minijogo Dual Fish: deteção de dois marcadores por cores calibradas, controlo pelo centro entre ambos e pausa segura quando falta um alvo ou os dois não cabem na barra.
 - [ ] Afinar o controlador e os perfis com dados medidos em sessões reais.
 - [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.
 - [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
@@ -107,7 +108,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada, aceita o pedido e entrega o peixe através de botões visuais calibrados com clique único e confirmação de desaparecimento.
 - [ ] Automatização de Appraise/Treasure Appraiser ou Auto Enchant não incluída: confirmação e gastos permanecem manuais, sem tentativas repetidas.
 - [x] Reconhecimento OCR do nome da cana com região calibrada, duas leituras estáveis e mapeamento explícito para um perfil.
-- [ ] Implementar handlers dos restantes minijogos visuais únicos de cada cana depois de recolher frames reais e validar cada mecânica.
+- [ ] Implementar handlers dos restantes minijogos visuais únicos de cada cana depois de recolher frames reais e validar cada mecânica. O modo Dual Fish está agora implementado como primeiro handler adicional, mas ainda precisa de validação visual no jogo real.
 
 ## Próximo bloqueio técnico
 

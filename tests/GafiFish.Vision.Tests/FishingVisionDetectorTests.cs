@@ -65,6 +65,88 @@ public sealed class FishingVisionDetectorTests
         Assert.True(result.ControlMarker.Confidence >= 0.82);
     }
 
+    [Fact]
+    public void Detect_DualFishModeFindsTwoMarkersWithSeparateColourSamples()
+    {
+        var result = new FishingVisionDetector().Detect(CreateDualFishFrame(false, true), CreateDualFishProfile(false));
+        Assert.True(result.IsCalibrated);
+        Assert.NotNull(result.FishMarker);
+        Assert.NotNull(result.SecondaryFishMarker);
+        Assert.NotNull(result.ControlMarker);
+        var positions = new[] { result.FishMarker.CenterX, result.SecondaryFishMarker.CenterX }.Order().ToArray();
+        Assert.InRange(positions[0], 18, 32);
+        Assert.InRange(positions[1], 78, 92);
+        Assert.Contains("Both fish targets", result.Status);
+    }
+
+    [Fact]
+    public void Detect_DualFishModeFindsTwoMarkersWithTheSameColour()
+    {
+        var result = new FishingVisionDetector().Detect(CreateDualFishFrame(true, true), CreateDualFishProfile(true));
+        Assert.NotNull(result.FishMarker);
+        Assert.NotNull(result.SecondaryFishMarker);
+        Assert.NotEqual(result.FishMarker.CenterX, result.SecondaryFishMarker.CenterX);
+    }
+
+    [Fact]
+    public void Detect_DualFishModePausesWhenTheSecondTargetIsMissing()
+    {
+        var result = new FishingVisionDetector().Detect(CreateDualFishFrame(false, false), CreateDualFishProfile(false));
+        Assert.True(result.IsCalibrated);
+        Assert.NotNull(result.FishMarker);
+        Assert.Null(result.SecondaryFishMarker);
+        Assert.Contains("Only one", result.Status);
+    }
+
+    [Fact]
+    public void Detect_DualFishModeRequiresBothFishColoursAndTheControlColour()
+    {
+        var result = new FishingVisionDetector().Detect(CreateDualFishFrame(false, true), new VisionProfile
+        {
+            RodMinigameMode = GafiFish.Core.Control.RodMinigameMode.DualFish
+        });
+        Assert.False(result.IsCalibrated);
+        Assert.Null(result.FishMarker);
+        Assert.Null(result.SecondaryFishMarker);
+    }
+
+    private static VisionProfile CreateDualFishProfile(bool sameColour) => new()
+    {
+        RodMinigameMode = GafiFish.Core.Control.RodMinigameMode.DualFish,
+        FishingRegion = new NormalizedRegion(0, 0, 1, 1),
+        FishingRegionCalibrated = true,
+        FishMarkerColor = HsvColorSampler.FromBgra(0, 0, 255),
+        SecondaryFishMarkerColor = HsvColorSampler.FromBgra(0, sameColour ? (byte)0 : (byte)255, 255),
+        ControlMarkerColor = HsvColorSampler.FromBgra(255, 0, 0),
+        MinimumBlobArea = 5
+    };
+
+    private static ScreenCaptureFrame CreateDualFishFrame(bool sameColour, bool includeSecond)
+    {
+        const int width = 110;
+        const int height = 70;
+        var pixels = new byte[width * height * 4];
+        for (var i = 0; i < pixels.Length; i += 4) pixels[i + 3] = 255;
+        FillRect(pixels, width, 14, 24, 10, 8, 0, 0, 255);
+        if (includeSecond)
+            FillRect(pixels, width, 74, 24, 10, 8, 0, sameColour ? (byte)0 : (byte)255, 255);
+        FillRect(pixels, width, 35, 50, 40, 6, 255, 0, 0);
+        return new ScreenCaptureFrame(width, height, width * 4, pixels, DateTimeOffset.UtcNow, "Roblox", 1234);
+    }
+
+    private static void FillRect(byte[] pixels, int width, int left, int top, int rw, int rh, byte b, byte g, byte r)
+    {
+        for (var y = top; y < top + rh; y++)
+        for (var x = left; x < left + rw; x++)
+        {
+            var index = (y * width + x) * 4;
+            pixels[index] = b;
+            pixels[index + 1] = g;
+            pixels[index + 2] = r;
+            pixels[index + 3] = 255;
+        }
+    }
+
     private static byte[] CreateTemplate(bool fish)
     {
         using var template = new Mat(12, 12, MatType.CV_8UC1, Scalar.All(0));
