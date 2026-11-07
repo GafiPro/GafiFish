@@ -2684,9 +2684,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_profile.IsFishingCalibrated)
+        var isTranquilityRhythmMode =
+            _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
+        if (isTranquilityRhythmMode
+            ? !_profile.IsTranquilityRhythmCalibrated
+            : !_profile.IsFishingCalibrated)
         {
-            AutomationStatusText.Text = "Calibrate the fishing region and both marker colors before arming.";
+            AutomationStatusText.Text = isTranquilityRhythmMode
+                ? "Tranquility Rhythm needs a calibrated four-lane search region, four note colours and hit line."
+                : "Calibrate the fishing region and both marker colours before arming.";
             return;
         }
 
@@ -2832,9 +2838,13 @@ public partial class MainWindow : Window
             };
             var controller = new ReelController(controllerSettings);
             var reelCoordinator = new ReelInputCoordinator(input, controller);
+            var rhythmCoordinator = isTranquilityRhythmMode
+                ? new RhythmNoteInputCoordinator(input)
+                : null;
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
                 throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             reelCoordinator.Arm();
+            rhythmCoordinator?.Start(_profile);
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
             {
                 input.EmergencyStop();
@@ -2933,6 +2943,7 @@ public partial class MainWindow : Window
 
             _runtimeStateMachine = stateMachine;
             _reelCoordinator = reelCoordinator;
+            _rhythmCoordinator = rhythmCoordinator;
             _sellCoordinator = sellCoordinator;
             _sellSchedule = sellSchedule;
             _castCoordinator = castCoordinator;
