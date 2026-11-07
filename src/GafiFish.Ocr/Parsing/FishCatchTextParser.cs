@@ -17,7 +17,7 @@ public sealed partial class FishCatchTextParser
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex SpeciesRegex = new(
-        @"\b(?:you\s+)?caught\s+(?:a|an|the)?\s*(?<species>[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,48}?)(?=\s*(?:[!.,;\r\n]|\bweigh(?:ing|t)?\b|\bworth\b|\$|$))",
+        @"\b(?:you\s+)?caught\s+(?:a|an|the)?\s*(?<species>[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,48}?)(?=\s*(?:[!.,;\r\n]|\bweigh(?:ing|t)?\b|\bworth\b|\bwith\s+[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,24}?\s+mutation\b|\bmutation\b|\$|$))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex WeightRegex = new(
@@ -140,6 +140,16 @@ public sealed partial class FishCatchTextParser
 
     private static string? ParseMutation(string text)
     {
+        var explicitMutation = Regex.Match(
+            text,
+            @"\bwith\s+(?<mutation>[\p{L}\p{N}][\p{L}\p{N} '\u2019-]{0,24}?)\s+mutation\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (explicitMutation.Success)
+        {
+            var value = Regex.Replace(explicitMutation.Groups["mutation"].Value, @"\s+", " ").Trim();
+            return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(value.ToLowerInvariant());
+        }
+
         var mutation = Regex.Match(
             text,
             @"\b(shiny|sparkling|golden|albino|darkened)\b",

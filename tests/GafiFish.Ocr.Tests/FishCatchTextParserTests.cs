@@ -95,6 +95,22 @@ public sealed class FishCatchTextParserTests
         Assert.Null(fish.EstimatedValue);
     }
 
+    [Theory]
+    [InlineData("You caught a Wrath Scylla with Wrath mutation!", "Wrath Scylla", "Wrath")]
+    [InlineData("You caught a Scylla with Wrath mutation!", "Scylla", "Wrath")]
+    public void TryParse_SeparatesMutationPhraseFromSpecies(
+        string notification,
+        string expectedSpecies,
+        string expectedMutation)
+    {
+        var success = _parser.TryParse(Result(notification, 0.97), out var fish, out var status);
+
+        Assert.True(success, status);
+        Assert.NotNull(fish);
+        Assert.Equal(expectedSpecies, fish.Species);
+        Assert.Equal(expectedMutation, fish.Mutation);
+    }
+
     private static LocalOcrResult Result(
         string text,
         double confidence,
