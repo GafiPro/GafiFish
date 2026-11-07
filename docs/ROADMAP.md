@@ -107,7 +107,6 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada, aceita o pedido e entrega o peixe através de botões visuais calibrados com clique único e confirmação de desaparecimento.
 - [ ] Automatização de Appraise/Treasure Appraiser ou Auto Enchant não incluída: confirmação e gastos permanecem manuais, sem tentativas repetidas.
 - [x] Reconhecimento OCR do nome da cana com região calibrada, duas leituras estáveis e mapeamento explícito para um perfil.
-- [x] Charge Meter Bonus com calibração visual e teste sintético.
 - [ ] Implementar handlers dos restantes minijogos visuais únicos de cada cana depois de recolher frames reais e validar cada mecânica.
 
 ## Próximo bloqueio técnico
