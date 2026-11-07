@@ -1126,12 +1126,17 @@
 <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1" CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Text="Session history" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <Button x:Name="StartSessionButton" Content="Start session + local OCR" Click="StartSession_Click"
-                                Height="36" Margin="0,0,0,7"
-                                Background="#285B50" Foreground="White" BorderThickness="0" />
-                        <Button x:Name="EndSessionButton" Content="End session and show Top 25" Click="EndSession_Click"
-                                Height="36" Background="#4A3037" Foreground="White" BorderThickness="0"
-                                IsEnabled="False" />
+                        <CheckBox x:Name="LocalOcrSessionToggleCheckBox"
+                                  Content="Record a local OCR session"
+                                  IsChecked="False" Margin="0,0,0,10"
+                                  Checked="LocalOcrSessionToggle_Changed"
+                                  Unchecked="LocalOcrSessionToggle_Changed" />
+                        <Grid Visibility="Collapsed">
+                            <Button x:Name="StartSessionButton" Content="Start session + local OCR"
+                                    Click="StartSession_Click" />
+                            <Button x:Name="EndSessionButton" Content="End session and show Top 25"
+                                    Click="EndSession_Click" IsEnabled="False" />
+                        </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                             <Button x:Name="ExportCsvButton" Content="Export session CSV" Click="ExportCsv_Click"
                                     Width="150" Height="34" Margin="0,0,8,0"

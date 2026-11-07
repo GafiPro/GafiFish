@@ -198,6 +198,8 @@ public partial class MainWindow : Window
     private bool _ocrInProgress;
     private Task? _catchRecognitionTask;
     private bool _isEndingSession;
+    private bool _sessionStartPending;
+    private bool _sessionEndPending;
     private bool _isRefreshingSessionHistory;
     private bool _syncingModuleToggles;
     private DateTimeOffset? _dashboardSessionStartedAt;
@@ -2220,7 +2222,8 @@ public partial class MainWindow : Window
 
     private void SyncModuleToggles()
     {
-        if (ObservationToggleCheckBox is null || FishingMacroToggleCheckBox is null)
+        if (ObservationToggleCheckBox is null || FishingMacroToggleCheckBox is null
+            || LocalOcrSessionToggleCheckBox is null)
             return;
 
         _syncingModuleToggles = true;
@@ -2230,6 +2233,8 @@ public partial class MainWindow : Window
                 PreviewButton?.Content?.ToString() == "Stop observation"
                 && _previewCancellation is { IsCancellationRequested: false };
             FishingMacroToggleCheckBox.IsChecked = _startRequested || _automationEnabled;
+            LocalOcrSessionToggleCheckBox.IsChecked =
+                _activeSessionId.HasValue || _sessionStartPending || _sessionEndPending;
             AquariumAutomationToggleCheckBox.IsChecked =
                 _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true;
             AnglerAutomationToggleCheckBox.IsChecked =
@@ -2241,6 +2246,20 @@ public partial class MainWindow : Window
         {
             _syncingModuleToggles = false;
         }
+    }
+
+
+    private async void LocalOcrSessionToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingModuleToggles)
+            return;
+
+        if (LocalOcrSessionToggleCheckBox.IsChecked == true)
+            await StartSessionAsync();
+        else
+            await EndSessionAsync();
+
+        SyncModuleToggles();
     }
 
     private void ObservationToggle_Changed(object sender, RoutedEventArgs e)
@@ -5907,9 +5926,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void StartSession_Click(object sender, RoutedEventArgs e)
+    private async void StartSession_Click(object sender, RoutedEventArgs e) =>
+        await StartSessionAsync();
+
+    private async Task StartSessionAsync()
     {
-        if (_activeSessionId.HasValue)
+        if (_activeSessionId.HasValue || _sessionStartPending)
         {
             return;
         }
@@ -5920,7 +5942,9 @@ public partial class MainWindow : Window
             return;
         }
 
+        _sessionStartPending = true;
         StartSessionButton.IsEnabled = false;
+        SyncModuleToggles();
         SessionStatusText.Text = "Preparing local OCR and session database…";
         OcrStatusText.Text = "Checking the English OCR model…";
 
@@ -5931,6 +5955,7 @@ public partial class MainWindow : Window
             var sessionId = await _sessionStore.StartSessionAsync(DateTimeOffset.UtcNow);
 
             _activeSessionId = sessionId;
+            _sessionStartPending = false;
             _isEndingSession = false;
             _ocrInProgress = false;
             _catchRecognitionTask = null;
@@ -5956,11 +5981,16 @@ public partial class MainWindow : Window
             OcrStatusText.Text = $"Local OCR could not start: {exception.Message}";
             SessionStatusText.Text = "No session started. Check the network connection and the Microsoft Visual C++ 2022 runtime.";
             AddActivityLog("ERROR", "SESSION", $"Could not start local OCR session: {exception.Message}");
+            _sessionStartPending = false;
             StartSessionButton.IsEnabled = true;
+            SyncModuleToggles();
         }
     }
 
-    private async void EndSession_Click(object sender, RoutedEventArgs e)
+    private async void EndSession_Click(object sender, RoutedEventArgs e) =>
+        await EndSessionAsync();
+
+    private async Task EndSessionAsync()
     {
         if (_automationEnabled)
         {
@@ -5972,7 +6002,9 @@ public partial class MainWindow : Window
             return;
         }
 
+        _sessionEndPending = true;
         _isEndingSession = true;
+        SyncModuleToggles();
         EndSessionButton.IsEnabled = false;
         SessionStatusText.Text = "Finishing pending OCR recognition and saving session…";
 
@@ -6030,6 +6062,8 @@ public partial class MainWindow : Window
         finally
         {
             _isEndingSession = false;
+            _sessionEndPending = false;
+            SyncModuleToggles();
         }
     }
 
