@@ -319,3 +319,12 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Ao perder o foco, o macro desarma e liberta os controlos que já estavam premidos.
 - [x] Testes cobrem foco noutra aplicação, mudança de instância, cliques e movimento do cursor.
 - [ ] Validar a experiência completa numa sessão real do Fisch e confirmar a recuperação manual após perda de foco.
+
+
+## Paragem de emergência independente — novembro de 2026
+
+- [x] Registar a tecla Stop num thread Win32 dedicado, sem depender do dispatcher WPF.
+- [x] Bloquear novos inputs e libertar imediatamente os botões/teclas rastreados antes de agendar a limpeza visual da interface.
+- [x] Sincronizar o serviço de input entre o thread de automação e o thread de emergência; a paragem fica bloqueada até um novo Arm explícito.
+- [x] Manter fallback WPF quando o Windows não permite reservar a tecla no thread independente e apresentar esse estado no painel de hotkeys.
+- [ ] Validar manualmente em Windows com a janela WPF deliberadamente sem responder e confirmar a libertação real do input.
