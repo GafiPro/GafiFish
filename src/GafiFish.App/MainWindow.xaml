@@ -684,10 +684,10 @@
                         <TextBlock x:Name="PerformanceModeStatusText"
                                    Text="Balanced capture cadence · adaptive frame pacing."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
-                        <Button Content="Capture frame" Click="CaptureOnce_Click"
+                        <Button Visibility="Collapsed" Content="Capture frame" Click="CaptureOnce_Click"
                                 Height="38" Margin="0,0,0,8"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
-                        <Button x:Name="PreviewButton" Content="Start observation" Click="TogglePreview_Click"
+                        <Button Visibility="Collapsed" x:Name="PreviewButton" Content="Start observation" Click="TogglePreview_Click"
                                 Height="38" Background="#285B50" Foreground="White" BorderThickness="0" />
                         <Grid Margin="0,10,0,0" Visibility="Collapsed">
                             <Grid.ColumnDefinitions>
