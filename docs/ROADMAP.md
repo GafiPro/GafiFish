@@ -262,6 +262,7 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Testes garantem que um único fotograma repetido não consegue provocar um clique nem confirmar uma ação.
 - [x] Watchdog de reconexão e rotação dia/noite também só contam observações com timestamps novos; o detetor dia/noite transporta o timestamp do fotograma até ao coordenador.
 - [x] Testes impedem que capturas repetidas estabeleçam um baseline ou consumam um totem.
+- [x] Perfect Cast rejeita leituras duplicadas/fora de ordem e liberta o botão do rato em vez de decidir com base numa observação antiga.
 
 ## Rotação de totens dia/noite — novembro de 2026
 

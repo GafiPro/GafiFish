@@ -10,7 +10,8 @@ public enum CastInputResultKind
     WaitingForTarget,
     Released,
     Cancelled,
-    TimedOut
+    TimedOut,
+    StaleObservation
 }
 
 public sealed record CastInputResult(
@@ -30,6 +31,7 @@ public sealed class CastInputCoordinator
     private readonly PerfectCastController _controller;
     private readonly TimeSpan _maximumHoldDuration;
     private DateTimeOffset _startedAt;
+    private DateTimeOffset _lastObservationAt = DateTimeOffset.MinValue;
     private bool _isHolding;
 
     public CastInputCoordinator(
@@ -59,6 +61,7 @@ public sealed class CastInputCoordinator
 
         _input.SetLeftButton(true);
         _startedAt = now;
+        _lastObservationAt = DateTimeOffset.MinValue;
         _isHolding = true;
     }
 
@@ -72,6 +75,20 @@ public sealed class CastInputCoordinator
                 CastInputResultKind.Idle,
                 null,
                 "No cast is currently being charged.");
+        }
+
+        if (observation is not null)
+        {
+            if (observation.CapturedAt <= _lastObservationAt)
+            {
+                Release();
+                return new CastInputResult(
+                    CastInputResultKind.StaleObservation,
+                    null,
+                    "Perfect Cast observation is duplicated or out of order; mouse released.");
+            }
+
+            _lastObservationAt = observation.CapturedAt;
         }
 
         var elapsed = now - _startedAt;

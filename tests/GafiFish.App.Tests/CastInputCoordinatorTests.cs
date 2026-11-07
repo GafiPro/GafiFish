@@ -72,6 +72,30 @@ public sealed class CastInputCoordinatorTests
     }
 
     [Fact]
+    public void ProcessObservation_RejectsOutOfOrderMeasurementAndReleasesMouse()
+    {
+        var input = new FakeRobloxInput();
+        input.Arm();
+        var coordinator = new CastInputCoordinator(input);
+        var start = DateTimeOffset.UtcNow;
+
+        coordinator.BeginCast(start);
+        var first = coordinator.ProcessObservation(
+            Observation(0.20, 0.50, 0.60, start.AddMilliseconds(20)),
+            start.AddMilliseconds(20));
+        Assert.Equal(CastInputResultKind.WaitingForTarget, first.Kind);
+        Assert.True(input.IsLeftButtonDown);
+
+        var repeatedOlderFrame = coordinator.ProcessObservation(
+            Observation(0.55, 0.50, 0.60, start.AddMilliseconds(10)),
+            start.AddMilliseconds(30));
+
+        Assert.Equal(CastInputResultKind.StaleObservation, repeatedOlderFrame.Kind);
+        Assert.False(input.IsLeftButtonDown);
+        Assert.False(coordinator.IsHolding);
+    }
+
+    [Fact]
     public void ProcessObservation_CancelsAndReleasesStaleMeasurement()
     {
         var input = new FakeRobloxInput();

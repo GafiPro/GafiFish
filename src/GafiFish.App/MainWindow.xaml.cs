@@ -2588,7 +2588,9 @@ public partial class MainWindow : Window
                         throw new InvalidOperationException("Could not enter WaitingForBite after cast.");
                     }
                 }
-                else if (castResult.Kind is CastInputResultKind.Cancelled or CastInputResultKind.TimedOut)
+                else if (castResult.Kind is CastInputResultKind.Cancelled
+                    or CastInputResultKind.TimedOut
+                    or CastInputResultKind.StaleObservation)
                 {
                     StopAutomation($"Auto-cast stopped safely: {castResult.Reason}");
                     return;
