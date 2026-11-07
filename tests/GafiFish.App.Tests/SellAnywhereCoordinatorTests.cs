@@ -48,7 +48,14 @@ public sealed class SellAnywhereCoordinatorTests
         Assert.Equal(2, input.InventoryTogglePresses);
         Assert.Equal(1, input.ClientClicks);
         Assert.Equal((17, 23), input.LastMovedClientPosition);
+        Assert.True(coordinator.SaleCompletedThisFrame);
         Assert.Contains("visually verified", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+
+        coordinator.ProcessFrame(
+            CreateFrame(start.AddMinutes(20).AddMilliseconds(1370), fillItems: true),
+            profile,
+            isFishingCycleSafe: false);
+        Assert.False(coordinator.SaleCompletedThisFrame);
 
         coordinator.Stop();
         Assert.False(input.IsArmed);
@@ -88,6 +95,7 @@ public sealed class SellAnywhereCoordinatorTests
         Assert.Equal(1, input.InventoryTogglePresses);
         Assert.Equal(1, input.ClientClicks);
         Assert.Equal((17, 23), input.LastMovedClientPosition);
+        Assert.True(coordinator.SaleCompletedThisFrame);
         Assert.False(schedule.SalePending);
         Assert.Contains("visually verified", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
     }

@@ -57,6 +57,7 @@ Critério de saída: o Reel e o Perfect Cast têm de funcionar com confiança em
 - [x] Temporizador de 10 minutos, protegido por opção explícita desligada por defeito.
 - [x] Venda pendente até existir uma captura OCR de confiança elevada e o ciclo chegar a um estado seguro.
 - [x] O cursor é guardado antes da venda e restaurado após fechar o inventário; uma posição fora da janela Roblox impede a venda.
+- [x] Após a venda, o ciclo de pesca aguarda a transição visual do inventário antes de iniciar outro lançamento/consumível.
 - [x] Abrir/fechar o inventário com a janela Roblox em primeiro plano.
 - [x] Reconhecer um botão calibrado e estável.
 - [x] Enviar um único clique por tentativa.

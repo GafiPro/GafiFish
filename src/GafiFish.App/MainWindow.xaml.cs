@@ -2457,6 +2457,14 @@ public partial class MainWindow : Window
                     : string.Empty;
                 SellStatusText.Text = $"Sell Anywhere: {_sellCoordinator.LastStatus}{nextSaleText}";
 
+                if (_sellCoordinator.SaleCompletedThisFrame)
+                {
+                    _resumeCastingAfter = DateTimeOffset.UtcNow.AddMilliseconds(750);
+                    AutomationStatusText.Text =
+                        "Sell Anywhere verified the sale, closed the inventory and restored the cursor; waiting before the next cast.";
+                    return;
+                }
+
                 if (!_sellCoordinator.IsStarted)
                 {
                     var failure = _sellCoordinator.LastStatus;
@@ -2534,6 +2542,14 @@ public partial class MainWindow : Window
                     AutomationStatusText.Text = _dayNightTotemRotation.LastStatus;
                     return;
                 }
+            }
+
+            // After closing inventory or using a totem/item, allow the HUD
+            // to settle before another cast or hotbar action can begin.
+            if (_runtimeStateMachine.CurrentState == FishingState.Preparing
+                && DateTimeOffset.UtcNow < _resumeCastingAfter)
+            {
+                return;
             }
 
             // Auto-cast is opt-in. The rod remains in the selected hotbar slot.
