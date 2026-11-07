@@ -115,8 +115,14 @@ public sealed class EmergencyStopHotkeyListener : IDisposable
         if (threadId != 0)
             _ = Native.PostThreadMessage(unchecked((uint)threadId), WmQuit, UIntPtr.Zero, IntPtr.Zero);
 
-        if (_thread is not null && _thread != Thread.CurrentThread)
-            _thread.Join(TimeSpan.FromSeconds(2));
+        if (_thread is null)
+        {
+            _ready.Dispose();
+            return;
+        }
+
+        if (_thread != Thread.CurrentThread && _thread.Join(TimeSpan.FromSeconds(2)))
+            _ready.Dispose();
     }
 
     private static class Native
