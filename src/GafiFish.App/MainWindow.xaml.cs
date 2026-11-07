@@ -5214,7 +5214,10 @@ public partial class MainWindow : Window
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
-            or CalibrationAction.SelectAnglerSubmitButtonRegion)
+            or CalibrationAction.SelectAnglerSubmitButtonRegion
+            or CalibrationAction.SelectRodNameRegion
+            or CalibrationAction.SelectAppraisalPanelRegion
+            or CalibrationAction.SelectEnchantPanelRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -5243,7 +5246,10 @@ public partial class MainWindow : Window
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
-            or CalibrationAction.SelectAnglerSubmitButtonRegion)
+            or CalibrationAction.SelectAnglerSubmitButtonRegion
+            or CalibrationAction.SelectRodNameRegion
+            or CalibrationAction.SelectAppraisalPanelRegion
+            or CalibrationAction.SelectEnchantPanelRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -5273,7 +5279,10 @@ public partial class MainWindow : Window
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
-            or CalibrationAction.SelectAnglerSubmitButtonRegion)
+            or CalibrationAction.SelectAnglerSubmitButtonRegion
+            or CalibrationAction.SelectRodNameRegion
+            or CalibrationAction.SelectAppraisalPanelRegion
+            or CalibrationAction.SelectEnchantPanelRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -5401,6 +5410,27 @@ public partial class MainWindow : Window
                 _profile, AnglerQuestButtonKind.AcceptRequest, selectedRegion, _lastFrame.Width, _lastFrame.Height),
             CalibrationAction.SelectAnglerSubmitButtonRegion => WithAnglerQuestButtonRegion(
                 _profile, AnglerQuestButtonKind.SubmitFish, selectedRegion, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SelectRodNameRegion => _profile with
+            {
+                RodNameRegion = selectedRegion,
+                RodNameRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectAppraisalPanelRegion => _profile with
+            {
+                AppraisalPanelRegion = selectedRegion,
+                AppraisalPanelRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectEnchantPanelRegion => _profile with
+            {
+                EnchantPanelRegion = selectedRegion,
+                EnchantPanelRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             _ => _profile
         };
 
@@ -5422,6 +5452,9 @@ public partial class MainWindow : Window
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
             CalibrationAction.SelectAnglerAcceptButtonRegion => "Angler Accept Request button area saved.",
             CalibrationAction.SelectAnglerSubmitButtonRegion => "Angler Submit Fish button area saved.",
+            CalibrationAction.SelectRodNameRegion => "Rod-name OCR region saved.",
+            CalibrationAction.SelectAppraisalPanelRegion => "Appraiser panel OCR region saved.",
+            CalibrationAction.SelectEnchantPanelRegion => "Enchant panel OCR region saved.",
             _ => "Region saved."
         };
         await SaveProfileAsync(regionMessage);
