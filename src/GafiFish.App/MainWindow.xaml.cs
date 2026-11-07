@@ -3087,6 +3087,7 @@ public partial class MainWindow : Window
         {
             _castCoordinator?.Stop();
             _shakeCoordinator?.Reset();
+            _rhythmCoordinator?.Stop();
             _reelCoordinator?.Stop();
         }
         catch
@@ -3127,6 +3128,7 @@ public partial class MainWindow : Window
         _startRequested = false;
         _automationInput = null;
         _reelCoordinator = null;
+        _rhythmCoordinator = null;
         _runtimeStateMachine = null;
         _sellCoordinator = null;
         _sellSchedule = null;
