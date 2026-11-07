@@ -95,8 +95,9 @@ O Auto-cast usa o indicador e a zona verde do medidor calibrado; o Auto-shake us
 ## 6. Perfis, consumíveis e diagnóstico
 
 - **Perfis por cana**: escreve um nome no campo Rod calibration profile e usa Load profile ou Save profile. Para seleção por slot, ativa **Equip my rod**, escolhe o slot de hotbar e prime **Bind active profile**.
-- **Reconhecimento da cana**: com o nome da cana visível no HUD, captura F6, seleciona **Select name area** e delimita apenas o texto do nome. Prime **Recognize now** para inicializar o OCR local e confirmar a leitura; depois associa o nome ao perfil ativo com **Bind detected name to active profile**. A opção **Recognize rod name while observing** exige duas leituras estáveis antes de trocar de perfil e não faz mudanças enquanto o macro está ativo. As associações de nome e slot ficam guardadas no ficheiro local de bindings.
-- **Afinação Reel por cana**: cada perfil guarda uma opção Balanced, Precision, Heavy fish ou Stable. Escolhe a afinação enquanto o macro está parado; os minijogos visuais exclusivos de determinadas canas ainda não estão implementados sem frames reais para calibração.
+- **Reconhecimento da cana**: com o nome visível no HUD, captura F6, seleciona **Select name area** e delimita apenas o texto. Usa **Recognize now** para confirmar a leitura e associa o nome ao perfil ativo. A opção **Recognize rod name while observing** inicializa o OCR local, exige duas leituras estáveis antes de trocar de perfil e só muda de perfil com o macro parado. As associações de nome e slot ficam guardadas no ficheiro local de bindings.
+- **Afinação Reel por cana**: cada perfil guarda uma opção Balanced, Precision, Heavy fish ou Stable. Escolhe a afinação enquanto o macro está parado.
+- **Minijogo Charge Meter Bonus**: seleciona esse modo no perfil da cana. Em Calibration, delimita o percurso completo do medidor (0–100%) e amostra uma cor no interior da parte preenchida. Define a direção do enchimento. O macro só pode ser iniciado com a calibração completa; liberta aos 80% apenas quando o marcador do peixe está dentro da barra. Outros minijogos exclusivos de certas canas precisam de calibração e handlers próprios.
 - **Capture performance**: Economy reduz a frequência de análise para diminuir o uso esperado de CPU; Balanced é a opção recomendada; Responsive tenta analisar mais frequentemente e pode aumentar o uso de CPU. A cadência continua adaptativa ao tempo de processamento de cada fotograma.
 - **Perfis transferíveis**: usa Import profile JSON / Export profile JSON para mover calibrações entre PCs. O ficheiro contém apenas parâmetros de calibração, não imagens nem credenciais.
 - **Arquivo completo**: Export all CSV / Export all JSON exporta todas as capturas locais, incluindo o identificador e as horas de início/fim da sessão associada. Export session continua limitado à sessão selecionada.
@@ -210,9 +211,9 @@ A função depende de um indicador HUD real e estável. Se não existir um indic
 
 O coordenador nunca repete automaticamente um clique que não consiga confirmar: pára e pede intervenção manual. A confirmação é visual — o GafiFish observa o desaparecimento do botão calibrado; não consegue consultar o estado interno da quest no servidor. A captura depende da notificação de captura e da confiança do OCR local. O pedido ativo, a captura pendente de entrega e o cooldown ficam guardados em `%LOCALAPPDATA%\\GafiFish\\angler-quest-state.json`; ao reiniciar a aplicação, o GafiFish recupera o estado. Se o ficheiro estiver danificado, o assistente bloqueia novas ações para evitar perder um cooldown.
 
-## Appraise, Treasure Appraiser e Enchant
+## Ações aleatórias que consomem recursos
 
-Estas ações usam custos ou itens do jogo e podem produzir resultados que dependem da interface atual. Para consultar o texto visível, captura um frame com F6, vai a **Calibration**, seleciona **Select Appraiser panel text region** (ou **Select Enchant altar text region**) e delimita a área com as opções/custos. Na página **Fishing**, usa **Read Appraiser panel** ou **Read Enchant panel**. O OCR é local e apenas de leitura: não clica nem gasta moeda/itens. A escolha de peixe, confirmação de custos, Appraise, Treasure Appraiser e Enchant continuam manuais; não existe repetição automática.
+O GafiFish não automatiza nem repete ações de resultado aleatório que consumam moeda ou itens do jogo.
 
 
 ## Roblox-only input guard
