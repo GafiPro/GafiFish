@@ -181,11 +181,14 @@ O motor espera por três frames estáveis antes de enviar um clique único. Só 
 1. Abre o separador **Calibration** e captura um frame F6 quando o botão de reconexão estiver visível.
 2. Escolhe **Select reconnect button region** e desenha um retângulo apertado à volta do botão.
 3. Escolhe **Sample reconnect button colour** e clica num pixel limpo dentro do botão.
-4. Guarda o perfil. No separador **Fishing**, inicia F7 e usa **Arm reconnect watchdog**.
-5. Mantém Roblox em primeiro plano. O módulo exige três frames estáveis, envia um clique e aguarda dois frames sem o botão. Faz no máximo três tentativas por ativação, com um intervalo de segurança.
-6. Se o botão não desaparecer no timeout, o watchdog pára sem repetir. O desaparecimento do botão não confirma que voltaste à sessão; verifica o jogo manualmente antes de rearmar o macro.
+4. Ainda em **Calibration**, entra numa sessão Fisch carregada e captura outro frame F6.
+5. Escolhe **Select in-game HUD indicator region** e desenha um retângulo pequeno à volta de um elemento HUD persistente que só apareça dentro do mundo carregado. Evita elementos que também sejam visíveis no ecrã de reconexão.
+6. Escolhe **Sample in-game HUD indicator colour** e clica num pixel limpo desse elemento.
+7. Guarda o perfil. No separador **Fishing**, inicia F7 e usa **Arm reconnect watchdog**.
+8. Mantém Roblox em primeiro plano. O módulo exige três frames estáveis do botão antes do clique. Depois de o botão desaparecer, espera por três frames estáveis do indicador HUD calibrado para confirmar que a sessão voltou.
+9. Se o indicador HUD não surgir no prazo, a tentativa não é considerada bem-sucedida. Só pode haver outra tentativa depois de aparecer novamente o botão calibrado; são permitidos no máximo três cliques por ativação.
 
-O watchdog não funciona ao mesmo tempo que Reel assist ou Auto Aquarium. A calibração depende da resolução, escala e aparência do botão; repete-a quando a UI mudar.
+O watchdog não funciona ao mesmo tempo que Reel assist ou Auto Aquarium. A calibração do botão e do indicador HUD depende da resolução, escala e aparência da interface; repete-a quando a UI mudar. Escolhe um indicador pequeno, distintivo e estável para reduzir falsos positivos.
 
 
 ## Rotação de totens dia/noite
