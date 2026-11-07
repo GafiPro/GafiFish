@@ -101,7 +101,7 @@ public sealed class EmergencyStopHotkeyListener : IDisposable
                 if (result <= 0)
                     break;
 
-                if (message.Message != WmHotkey || message.WParam.ToInt32() != HotkeyId)
+                if (message.Message != WmHotkey || message.WParam != (nuint)HotkeyId)
                     continue;
 
                 try
