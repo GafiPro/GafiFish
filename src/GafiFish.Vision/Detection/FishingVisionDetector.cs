@@ -29,7 +29,7 @@ public sealed class FishingVisionDetector
             return new FishingVisionResult(
                 frame.CapturedAt, frame.Width, frame.Height,
                 null, null, false,
-                "Calibrate both marker colors before tracking.");
+                "Calibrate the fishing region and provide a colour sample or template for both markers.");
         }
 
         using var bgra = new Mat(frame.Height, frame.Width, MatType.CV_8UC4);
@@ -42,13 +42,36 @@ public sealed class FishingVisionDetector
         Cv2.CvtColor(bgr, hsv, ColorConversionCodes.BGR2HSV);
 
         var region = profile.FishingRegion.ToPixelRect(frame.Width, frame.Height);
-        using var roi = new Mat(hsv, region);
+        using var hsvRoi = new Mat(hsv, region);
+        using var bgrRoi = new Mat(bgr, region);
 
-        var fish = FindLargestMarker(
-            roi, region.X, region.Y, profile.FishMarkerColor!.Value, profile.MinimumBlobArea);
+        var fish = profile.FishMarkerColor.HasValue
+            ? FindLargestMarker(
+                hsvRoi, region.X, region.Y, profile.FishMarkerColor.Value, profile.MinimumBlobArea)
+            : null;
+        if ((fish is null || fish.Confidence < profile.MinimumConfidence)
+            && profile.FishMarkerTemplatePng is { Length: > 0 })
+        {
+            fish = FindTemplateMarker(
+                bgrRoi, region.X, region.Y,
+                profile.FishMarkerTemplatePng,
+                frame.Width, frame.Height,
+                profile.ReferenceWidth, profile.ReferenceHeight) ?? fish;
+        }
 
-        var control = FindLargestMarker(
-            roi, region.X, region.Y, profile.ControlMarkerColor!.Value, profile.MinimumBlobArea);
+        var control = profile.ControlMarkerColor.HasValue
+            ? FindLargestMarker(
+                hsvRoi, region.X, region.Y, profile.ControlMarkerColor.Value, profile.MinimumBlobArea)
+            : null;
+        if ((control is null || control.Confidence < profile.MinimumConfidence)
+            && profile.ControlMarkerTemplatePng is { Length: > 0 })
+        {
+            control = FindTemplateMarker(
+                bgrRoi, region.X, region.Y,
+                profile.ControlMarkerTemplatePng,
+                frame.Width, frame.Height,
+                profile.ReferenceWidth, profile.ReferenceHeight) ?? control;
+        }
 
         var enoughConfidence =
             fish is not null && control is not null
@@ -64,6 +87,65 @@ public sealed class FishingVisionDetector
         return new FishingVisionResult(
             frame.CapturedAt, frame.Width, frame.Height,
             fish, control, true, status);
+    }
+
+    private static DetectedMarker? FindTemplateMarker(
+        Mat bgrRegion,
+        int offsetX,
+        int offsetY,
+        byte[] templatePng,
+        int frameWidth,
+        int frameHeight,
+        int referenceWidth,
+        int referenceHeight)
+    {
+        using var template = Cv2.ImDecode(templatePng, ImreadModes.Grayscale);
+        if (template.Empty() || template.Width < 3 || template.Height < 3)
+            return null;
+
+        var scaleX = referenceWidth > 0 ? frameWidth / (double)referenceWidth : 1d;
+        var scaleY = referenceHeight > 0 ? frameHeight / (double)referenceHeight : 1d;
+        var targetWidth = Math.Max(3, (int)Math.Round(template.Width * scaleX));
+        var targetHeight = Math.Max(3, (int)Math.Round(template.Height * scaleY));
+
+        using var resized = new Mat();
+        var matchTemplate = template;
+        if (targetWidth != template.Width || targetHeight != template.Height)
+        {
+            Cv2.Resize(
+                template, resized, new Size(targetWidth, targetHeight),
+                interpolation: InterpolationFlags.Cubic);
+            matchTemplate = resized;
+        }
+
+        using var grayRegion = new Mat();
+        Cv2.CvtColor(bgrRegion, grayRegion, ColorConversionCodes.BGR2GRAY);
+        if (matchTemplate.Width > grayRegion.Width || matchTemplate.Height > grayRegion.Height)
+            return null;
+
+        using var result = new Mat();
+        Cv2.MatchTemplate(grayRegion, matchTemplate, result, TemplateMatchModes.CCoeffNormed);
+        Cv2.MinMaxLoc(
+            result,
+            out _,
+            out var maximumScore,
+            out _,
+            out var maximumLocation);
+
+        if (!double.IsFinite(maximumScore) || maximumScore < 0.82)
+            return null;
+
+        var bounds = new Rect(
+            offsetX + maximumLocation.X,
+            offsetY + maximumLocation.Y,
+            matchTemplate.Width,
+            matchTemplate.Height);
+        return new DetectedMarker(
+            bounds.X + bounds.Width / 2d,
+            bounds.Y + bounds.Height / 2d,
+            bounds,
+            bounds.Width * (double)bounds.Height,
+            Math.Clamp(maximumScore, 0, 1));
     }
 
     internal static DetectedMarker? FindLargestMarker(

@@ -42,6 +42,8 @@ Para selecionar uma região, captura primeiro um fotograma, escolhe a ação na 
 
 Para amostrar uma cor, escolhe a ação correspondente e clica num pixel limpo do marcador. O GafiFish converte o pixel para uma gama HSV com tolerância.
 
+Como fallback, podes capturar um template de cada marcador: escolhe **Capture fish marker template** ou **Capture control marker template** e desenha um retângulo apertado (máximo 128×128) à volta do marcador num frame limpo. Os recortes são convertidos para PNG em escala de cinzentos e guardados no perfil local. Durante a pesca, HSV continua a ser a primeira escolha quando a confiança é suficiente; o template é usado quando a deteção por cor falha ou fica fraca.
+
 Regiões disponíveis:
 
 - **Fishing search region**: área do minijogo onde aparecem o peixe e a barra de controlo.

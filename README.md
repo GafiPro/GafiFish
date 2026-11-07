@@ -7,8 +7,8 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 ## O que já funciona
 
 - Captura da área visível do cliente Roblox através de F6 e observação contínua com F7.
-- Calibração visual por região e amostragem HSV dos marcadores.
-- Deteção dos marcadores do peixe e da barra, com estimativa curta de movimento.
+- Calibração visual por região, amostragem HSV e templates locais opcionais dos marcadores.
+- Deteção dos marcadores do peixe e da barra por cor HSV, com fallback de template em escala de cinzentos e estimativa curta de movimento.
 - Deteção do indicador e da zona-alvo do Perfect Cast, com decisão diagnóstica considerando a latência.
 - Deteção de prompts Shake e Auto-shake opcional: só clica após dois frames estáveis, evita repetir o mesmo prompt e reconhece o fim da sequência após quatro frames sem prompt.
 - Auto-cast opcional: segura e liberta o rato na janela Perfect Cast calibrada; por defeito, após 30 segundos sem mordida faz até dois recasts adicionais. O modo opcional “Keep fishing until the first fish is caught” remove esse limite e termina após uma notificação OCR de captura com confiança elevada. O modo “Fish until this exact target is caught” permite escrever um nome como “Wrath Scylla”; continua a tentar até todos os termos do alvo aparecerem numa notificação de captura reconhecida com confiança elevada.

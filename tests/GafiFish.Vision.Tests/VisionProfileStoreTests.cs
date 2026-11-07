@@ -24,7 +24,9 @@ public sealed class VisionProfileStoreTests
             WorldPhaseRegion = new NormalizedRegion(0.70, 0.10, 0.12, 0.18),
             WorldPhaseRegionCalibrated = true,
             DayPhaseColor = new HsvColorRange(0, 180, 180, 5, 255, 255),
-            NightPhaseColor = new HsvColorRange(110, 180, 180, 130, 255, 255)
+            NightPhaseColor = new HsvColorRange(110, 180, 180, 130, 255, 255),
+            FishMarkerTemplatePng = CreatePngTemplate(),
+            ControlMarkerTemplatePng = CreatePngTemplate()
         };
 
         try
@@ -43,6 +45,8 @@ public sealed class VisionProfileStoreTests
             Assert.Equal(profile.WorldPhaseRegion, loaded.WorldPhaseRegion);
             Assert.Equal(profile.DayPhaseColor, loaded.DayPhaseColor);
             Assert.Equal(profile.NightPhaseColor, loaded.NightPhaseColor);
+            Assert.Equal(profile.FishMarkerTemplatePng, loaded.FishMarkerTemplatePng);
+            Assert.Equal(profile.ControlMarkerTemplatePng, loaded.ControlMarkerTemplatePng);
             Assert.True(loaded.IsWorldPhaseCalibrated);
             Assert.True(loaded.IsFishingCalibrated);
         }
@@ -53,6 +57,14 @@ public sealed class VisionProfileStoreTests
                 File.Delete(path);
             }
         }
+    }
+
+    private static byte[] CreatePngTemplate()
+    {
+        using var image = new OpenCvSharp.Mat(8, 8, OpenCvSharp.MatType.CV_8UC1, OpenCvSharp.Scalar.All(0));
+        OpenCvSharp.Cv2.Rectangle(image, new OpenCvSharp.Rect(1, 1, 6, 6), OpenCvSharp.Scalar.All(255), thickness: -1);
+        Assert.True(OpenCvSharp.Cv2.ImEncode(".png", image, out var bytes));
+        return bytes;
     }
 
     [Fact]

@@ -49,6 +49,7 @@ Detetores OpenCV
   - peixe e barra de Reel
   - indicador e zona-alvo de Perfect Cast
   - candidatos Shake
+  - fallback de template em escala de cinzentos para peixe/barra
   - botão Sell Anywhere
   - replay de vídeo offline (um frame de cada vez)
       |
@@ -159,3 +160,8 @@ O detetor `ConnectionRecoveryVisionDetector` procura apenas a região e a cor HS
 ## 13. Rotação de totens dia/noite
 
 O `WorldPhaseVisionDetector` compara duas gamas HSV calibradas pelo utilizador numa região fixa do HUD. Se ambas surgirem ao mesmo tempo, se nenhuma surgir ou se a confiança for baixa, o estado é `Unknown`. O `DayNightTotemRotationCoordinator` usa a primeira fase estável apenas como baseline; uma transição posterior precisa de três frames consistentes e só executa em `Preparing`. Um clique normal seleciona o slot do totem correspondente e restaura o slot da cana. A opção não usa relógios ou durações presumidas do ciclo do jogo.
+
+
+## 14. Templates locais para marcadores de pesca
+
+O perfil pode guardar pequenos recortes PNG em escala de cinzentos para o peixe e para a barra de controlo. A seleção é feita pelo utilizador na pré-visualização e limitada a 128×128 pixels. O detetor tenta primeiro HSV; quando a deteção está ausente ou abaixo da confiança mínima, executa `matchTemplate` com correlação normalizada e limiar de 0,82. O template é redimensionado proporcionalmente à resolução de referência. Não há templates genéricos embutidos nem coordenadas presumidas.

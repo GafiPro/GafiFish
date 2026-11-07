@@ -30,6 +30,8 @@ public sealed record VisionProfile
     public bool InventoryItemsRegionCalibrated { get; init; }
     public HsvColorRange? FishMarkerColor { get; init; }
     public HsvColorRange? ControlMarkerColor { get; init; }
+    public byte[]? FishMarkerTemplatePng { get; init; }
+    public byte[]? ControlMarkerTemplatePng { get; init; }
     public HsvColorRange? CastIndicatorColor { get; init; }
     public HsvColorRange? CastTargetColor { get; init; }
     public HsvColorRange? ShakePromptColor { get; init; }
@@ -38,9 +40,11 @@ public sealed record VisionProfile
     public double MinimumBlobArea { get; init; } = 5;
     public double MinimumConfidence { get; init; } = 0.60;
 
-    public bool IsFishingCalibrated => FishMarkerColor.HasValue
-        && ControlMarkerColor.HasValue
-        && FishingRegionCalibrated;
+    public bool IsFishingCalibrated => FishingRegionCalibrated
+        && (FishMarkerColor.HasValue || HasTemplate(FishMarkerTemplatePng))
+        && (ControlMarkerColor.HasValue || HasTemplate(ControlMarkerTemplatePng));
+
+    private static bool HasTemplate(byte[]? template) => template is { Length: >= 8 };
     public bool IsCastCalibrated => CastIndicatorColor.HasValue
         && CastTargetColor.HasValue
         && CastRegionCalibrated;
@@ -82,6 +86,8 @@ public sealed record VisionProfile
 
         FishMarkerColor?.Validate();
         ControlMarkerColor?.Validate();
+        ValidateTemplate(FishMarkerTemplatePng, nameof(FishMarkerTemplatePng));
+        ValidateTemplate(ControlMarkerTemplatePng, nameof(ControlMarkerTemplatePng));
         CastIndicatorColor?.Validate();
         CastTargetColor?.Validate();
         ShakePromptColor?.Validate();
@@ -92,5 +98,20 @@ public sealed record VisionProfile
         ArgumentNullException.ThrowIfNull(AquariumButtons);
         foreach (var button in AquariumButtons.Values)
             button.Validate();
+    }
+
+    private static void ValidateTemplate(byte[]? template, string propertyName)
+    {
+        if (template is null)
+            return;
+        if (template.Length > 131_072)
+            throw new ArgumentOutOfRangeException(propertyName, "Marker templates must not exceed 128 KiB.");
+        if (template.Length == 0)
+            return;
+
+        ReadOnlySpan<byte> pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+        if (template.Length < pngSignature.Length
+            || !template.AsSpan(0, pngSignature.Length).SequenceEqual(pngSignature))
+            throw new ArgumentException("Marker templates must be valid PNG data.", propertyName);
     }
 }

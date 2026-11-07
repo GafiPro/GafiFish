@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Text.Json;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
+using OpenCvSharp;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -199,6 +200,8 @@ public partial class MainWindow : Window
         SelectCatchNotificationRegion,
         SelectReconnectButtonRegion,
         SampleReconnectButtonColor,
+        CaptureFishMarkerTemplate,
+        CaptureControlMarkerTemplate,
         SelectWorldPhaseRegion,
         SampleDayPhaseColor,
         SampleNightPhaseColor,
@@ -3720,6 +3723,18 @@ public partial class MainWindow : Window
             "Click a clear pixel inside the reconnect button. Use the same Roblox UI theme and resolution.");
     }
 
+    private void CaptureFishMarkerTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.CaptureFishMarkerTemplate,
+            "Draw a tight rectangle around the fish marker only. Use a frame where it is clear and not overlapping the control bar.");
+    }
+
+    private void CaptureControlMarkerTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.CaptureControlMarkerTemplate,
+            "Draw a tight rectangle around the control marker only. Avoid including the fish marker or background.");
+    }
+
     private void SelectWorldPhaseRegion_Click(object sender, RoutedEventArgs e)
     {
         SetCalibrationAction(CalibrationAction.SelectWorldPhaseRegion,
@@ -3799,6 +3814,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
+            or CalibrationAction.CaptureFishMarkerTemplate
+            or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion)
         {
             _selectionStartPixel = pixelPoint;
@@ -3823,6 +3840,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
+            or CalibrationAction.CaptureFishMarkerTemplate
+            or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
@@ -3848,6 +3867,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectCatchNotificationRegion
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
+            or CalibrationAction.CaptureFishMarkerTemplate
+            or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
@@ -3885,6 +3906,14 @@ public partial class MainWindow : Window
             height / _lastFrame.Height);
 
         var selectedAction = _calibrationAction;
+        if ((selectedAction is CalibrationAction.CaptureFishMarkerTemplate
+            or CalibrationAction.CaptureControlMarkerTemplate)
+            && (width > 128 || height > 128))
+        {
+            CalibrationModeText.Text = "Marker templates are limited to 128×128 pixels. Draw a tighter box around the marker.";
+            return;
+        }
+
         _profile = selectedAction switch
         {
             CalibrationAction.SelectRegion => _profile with
@@ -3943,6 +3972,18 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.CaptureFishMarkerTemplate => _profile with
+            {
+                FishMarkerTemplatePng = EncodeMarkerTemplate(_lastFrame, selectedRegion),
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.CaptureControlMarkerTemplate => _profile with
+            {
+                ControlMarkerTemplatePng = EncodeMarkerTemplate(_lastFrame, selectedRegion),
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             CalibrationAction.SelectAquariumButtonRegion => WithAquariumButtonRegion(
                 _profile, _aquariumCalibrationActionKind, selectedRegion, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
@@ -3960,12 +4001,29 @@ public partial class MainWindow : Window
             CalibrationAction.SelectCatchNotificationRegion => "Catch notification OCR region saved.",
             CalibrationAction.SelectReconnectButtonRegion => "Reconnect button region saved.",
             CalibrationAction.SelectWorldPhaseRegion => "Day/night phase indicator region saved.",
+            CalibrationAction.CaptureFishMarkerTemplate => "Fish marker template captured. HSV remains preferred when confidence is sufficient.",
+            CalibrationAction.CaptureControlMarkerTemplate => "Control marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
             _ => "Region saved."
         };
         await SaveProfileAsync(regionMessage);
         _calibrationAction = CalibrationAction.None;
         e.Handled = true;
+    }
+
+    private static byte[] EncodeMarkerTemplate(ScreenCaptureFrame frame, NormalizedRegion region)
+    {
+        var rect = region.ToPixelRect(frame.Width, frame.Height);
+        using var bgra = new Mat(frame.Height, frame.Width, MatType.CV_8UC4);
+        Marshal.Copy(frame.BgraPixels, 0, bgra.Data, frame.BgraPixels.Length);
+        using var crop = new Mat(bgra, rect);
+        using var bgr = new Mat();
+        Cv2.CvtColor(crop, bgr, ColorConversionCodes.BGRA2BGR);
+        using var gray = new Mat();
+        Cv2.CvtColor(bgr, gray, ColorConversionCodes.BGR2GRAY);
+        if (!Cv2.ImEncode(".png", gray, out var encoded))
+            throw new InvalidOperationException("OpenCV could not encode the selected marker template.");
+        return encoded;
     }
 
     private void ClearRegionSelection()

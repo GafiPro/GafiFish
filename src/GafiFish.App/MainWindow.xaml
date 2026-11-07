@@ -833,6 +833,14 @@
                         <Button Content="Sample control marker" Click="SampleControlMarker_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Capture fish marker template" Click="CaptureFishMarkerTemplate_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Capture control marker template" Click="CaptureControlMarkerTemplate_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <TextBlock Text="Templates are optional grayscale fallbacks when HSV marker detection is weak."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" FontSize="11" />
                         <Button Content="Select cast meter region" Click="SelectCastRegion_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />

@@ -43,7 +43,8 @@
 - [x] Timeout de segurança de três minutos no estado Reel.
 - [ ] Validar Auto-cast, Auto-shake, Reel, modo de captura contínua e hotbar numa sessão real do Fisch com diferentes resoluções/canas.
 - [ ] Perfis por cana com calibração real.
-- [ ] Melhorar a deteção com cascata de fallback (cor, contorno, template e tracking temporário), após reunir frames reais.
+- [x] Fallback de template local em escala de cinzentos para peixe/barra quando a deteção por cor falha ou fica abaixo da confiança mínima.
+- [ ] Afinar template e tracking temporal com gravações reais do Fisch; a captura de templates é manual e limitada a recortes de 128×128.
 
 Critério de saída: o Reel e o Perfect Cast têm de funcionar com confiança em capturas/gravações reais; nenhum estado pode deixar um botão premido após timeout.
 
