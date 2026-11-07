@@ -25,6 +25,35 @@ public sealed class DayNightTotemRotationCoordinatorTests
     }
 
     [Fact]
+    public void DuplicatePhaseFramesCannotEstablishBaselineOrUseTotem()
+    {
+        var input = new RecordingInput();
+        var coordinator = CreateCoordinator(input);
+        var start = new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero);
+        var day = Observation(DayNightPhase.Day, start);
+
+        Assert.False(coordinator.ProcessObservation(day, false));
+        Assert.False(coordinator.ProcessObservation(day, false));
+        Assert.Contains("duplicate or out-of-order", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(input.Events);
+
+        Assert.False(coordinator.ProcessObservation(Observation(DayNightPhase.Day, start.AddMilliseconds(120)), false));
+        Assert.False(coordinator.ProcessObservation(Observation(DayNightPhase.Day, start.AddMilliseconds(240)), false));
+        Assert.Equal(DayNightPhase.Day, coordinator.BaselinePhase);
+        Assert.Empty(input.Events);
+
+        Assert.False(coordinator.ProcessObservation(Observation(DayNightPhase.Night, start.AddMilliseconds(360)), false));
+        Assert.False(coordinator.ProcessObservation(Observation(DayNightPhase.Night, start.AddMilliseconds(480)), false));
+        Assert.False(coordinator.ProcessObservation(Observation(DayNightPhase.Night, start.AddMilliseconds(600)), false));
+        Assert.False(coordinator.ProcessObservation(Observation(DayNightPhase.Night, start.AddMilliseconds(600)), true));
+        Assert.Contains("duplicate or out-of-order", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(input.Events);
+        Assert.True(coordinator.ProcessObservation(Observation(DayNightPhase.Night, start.AddMilliseconds(720)), true));
+        Assert.Equal(DayNightPhase.Night, coordinator.BaselinePhase);
+        Assert.Equal(6, input.Events.Count);
+    }
+
+    [Fact]
     public void PhaseChangeWaitsUntilPreparingThenUsesTheMatchingTotemOnce()
     {
         var input = new RecordingInput();
@@ -123,8 +152,8 @@ public sealed class DayNightTotemRotationCoordinatorTests
         coordinator.ProcessObservation(Observation(DayNightPhase.Night), false);
     }
 
-    private static DayNightPhaseObservation Observation(DayNightPhase phase) =>
-        new(phase, 0.95, $"{phase} phase indicator detected.");
+    private static DayNightPhaseObservation Observation(DayNightPhase phase, DateTimeOffset? capturedAt = null) =>
+        new(phase, 0.95, $"{phase} phase indicator detected.", capturedAt);
 
     private sealed class RecordingInput : IRobloxInput
     {

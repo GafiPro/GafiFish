@@ -18,6 +18,7 @@ public sealed class DayNightTotemRotationCoordinator
     private DayNightPhase _lastAppliedPhase;
     private int _candidateFrames;
     private DayNightPhase _pendingPhase;
+    private DateTimeOffset? _lastObservationAt;
     private string _lastStatus = "Day/night totem rotation is stopped.";
 
     public DayNightPhase BaselinePhase => _lastAppliedPhase;
@@ -57,6 +58,17 @@ public sealed class DayNightTotemRotationCoordinator
     public bool ProcessObservation(DayNightPhaseObservation observation, bool isSafeState)
     {
         ArgumentNullException.ThrowIfNull(observation);
+
+        if (observation.CapturedAt is DateTimeOffset capturedAt)
+        {
+            if (_lastObservationAt.HasValue && capturedAt <= _lastObservationAt.Value)
+            {
+                _lastStatus = "Ignored duplicate or out-of-order phase frame; no totem was used.";
+                return false;
+            }
+
+            _lastObservationAt = capturedAt;
+        }
 
         if (observation.Phase == DayNightPhase.Unknown
             || !double.IsFinite(observation.Confidence)

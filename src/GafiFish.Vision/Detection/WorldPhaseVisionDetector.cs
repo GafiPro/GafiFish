@@ -9,7 +9,8 @@ namespace GafiFish.Vision.Detection;
 public sealed record DayNightPhaseObservation(
     DayNightPhase Phase,
     double Confidence,
-    string Status);
+    string Status,
+    DateTimeOffset? CapturedAt = null);
 
 /// <summary>
 /// Detects the day/night phase from one small region and two separately sampled HSV colours.
@@ -34,7 +35,8 @@ public sealed class WorldPhaseVisionDetector
         {
             return new DayNightPhaseObservation(
                 DayNightPhase.Unknown, 0,
-                "Day/night phase indicator requires a calibrated region and both colours.");
+                "Day/night phase indicator requires a calibrated region and both colours.",
+                frame.CapturedAt);
         }
 
         using var bgra = new Mat(frame.Height, frame.Width, MatType.CV_8UC4);
@@ -56,25 +58,29 @@ public sealed class WorldPhaseVisionDetector
         {
             return new DayNightPhaseObservation(
                 DayNightPhase.Unknown, 0,
-                "Day/night indicator is ambiguous: both calibrated colours were detected.");
+                "Day/night indicator is ambiguous: both calibrated colours were detected.",
+                frame.CapturedAt);
         }
 
         if (day is not null)
         {
             return new DayNightPhaseObservation(
                 DayNightPhase.Day, day.Confidence,
-                $"Day indicator detected with {day.Confidence:P0} confidence.");
+                $"Day indicator detected with {day.Confidence:P0} confidence.",
+                frame.CapturedAt);
         }
 
         if (night is not null)
         {
             return new DayNightPhaseObservation(
                 DayNightPhase.Night, night.Confidence,
-                $"Night indicator detected with {night.Confidence:P0} confidence.");
+                $"Night indicator detected with {night.Confidence:P0} confidence.",
+                frame.CapturedAt);
         }
 
         return new DayNightPhaseObservation(
             DayNightPhase.Unknown, 0,
-            "No calibrated day/night indicator was detected in its selected region.");
+            "No calibrated day/night indicator was detected in its selected region.",
+            frame.CapturedAt);
     }
 }

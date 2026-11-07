@@ -25,6 +25,7 @@ public sealed class ConnectionRecoveryCoordinator
     private DateTimeOffset? _pendingClickAt;
     private DateTimeOffset _retryAllowedAt = DateTimeOffset.MinValue;
     private int _absentFrames;
+    private DateTimeOffset? _lastProcessedFrameAt;
     private bool _started;
     private string _lastStatus = "Connection watchdog is stopped.";
 
@@ -73,6 +74,7 @@ public sealed class ConnectionRecoveryCoordinator
             throw new InvalidOperationException("Connection watchdog is already armed.");
 
         _input.Arm();
+        _lastProcessedFrameAt = null;
         AttemptsMade = 0;
         _pendingClickAt = null;
         _retryAllowedAt = DateTimeOffset.MinValue;
@@ -90,6 +92,7 @@ public sealed class ConnectionRecoveryCoordinator
             _started = false;
             _pendingClickAt = null;
             _absentFrames = 0;
+            _lastProcessedFrameAt = null;
             ResetCandidate();
             _lastStatus = "Connection watchdog stopped; all inputs released.";
         }
@@ -101,6 +104,16 @@ public sealed class ConnectionRecoveryCoordinator
         ArgumentNullException.ThrowIfNull(profile);
         if (!_started)
             return;
+
+        // A repeated screenshot is not a second observation. Keep the
+        // stability and dismissal counters tied to distinct captured frames.
+        if (_lastProcessedFrameAt.HasValue && frame.CapturedAt <= _lastProcessedFrameAt.Value)
+        {
+            _lastStatus = "Ignored duplicate or out-of-order capture frame; no input was sent.";
+            return;
+        }
+
+        _lastProcessedFrameAt = frame.CapturedAt;
 
         try
         {
@@ -213,6 +226,7 @@ public sealed class ConnectionRecoveryCoordinator
         {
             _started = false;
             _pendingClickAt = null;
+            _lastProcessedFrameAt = null;
             ResetCandidate();
             _lastStatus = status;
         }

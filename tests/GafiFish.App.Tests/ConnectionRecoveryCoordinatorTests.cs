@@ -38,6 +38,28 @@ public sealed class ConnectionRecoveryCoordinatorTests
     }
 
     [Fact]
+    public void DuplicateFrameCannotSatisfyReconnectStabilityThreshold()
+    {
+        var start = new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero);
+        var input = new FakeInput();
+        var coordinator = CreateCoordinator(input);
+        var profile = CreateProfile();
+        var first = CreateFrame(start, true);
+
+        coordinator.Start();
+        coordinator.ProcessFrame(first, profile);
+        coordinator.ProcessFrame(first, profile);
+        Assert.Equal(0, input.Clicks);
+        Assert.Contains("duplicate or out-of-order", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(120), true), profile);
+        Assert.Equal(0, input.Clicks);
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(240), true), profile);
+        Assert.Equal(1, input.Clicks);
+        coordinator.Stop();
+    }
+
+    [Fact]
     public void DoesNotRetryUntilPromptDisappearsAndCooldownExpires()
     {
         var start = new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero);
