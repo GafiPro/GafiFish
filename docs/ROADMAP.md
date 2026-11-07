@@ -305,6 +305,9 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] A entrega ao NPC é manual; o utilizador confirma a entrega para iniciar o cooldown de 120 segundos.
 - [x] Mostra o tempo restante e bloqueia o pedido seguinte antes do fim do cooldown.
 - [x] Testes para alvo, captura, entrega, cooldown e pedido seguinte.
+- [x] Persistir o pedido ativo, a captura por entregar e o cooldown de 120 segundos entre reinícios.
+- [x] Validar snapshots inconsistentes e bloquear novos pedidos quando o estado local não pode ser recuperado.
+- [x] Testes para restauro de pedido ativo, entrega pendente e cooldown após reinício.
 - [ ] Validar o OCR dos nomes dos peixes em diálogos reais do Angler e diferentes resoluções.
 - [ ] Aceitação e entrega da quest ao NPC continuam manuais.
 

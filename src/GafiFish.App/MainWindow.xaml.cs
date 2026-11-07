@@ -180,6 +180,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _dashboardSessionTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private CatchGoalProgress? _targetCatchProgress;
     private readonly AnglerQuestTracker _anglerQuestTracker = new();
+    private readonly AnglerQuestStateStore _anglerQuestStateStore = new();
+    private bool _anglerQuestStateAvailable = true;
     private bool _anglerQuestAssistEnabled;
     private DateTimeOffset _lastOcrAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastCatchAt = DateTimeOffset.MinValue;
@@ -249,6 +251,21 @@ public partial class MainWindow : Window
         RodProfileNameTextBox.Text = _activeProfileName;
         _profile = await _profileStore.LoadOrDefaultAsync();
         _hotkeySettings = await _hotkeySettingsStore.LoadAsync();
+        try
+        {
+            var anglerSnapshot = await _anglerQuestStateStore.LoadAsync();
+            _anglerQuestTracker.Restore(anglerSnapshot);
+            AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
+            AnglerQuestSubmittedButton.IsEnabled = _anglerQuestTracker.HasCatchToSubmit;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        {
+            _anglerQuestStateAvailable = false;
+            AnglerQuestStatusText.Text =
+                "Saved Angler quest state could not be read. Angler automation is disabled until the state file is repaired or removed. " + exception.Message;
+            AddActivityLog("ERROR", "ANGLER", $"Saved quest state could not be loaded: {exception.Message}");
+        }
         _aquariumScheduleState = await _aquariumScheduleStore.LoadAsync();
         _isLoadingAquariumSchedule = true;
         AquariumClaimReminderCheckBox.IsChecked = _aquariumScheduleState.ClaimReminderEnabled;
@@ -1992,11 +2009,27 @@ public partial class MainWindow : Window
         RefreshModuleQuickInfo();
     }
 
+    private void SaveAnglerQuestState(string reason)
+    {
+        try
+        {
+            _anglerQuestStateStore.Save(_anglerQuestTracker.CreateSnapshot());
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        {
+            AnglerQuestStatusText.Text =
+                $"Warning: {reason} The current state could not be saved and may not survive an application restart. {exception.Message}";
+            AddActivityLog("ERROR", "ANGLER", $"Quest state persistence failed: {exception.Message}");
+        }
+    }
+
     private void ConfirmAnglerQuestSubmitted_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             _anglerQuestTracker.ConfirmQuestSubmitted(DateTimeOffset.UtcNow);
+            SaveAnglerQuestState("Angler hand-in and cooldown confirmed.");
             AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
             AnglerQuestSubmittedButton.IsEnabled = false;
             AddActivityLog("INFO", "ANGLER", "Quest fish hand-in confirmed manually. The 120-second request cooldown has started.");
@@ -2101,6 +2134,13 @@ public partial class MainWindow : Window
                 || targetCatchGoal is < 1 or > 100))
         {
             AutomationStatusText.Text = "Target catch goal must be a whole number between 1 and 100.";
+            return;
+        }
+
+        if (anglerQuestAssistEnabled && !_anglerQuestStateAvailable)
+        {
+            AnglerQuestStatusText.Text = "Angler Quest is unavailable because its saved state could not be loaded. Repair or remove the local state file before starting another request.";
+            AutomationStatusText.Text = "Angler Quest startup blocked to avoid losing an unfinished request or cooldown.";
             return;
         }
 
@@ -2325,6 +2365,7 @@ public partial class MainWindow : Window
             if (anglerQuestAssistEnabled)
             {
                 _anglerQuestTracker.StartTarget(targetFishName, DateTimeOffset.UtcNow);
+                SaveAnglerQuestState("New Angler target started.");
                 AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
                 AnglerQuestSubmittedButton.IsEnabled = false;
             }
@@ -4987,7 +5028,8 @@ public partial class MainWindow : Window
                     $"Target progress · {_targetCatchProgress.Caught} / {_targetCatchProgress.Goal}";
                 if (targetGoalReached && _anglerQuestAssistEnabled)
                 {
-                    _anglerQuestTracker.MarkTargetFishCaught(_targetFishName!, frame.CapturedAt);
+                    if (_anglerQuestTracker.MarkTargetFishCaught(_targetFishName!, frame.CapturedAt))
+                        SaveAnglerQuestState("Angler target catch confirmed by OCR.");
                     AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(frame.CapturedAt);
                     AnglerQuestSubmittedButton.IsEnabled = true;
                     AddActivityLog("INFO", "ANGLER", $"Angler target caught: {_targetFishName}. Hand it in manually to start the cooldown.");

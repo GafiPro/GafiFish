@@ -204,7 +204,7 @@ A função depende de um indicador HUD real e estável. Se não existir um indic
 5. Entrega o peixe ao Angler manualmente. Depois clica em **I handed the fish to the Angler · start cooldown**.
 6. O GafiFish mostra o cooldown de 120 segundos e impede iniciar outro pedido antes de terminar.
 
-O GafiFish não aceita pedidos nem entrega peixes ao NPC automaticamente. A captura depende da notificação de captura e da confiança do OCR local.
+O GafiFish não aceita pedidos nem entrega peixes ao NPC automaticamente. A captura depende da notificação de captura e da confiança do OCR local. O pedido ativo, a captura pendente de entrega e o cooldown ficam guardados em `%LOCALAPPDATA%\\GafiFish\\angler-quest-state.json`; ao reiniciar a aplicação, o GafiFish recupera o estado. Se o ficheiro estiver danificado, o assistente bloqueia novos pedidos para evitar perder um cooldown.
 
 ## Appraise, Treasure Appraiser e Enchant
 

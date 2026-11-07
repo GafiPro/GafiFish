@@ -28,6 +28,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Importação/exportação de perfis de calibração JSON e arquivo completo de capturas em CSV/JSON com metadados da sessão.
 - Interface WPF reorganizada em Dashboard, Fishing, Calibration, Sessions e Settings, com botões arredondados e animações subtis de hover.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR, persistência, objetivos e cadência.
+- O estado do Angler Quest (pedido ativo, peixe por entregar e cooldown de 120 segundos) é persistido localmente entre reinícios.
 
 ## O que falta validar no jogo real
 

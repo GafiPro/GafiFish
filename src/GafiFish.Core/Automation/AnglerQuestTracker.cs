@@ -1,5 +1,44 @@
 namespace GafiFish.Core.Automation;
 
+/// <summary>Persistable Angler request state, including the hand-in cooldown.</summary>
+public sealed record AnglerQuestSnapshot(
+    string? TargetSpecies,
+    DateTimeOffset? TargetCaughtAt,
+    DateTimeOffset? SubmittedAt,
+    DateTimeOffset? NextRequestAvailableAt)
+{
+    public static AnglerQuestSnapshot Empty { get; } = new(null, null, null, null);
+
+    public void Validate()
+    {
+        if (TargetSpecies is null)
+        {
+            if (TargetCaughtAt.HasValue || SubmittedAt.HasValue || NextRequestAvailableAt.HasValue)
+                throw new ArgumentException("An empty Angler quest cannot contain timestamps.");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(TargetSpecies) || TargetSpecies.Trim().Length > 100)
+            throw new ArgumentException("The saved Angler target must contain 1–100 non-whitespace characters.");
+        if (!TargetCaughtAt.HasValue)
+        {
+            if (SubmittedAt.HasValue || NextRequestAvailableAt.HasValue)
+                throw new ArgumentException("A quest cannot be submitted before its target fish is caught.");
+            return;
+        }
+        if (!SubmittedAt.HasValue)
+        {
+            if (NextRequestAvailableAt.HasValue)
+                throw new ArgumentException("A cooldown cannot exist before hand-in is confirmed.");
+            return;
+        }
+        if (SubmittedAt.Value < TargetCaughtAt.Value)
+            throw new ArgumentException("Saved hand-in time cannot be earlier than the target catch.");
+        var expectedReadyAt = SubmittedAt.Value + AnglerQuestTracker.RequestCooldown;
+        if (NextRequestAvailableAt != expectedReadyAt)
+            throw new ArgumentException("Saved Angler cooldown timestamp is inconsistent.");
+    }
+}
+
 /// <summary>
 /// Tracks one Angler request. The fish must be caught and handed in manually;
 /// the 120-second request cooldown begins only when the user confirms hand-in.
@@ -81,6 +120,19 @@ public sealed class AnglerQuestTracker
         if (IsTracking)
             return $"Fishing for Angler target: {_targetSpecies}. Waiting for a high-confidence OCR match.";
         return "Angler Quest assist is ready. Accept a quest manually and enter its requested fish.";
+    }
+
+    public AnglerQuestSnapshot CreateSnapshot() => new(
+        _targetSpecies, _targetCaughtAt, _submittedAt, _nextRequestAvailableAt);
+
+    public void Restore(AnglerQuestSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        snapshot.Validate();
+        _targetSpecies = string.IsNullOrWhiteSpace(snapshot.TargetSpecies) ? null : snapshot.TargetSpecies.Trim();
+        _targetCaughtAt = snapshot.TargetCaughtAt;
+        _submittedAt = snapshot.SubmittedAt;
+        _nextRequestAvailableAt = snapshot.NextRequestAvailableAt;
     }
 
     public void Reset()
