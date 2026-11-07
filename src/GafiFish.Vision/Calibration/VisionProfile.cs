@@ -32,6 +32,11 @@ public sealed record VisionProfile
     public NormalizedRegion EnchantPanelRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool EnchantPanelRegionCalibrated { get; init; }
     public RodReelPreset RodPreset { get; init; } = RodReelPreset.Balanced;
+    public RodMinigameMode RodMinigameMode { get; init; } = RodMinigameMode.StandardReel;
+    public NormalizedRegion RodChargeMeterRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool RodChargeMeterRegionCalibrated { get; init; }
+    public HsvColorRange? RodChargeMeterColor { get; init; }
+    public bool RodChargeMeterFillFromRight { get; init; }
     public HsvColorRange? DayPhaseColor { get; init; }
     public HsvColorRange? NightPhaseColor { get; init; }
     public HsvColorRange? HuntSignalColor { get; init; }
@@ -75,6 +80,8 @@ public sealed record VisionProfile
         && DayPhaseColor.HasValue
         && NightPhaseColor.HasValue;
     public bool IsHuntSignalCalibrated => HuntSignalRegionCalibrated && HuntSignalColor.HasValue;
+    public bool IsRodChargeMeterCalibrated =>
+        RodChargeMeterRegionCalibrated && RodChargeMeterColor.HasValue;
 
     public void Validate()
     {
@@ -92,6 +99,9 @@ public sealed record VisionProfile
         EnchantPanelRegion.Validate();
         if (!Enum.IsDefined(RodPreset))
             throw new ArgumentOutOfRangeException(nameof(RodPreset));
+        if (!Enum.IsDefined(RodMinigameMode))
+            throw new ArgumentOutOfRangeException(nameof(RodMinigameMode));
+        RodChargeMeterRegion.Validate();
 
         if (ReferenceWidth < 0 || ReferenceHeight < 0)
         {
@@ -120,6 +130,7 @@ public sealed record VisionProfile
         DayPhaseColor?.Validate();
         NightPhaseColor?.Validate();
         HuntSignalColor?.Validate();
+        RodChargeMeterColor?.Validate();
         ArgumentNullException.ThrowIfNull(AquariumButtons);
         foreach (var button in AquariumButtons.Values)
             button.Validate();
