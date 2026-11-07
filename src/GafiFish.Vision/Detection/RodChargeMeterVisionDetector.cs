@@ -84,12 +84,23 @@ public sealed class RodChargeMeterVisionDetector
         rowProgress.Sort();
         var progress = rowProgress[rowProgress.Count / 2];
         var rowCoverage = validRows / (double)Math.Max(1, mask.Rows);
-        var confidence = Math.Clamp(rowCoverage * 2.5, 0, 1);
+
+        // A real fill should occupy several adjacent scan lines and have a
+        // reasonably consistent edge. Isolated coloured pixels or reflections
+        // must not look like a reliable charge reading.
+        var deviations = rowProgress
+            .Select(value => Math.Abs(value - progress))
+            .OrderBy(value => value)
+            .ToArray();
+        var medianDeviation = deviations[deviations.Length / 2];
+        var coverageConfidence = Math.Clamp(rowCoverage * 2.0, 0, 1);
+        var consistencyConfidence = Math.Clamp(1.0 - medianDeviation * 3.0, 0.25, 1.0);
+        var confidence = coverageConfidence * consistencyConfidence;
 
         return new RodChargeMeterObservation(
             frame.CapturedAt,
             progress,
             confidence,
-            $"Charge meter {progress:P0} · confidence {confidence:P0}.");
+            $"Charge meter {progress:P0} · confidence {confidence:P0} · {validRows}/{mask.Rows} scan lines.");
     }
 }
