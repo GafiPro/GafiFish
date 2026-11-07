@@ -4498,6 +4498,8 @@ public partial class MainWindow : Window
             RodReelPresetComboBox.SelectedValue = _profile.RodPreset.ToString();
             RodMinigameModeComboBox.SelectedValue = _profile.RodMinigameMode.ToString();
             RodChargeMeterFillFromRightCheckBox.IsChecked = _profile.RodChargeMeterFillFromRight;
+            RhythmInputLeadMillisecondsTextBox.Text =
+                _profile.RhythmInputLeadMilliseconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -4520,10 +4522,21 @@ public partial class MainWindow : Window
             RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
                 ? "Dual Fish · both target colours are calibrated."
                 : "Dual Fish · calibration required.",
+            RodMinigameMode.TranquilityRhythm => _profile.IsTranquilityRhythmCalibrated
+                ? "Tranquility Rhythm · four note lanes and hit line calibrated."
+                : "Tranquility Rhythm · calibrate D/F/J/K note colours and the hit line.",
             _ => "Standard Reel · shared marker-based controller."
         };
         DualFishCoverageStatusText.Visibility =
             _profile.RodMinigameMode == RodMinigameMode.DualFish ? Visibility.Visible : Visibility.Collapsed;
+        var isRhythmMode = _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
+        RhythmNoteStatusText.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
+        RhythmCalibrationStatusText.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
+        RhythmInputLeadMillisecondsTextBox.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
+        RhythmInputLeadMillisecondsTextBox.IsEnabled = isRhythmMode && !_automationEnabled;
+        RhythmCalibrationStatusText.Text = _profile.IsTranquilityRhythmCalibrated
+            ? "Four rhythm lanes and hit line calibrated."
+            : "Calibration required: search region, D/F/J/K note colours and hit line.";
     }
 
     private async void RodReelPresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -4579,6 +4592,9 @@ public partial class MainWindow : Window
             RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
                 ? "Dual Fish · tracks both targets and aims for their shared centre. The bar must be wide enough to cover both."
                 : "Dual Fish · sample both fish-marker colours in Calibration before starting.",
+            RodMinigameMode.TranquilityRhythm => _profile.IsTranquilityRhythmCalibrated
+                ? "Tranquility Rhythm · calibrated D/F/J/K lanes. Key taps are predicted from falling-note movement."
+                : "Tranquility Rhythm · calibrate the four note lanes and receptor line before starting.",
             _ => "Standard Reel · uses the shared marker-based controller."
         };
         _motionTracker.Reset();
