@@ -37,162 +37,162 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
     {
         lock (_sync)
         {
-        ThrowIfDisposed();
+            ThrowIfDisposed();
 
-        if (_isArmed)
-        {
-            EnsureArmedAndForeground();
-            return;
-        }
+            if (_isArmed)
+            {
+                EnsureArmedAndForeground();
+                return;
+            }
 
-        var processId = _windowCapture.GetForegroundRobloxProcessId();
-        if (!processId.HasValue)
-            throw new InvalidOperationException(
-                "Input refused: Roblox must be the foreground application before arming.");
+            var processId = _windowCapture.GetForegroundRobloxProcessId();
+            if (!processId.HasValue)
+                throw new InvalidOperationException(
+                    "Input refused: Roblox must be the foreground application before arming.");
 
-        _armedProcessId = processId.Value;
-        _isArmed = true;
+            _armedProcessId = processId.Value;
+            _isArmed = true;
 
-        if (!_windowCapture.IsRobloxForeground(_armedProcessId.Value))
-        {
-            _isArmed = false;
-            _armedProcessId = null;
-            throw new InvalidOperationException(
-                "Input refused: Roblox lost foreground focus while the macro was arming.");
-        }
+            if (!_windowCapture.IsRobloxForeground(_armedProcessId.Value))
+            {
+                _isArmed = false;
+                _armedProcessId = null;
+                throw new InvalidOperationException(
+                    "Input refused: Roblox lost foreground focus while the macro was arming.");
+            }
 
-        // Only an explicit new Arm call clears the emergency-stop latch.
-        _emergencyStopLatched = false;
+            // Only an explicit new Arm call clears the emergency-stop latch.
+            _emergencyStopLatched = false;
 
-        }
+            }
     }
 
     public void SetLeftButton(bool isDown)
     {
         lock (_sync)
         {
-        ThrowIfDisposed();
+            ThrowIfDisposed();
 
-        if (!isDown)
-        {
-            ReleaseLeftButton();
-            return;
-        }
+            if (!isDown)
+            {
+                ReleaseLeftButton();
+                return;
+            }
 
-        EnsureArmedAndForeground();
-        if (_leftButtonDown)
-            return;
+            EnsureArmedAndForeground();
+            if (_leftButtonDown)
+                return;
 
-        EnsureArmedAndForeground();
-        _inputSink.SetLeftButton(true);
-        _leftButtonDown = true;
-    
-        }
+            EnsureArmedAndForeground();
+            _inputSink.SetLeftButton(true);
+            _leftButtonDown = true;
+        
+            }
     }
 
     public (int X, int Y)? GetCursorClientPosition(ScreenCaptureFrame frame)
     {
         lock (_sync)
         {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(frame);
-        EnsureArmedAndForeground();
-        ValidateClientFrame(frame);
+            ThrowIfDisposed();
+            ArgumentNullException.ThrowIfNull(frame);
+            EnsureArmedAndForeground();
+            ValidateClientFrame(frame);
 
-        if (!Native.GetCursorPos(out var cursor))
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not read the mouse position.");
+            if (!Native.GetCursorPos(out var cursor))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not read the mouse position.");
 
-        return (cursor.X - frame.ClientScreenX, cursor.Y - frame.ClientScreenY);
-    
-        }
+            return (cursor.X - frame.ClientScreenX, cursor.Y - frame.ClientScreenY);
+        
+            }
     }
 
     public void MoveClient(int clientX, int clientY, ScreenCaptureFrame frame)
     {
         lock (_sync)
         {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(frame);
-        EnsureArmedAndForeground();
-        ValidateClientFrame(frame);
+            ThrowIfDisposed();
+            ArgumentNullException.ThrowIfNull(frame);
+            EnsureArmedAndForeground();
+            ValidateClientFrame(frame);
 
-        if (clientX < 0 || clientX >= frame.Width || clientY < 0 || clientY >= frame.Height)
-            throw new ArgumentOutOfRangeException(nameof(clientX),
-                "Cursor coordinates must be inside the captured Roblox client area.");
+            if (clientX < 0 || clientX >= frame.Width || clientY < 0 || clientY >= frame.Height)
+                throw new ArgumentOutOfRangeException(nameof(clientX),
+                    "Cursor coordinates must be inside the captured Roblox client area.");
 
-        EnsureArmedAndForeground();
-        _inputSink.MoveCursor(frame.ClientScreenX + clientX, frame.ClientScreenY + clientY);
+            EnsureArmedAndForeground();
+            _inputSink.MoveCursor(frame.ClientScreenX + clientX, frame.ClientScreenY + clientY);
 
-        if (!_windowCapture.IsRobloxForeground(frame.ProcessId))
-        {
-            Disarm();
-            throw new InvalidOperationException(
-                "The foreground Roblox process changed during cursor movement; input was released and disarmed.");
-        }
-    
-        }
+            if (!_windowCapture.IsRobloxForeground(frame.ProcessId))
+            {
+                Disarm();
+                throw new InvalidOperationException(
+                    "The foreground Roblox process changed during cursor movement; input was released and disarmed.");
+            }
+        
+            }
     }
 
     public void ClickClient(int clientX, int clientY, ScreenCaptureFrame frame)
     {
         lock (_sync)
         {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(frame);
-        EnsureArmedAndForeground();
-        ValidateClientFrame(frame);
+            ThrowIfDisposed();
+            ArgumentNullException.ThrowIfNull(frame);
+            EnsureArmedAndForeground();
+            ValidateClientFrame(frame);
 
-        if (clientX < 0 || clientX >= frame.Width
-            || clientY < 0 || clientY >= frame.Height)
-        {
-            throw new ArgumentOutOfRangeException(nameof(clientX),
-                "Click coordinates must be inside the captured Roblox client area.");
-        }
+            if (clientX < 0 || clientX >= frame.Width
+                || clientY < 0 || clientY >= frame.Height)
+            {
+                throw new ArgumentOutOfRangeException(nameof(clientX),
+                    "Click coordinates must be inside the captured Roblox client area.");
+            }
 
-        if (_leftButtonDown)
-            throw new InvalidOperationException(
-                "Cannot issue a point click while the left mouse button is held.");
+            if (_leftButtonDown)
+                throw new InvalidOperationException(
+                    "Cannot issue a point click while the left mouse button is held.");
 
-        MoveClient(clientX, clientY, frame);
-        SetLeftButton(true);
-        try
-        {
-            SetLeftButton(false);
-        }
-        catch
-        {
-            _isArmed = false;
-            try { ReleaseLeftButton(); }
-            catch { /* Keep the held state tracked for a later best-effort release. */ }
-            throw;
-        }
-    
-        }
+            MoveClient(clientX, clientY, frame);
+            SetLeftButton(true);
+            try
+            {
+                SetLeftButton(false);
+            }
+            catch
+            {
+                _isArmed = false;
+                try { ReleaseLeftButton(); }
+                catch { /* Keep the held state tracked for a later best-effort release. */ }
+                throw;
+            }
+        
+            }
     }
 
     public void SetKey(ushort virtualKey, bool isDown)
     {
         lock (_sync)
         {
-        ThrowIfDisposed();
-        if (virtualKey == 0)
-            throw new ArgumentOutOfRangeException(nameof(virtualKey));
+            ThrowIfDisposed();
+            if (virtualKey == 0)
+                throw new ArgumentOutOfRangeException(nameof(virtualKey));
 
-        if (!isDown)
-        {
-            ReleaseKey(virtualKey);
-            return;
-        }
+            if (!isDown)
+            {
+                ReleaseKey(virtualKey);
+                return;
+            }
 
-        EnsureArmedAndForeground();
-        if (_pressedKeys.Contains(virtualKey))
-            return;
+            EnsureArmedAndForeground();
+            if (_pressedKeys.Contains(virtualKey))
+                return;
 
-        EnsureArmedAndForeground();
-        _inputSink.SetKey(virtualKey, true);
-        _pressedKeys.Add(virtualKey);
-    
-        }
+            EnsureArmedAndForeground();
+            _inputSink.SetKey(virtualKey, true);
+            _pressedKeys.Add(virtualKey);
+        
+            }
     }
 
     public void EmergencyStop()
@@ -219,61 +219,61 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
     {
         lock (_sync)
         {
-        if (_disposed)
-            return;
+            if (_disposed)
+                return;
 
-        _isArmed = false;
-        try
-        {
-            ReleaseAll();
-        }
-        finally
-        {
-            _armedProcessId = null;
-        }
-    
-        }
+            _isArmed = false;
+            try
+            {
+                ReleaseAll();
+            }
+            finally
+            {
+                _armedProcessId = null;
+            }
+        
+            }
     }
 
     public void ReleaseAll()
     {
         lock (_sync)
         {
-        List<Exception>? failures = null;
+            List<Exception>? failures = null;
 
-        try { ReleaseLeftButton(); }
-        catch (Exception exception) { (failures ??= []).Add(exception); }
-
-        foreach (var key in _pressedKeys.ToArray())
-        {
-            try { ReleaseKey(key); }
+            try { ReleaseLeftButton(); }
             catch (Exception exception) { (failures ??= []).Add(exception); }
-        }
 
-        if (failures is { Count: > 0 })
-            throw new AggregateException(
-                "Windows rejected one or more input-release events; unresolved input states remain tracked.",
-                failures);
-    
-        }
+            foreach (var key in _pressedKeys.ToArray())
+            {
+                try { ReleaseKey(key); }
+                catch (Exception exception) { (failures ??= []).Add(exception); }
+            }
+
+            if (failures is { Count: > 0 })
+                throw new AggregateException(
+                    "Windows rejected one or more input-release events; unresolved input states remain tracked.",
+                    failures);
+        
+            }
     }
 
     public void Dispose()
     {
         lock (_sync)
         {
-        if (_disposed)
-            return;
+            if (_disposed)
+                return;
 
-        _isArmed = false;
-        try { ReleaseAll(); }
-        finally
-        {
-            _armedProcessId = null;
-            _disposed = true;
-        }
-    
-        }
+            _isArmed = false;
+            try { ReleaseAll(); }
+            finally
+            {
+                _armedProcessId = null;
+                _disposed = true;
+            }
+        
+            }
     }
 
     private void ValidateClientFrame(ScreenCaptureFrame frame)
