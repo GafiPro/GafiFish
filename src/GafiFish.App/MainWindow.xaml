@@ -596,7 +596,9 @@
                         <TextBlock Text="Automatic rod recognition" Foreground="#9BAAB8" Margin="0,0,0,5" />
                         <CheckBox x:Name="AutoDetectRodCheckBox"
                                   Content="Recognize rod name while observing"
-                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,6" />
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,6"
+                                  Checked="AutoDetectRodCheckBox_Changed"
+                                  Unchecked="AutoDetectRodCheckBox_Changed" />
                         <Grid Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
