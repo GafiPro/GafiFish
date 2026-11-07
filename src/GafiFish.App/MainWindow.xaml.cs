@@ -5016,7 +5016,7 @@ public partial class MainWindow : Window
             var targetFishMatched = _automationEnabled
                 && _targetFishEnabled
                 && !string.IsNullOrWhiteSpace(_targetFishName)
-                && FishCatchTargetMatcher.Matches(result.Text, _targetFishName)
+                && FishCatchTargetMatcher.MatchesSpecies(fishCatch.Species, _targetFishName)
                 && result.Confidence >= 0.90
                 && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
 

@@ -1,53 +1,39 @@
+using System.Text.RegularExpressions;
+
 namespace GafiFish.Ocr.Parsing;
 
 /// <summary>
-/// Matches a requested target against an OCR catch notification. Matching is
-/// case-insensitive and ignores punctuation, but requires every target word
-/// and an explicit "caught" signal so ordinary UI text cannot trigger a stop.
+/// Matches the parsed species field, not all words in the notification. This
+/// prevents a mutation name elsewhere in the message from being mistaken for
+/// part of the fish species and stopping a target-fish session incorrectly.
 /// </summary>
 public static class FishCatchTargetMatcher
 {
+    public static bool MatchesSpecies(string? recognizedSpecies, string? target)
+    {
+        if (string.IsNullOrWhiteSpace(recognizedSpecies) || string.IsNullOrWhiteSpace(target))
+            return false;
+
+        return Normalize(recognizedSpecies) == Normalize(target);
+    }
+
+    /// <summary>
+    /// Convenience parser for an unparsed English notification. The species
+    /// text must immediately follow the catch signal; unrelated later words
+    /// cannot complete a partial target match.
+    /// </summary>
     public static bool Matches(string? recognizedText, string? target)
     {
         if (string.IsNullOrWhiteSpace(recognizedText) || string.IsNullOrWhiteSpace(target))
-        {
             return false;
-        }
 
-        var sourceWords = Tokenize(recognizedText);
-        var targetWords = Tokenize(target);
-        if (sourceWords.Count == 0 || targetWords.Count == 0
-            || !sourceWords.Contains("caught", StringComparer.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return targetWords.All(word => sourceWords.Contains(word, StringComparer.OrdinalIgnoreCase));
+        var match = Regex.Match(
+            recognizedText,
+            @"\\b(?:you\\s+)?caught\\s+(?:a|an|the)?\\s*(?<species>[^!.,;\\r\\n]+?)(?=\\s*(?:[!.,;]|\\bweigh(?:ing|t)?\\b|\\bworth\\b|\\$|$))",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        return match.Success && MatchesSpecies(match.Groups["species"].Value, target);
     }
 
-    private static List<string> Tokenize(string value)
-    {
-        var words = new List<string>();
-        var current = new System.Text.StringBuilder();
-
-        foreach (var character in value)
-        {
-            if (char.IsLetterOrDigit(character))
-            {
-                current.Append(char.ToLowerInvariant(character));
-            }
-            else if (current.Length > 0)
-            {
-                words.Add(current.ToString());
-                current.Clear();
-            }
-        }
-
-        if (current.Length > 0)
-        {
-            words.Add(current.ToString());
-        }
-
-        return words;
-    }
+    private static string Normalize(string value) =>
+        string.Concat(value.Where(char.IsLetterOrDigit)).ToUpperInvariant();
 }
