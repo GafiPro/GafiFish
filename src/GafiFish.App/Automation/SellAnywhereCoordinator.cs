@@ -49,6 +49,7 @@ public sealed class SellAnywhereCoordinator
 
     public string LastStatus => _lastStatus;
     public bool IsStarted => _started;
+    public bool SaleCompletedThisFrame { get; private set; }
     public DateTimeOffset? NextSaleDueAt => _schedule.NextDueAt;
 
     public void Start(DateTimeOffset now)
@@ -79,9 +80,12 @@ public sealed class SellAnywhereCoordinator
 
         if (!_started)
         {
+            SaleCompletedThisFrame = false;
             _lastStatus = "Sell Anywhere is stopped.";
             return;
         }
+
+        SaleCompletedThisFrame = false;
 
         // Replayed or duplicated frames must never count as fresh visual
         // confirmation. In particular, the same screenshot cannot satisfy
@@ -351,6 +355,7 @@ public sealed class SellAnywhereCoordinator
             _verifiedChangeFrames = 0;
             _inventoryIsOpen = false;
             _cursorBeforeSale = null;
+            SaleCompletedThisFrame = true;
             _lastStatus = $"Sale visually verified across {_settings.RequiredVerificationFrames} frames ({changedRatio:P1} inventory change). Next sale due in 10 minutes.";
             return;
         }
