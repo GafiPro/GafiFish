@@ -1634,10 +1634,21 @@ public partial class MainWindow : Window
         // The emergency stop gets its own Win32 message pump, so a blocked WPF
         // dispatcher cannot prevent the mouse/keyboard release path from running.
         var stopKey = _hotkeySettings.StopKey;
-        _emergencyStopHotkeyListener = new EmergencyStopHotkeyListener(
-            GetVirtualKey(stopKey),
-            () => EmergencyStopHotkeyPressed(stopKey));
-        _emergencyStopHotkeyRegistered = _emergencyStopHotkeyListener.Start();
+        try
+        {
+            _emergencyStopHotkeyListener = new EmergencyStopHotkeyListener(
+                GetVirtualKey(stopKey),
+                () => EmergencyStopHotkeyPressed(stopKey));
+            _emergencyStopHotkeyRegistered = _emergencyStopHotkeyListener.Start();
+        }
+        catch (Exception exception)
+        {
+            try { _emergencyStopHotkeyListener?.Dispose(); } catch { }
+            _emergencyStopHotkeyListener = null;
+            AddActivityLog("WARN", "HOTKEYS",
+                $"Independent emergency listener failed: {exception.Message}");
+        }
+
         if (!_emergencyStopHotkeyRegistered)
         {
             _emergencyStopHotkeyListener.Dispose();
@@ -2445,7 +2456,6 @@ public partial class MainWindow : Window
                 throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             }
 
-            _automationInput = input;
             _runtimeStateMachine = stateMachine;
             _reelCoordinator = reelCoordinator;
             _sellCoordinator = sellCoordinator;
@@ -2552,6 +2562,8 @@ public partial class MainWindow : Window
                 // Best effort: never hide the original arming error.
             }
 
+            if (ReferenceEquals(_automationInput, input))
+                _automationInput = null;
             _dayNightTotemRotation = null;
             AutomationStatusText.Text = $"Reel assist could not arm: {exception.Message}";
             AddActivityLog("ERROR", "AUTOMATION", $"Could not arm macro: {exception.Message}");
