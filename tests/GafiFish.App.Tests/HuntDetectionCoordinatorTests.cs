@@ -30,10 +30,11 @@ public sealed class HuntDetectionCoordinatorTests
 
         Assert.False(coordinator.ProcessObservation(Clear(start.AddMilliseconds(300))));
         Assert.False(coordinator.ProcessObservation(Clear(start.AddMilliseconds(400))));
+        Assert.False(coordinator.ProcessObservation(Clear(start.AddMilliseconds(500))));
         Assert.False(coordinator.HuntIsActive);
-        Assert.False(coordinator.ProcessObservation(Detected(start.AddMilliseconds(500))));
         Assert.False(coordinator.ProcessObservation(Detected(start.AddMilliseconds(600))));
-        Assert.True(coordinator.ProcessObservation(Detected(start.AddMilliseconds(700))));
+        Assert.False(coordinator.ProcessObservation(Detected(start.AddMilliseconds(700))));
+        Assert.True(coordinator.ProcessObservation(Detected(start.AddMilliseconds(800))));
     }
 
     [Fact]

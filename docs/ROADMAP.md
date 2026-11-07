@@ -133,7 +133,7 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Ainda por implementar
 
-Appraise/Treasure Appraise, Auto Enchant, Angler Quest e deteção de hunts continuam por implementar; o watchdog de reconexão visual está implementado, mas a recuperação efetiva ainda exige validação no Fisch. O Auto Aquarium já tem automação visual calibrável para alimentação/reposição/claim, mas exige calibração das sete ações e validação com capturas reais do Fisch. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
+Appraise/Treasure Appraise, Auto Enchant e Angler Quest continuam por implementar; a deteção de hunts tem agora um módulo visual de alerta calibrável, apenas de leitura, que continua a precisar de calibração com frames reais; o watchdog de reconexão visual está implementado, mas a recuperação efetiva ainda exige validação no Fisch. O Auto Aquarium já tem automação visual calibrável para alimentação/reposição/claim, mas exige calibração das sete ações e validação com capturas reais do Fisch. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
 
 
 ## Inspiração ExoPanda — próximos módulos
@@ -280,3 +280,14 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Selecionar o slot correspondente, clicar uma vez e repor o slot da cana.
 - [x] Impedir conflito com temporizadores de totem e validar slots distintos.
 - [ ] Validar com capturas reais do indicador HUD do Fisch, em dia e noite, antes de usar os slots reais.
+
+
+## Hunt Detection — implementação inicial (7 de novembro de 2026)
+
+- [x] Detetor visual local baseado numa região e cor HSV escolhidas pelo utilizador; sem posições ou cores pré-definidas.
+- [x] Alertas apenas informativos: som e registo local, sem cliques, seleção de itens ou inputs no jogo.
+- [x] Debounce de três frames de deteção e rearme após três frames limpos, evitando alertas duplicados.
+- [x] Rejeição de frames repetidos ou fora de ordem.
+- [x] Calibração incluída nos perfis de cana e testes sintéticos do detetor/coordenador.
+- [ ] Calibrar com uma imagem real da mensagem/indicador de Hunt na versão atual do Fisch e verificar falsos positivos.
+- [ ] Appraise, Treasure Appraise, Auto Enchant e Angler Quest continuam por implementar automaticamente até existirem frames reais dos respetivos diálogos, botões e estados de sucesso/custo. Não são usados alvos, preços ou coordenadas inventados.
