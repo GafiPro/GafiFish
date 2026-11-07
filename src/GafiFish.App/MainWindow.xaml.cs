@@ -78,11 +78,6 @@ public partial class MainWindow : Window
     private AquariumScheduleState _aquariumScheduleState = new();
     private readonly AquariumReadyAlertTracker _aquariumReadyAlertTracker = new();
     private readonly AquariumButtonVisionDetector _aquariumButtonVision = new();
-    private readonly FischUiActionVisionDetector _fischUiActionVision = new();
-    private FischUiActionCoordinator? _fischUiActionCoordinator;
-    private RobloxInputService? _fischUiActionInput;
-    private bool _fischUiActionStartRequested;
-    private FischUiActionKind _fischUiActionCalibrationKind = FischUiActionKind.AppraiseFish;
     private AquariumAutomationCoordinator? _aquariumAutomationCoordinator;
     private RobloxInputService? _aquariumAutomationInput;
     private bool _aquariumStartRequested;
@@ -222,9 +217,7 @@ public partial class MainWindow : Window
         SelectHuntSignalRegion,
         SampleHuntSignalColor,
         SelectAquariumButtonRegion,
-        SampleAquariumButtonColor,
-        SelectFischUiActionRegion,
-        SampleFischUiActionColor
+        SampleAquariumButtonColor
     }
 
     public MainWindow()
@@ -342,8 +335,6 @@ public partial class MainWindow : Window
         HuntDetectionStatusText.Text = _profile.IsHuntSignalCalibrated
             ? "Hunt cue calibration loaded. Enable alerts to monitor live frames."
             : "Select the hunt cue region and sample its colour in a visible hunt frame.";
-        FischUiActionStatusText.Text = GetFischUiActionCalibrationStatus(ReadSelectedFischUiAction());
-        FischUiActionSafetyText.Text = ReadSelectedFischUiAction().SafetyNote();
         OcrStatusText.Text = _profile.IsCatchNotificationCalibrated
             ? "Local OCR: catch notification region loaded; start a session to initialise the engine."
             : "Local OCR: select the catch notification region before starting a session.";
@@ -990,219 +981,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private FischUiActionKind ReadSelectedFischUiAction()
-    {
-        if (FischUiActionComboBox.SelectedItem is ComboBoxItem item
-            && item.Tag is string tag
-            && Enum.TryParse<FischUiActionKind>(tag, ignoreCase: true, out var action))
-            return action;
-        throw new InvalidOperationException("Select a valid Fisch action.");
-    }
-
-    private string GetFischUiActionCalibrationStatus(FischUiActionKind action)
-    {
-        var calibrated = _profile.FischUiActions.TryGetValue(action, out var calibration)
-            && calibration.IsCalibrated;
-        return calibrated
-            ? $"Ready: {action.DisplayName()} · region and colour saved. {action.SafetyNote()}"
-            : $"Not calibrated: {action.DisplayName()}. Select the exact target area and sample its enabled-state colour. {action.SafetyNote()}";
-    }
-
-    private void SelectFischUiActionRegion_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            _fischUiActionCalibrationKind = ReadSelectedFischUiAction();
-            FischUiActionSafetyText.Text = _fischUiActionCalibrationKind.SafetyNote();
-            SetCalibrationAction(
-                CalibrationAction.SelectFischUiActionRegion,
-                $"Drag a tight rectangle around only the selected {_fischUiActionCalibrationKind.DisplayName()} target. For Treasure Appraiser, select the exact box you want to choose in the currently visible row.");
-        }
-        catch (InvalidOperationException exception)
-        {
-            CalibrationModeText.Text = exception.Message;
-        }
-    }
-
-    private void SampleFischUiActionColor_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            _fischUiActionCalibrationKind = ReadSelectedFischUiAction();
-            FischUiActionSafetyText.Text = _fischUiActionCalibrationKind.SafetyNote();
-            SetCalibrationAction(
-                CalibrationAction.SampleFischUiActionColor,
-                $"Click a clear pixel inside the enabled {_fischUiActionCalibrationKind.DisplayName()} target.");
-        }
-        catch (InvalidOperationException exception)
-        {
-            CalibrationModeText.Text = exception.Message;
-        }
-    }
-
-    private void ArmFischUiAction_Click(object sender, RoutedEventArgs e)
-    {
-        if (FischUiActionConsentCheckBox.IsChecked != true)
-        {
-            FischUiActionStatusText.Text = "Confirm that you checked the selected item, screen and cost/consumption before arming.";
-            return;
-        }
-
-        FischUiActionKind action;
-        try { action = ReadSelectedFischUiAction(); }
-        catch (InvalidOperationException exception)
-        {
-            FischUiActionStatusText.Text = exception.Message;
-            return;
-        }
-
-        if (!_profile.FischUiActions.TryGetValue(action, out var calibration) || !calibration.IsCalibrated)
-        {
-            FischUiActionStatusText.Text = $"Calibrate the exact region and enabled colour for {action.DisplayName()} first.";
-            return;
-        }
-
-        if (_automationEnabled || _startRequested
-            || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
-            || _connectionRecoveryStartRequested || _connectionRecoveryCoordinator?.IsStarted == true
-            || _fischUiActionStartRequested || _fischUiActionCoordinator?.IsStarted == true)
-        {
-            FischUiActionStatusText.Text = "Stop all other GafiFish automation modules before arming this one-shot action.";
-            return;
-        }
-
-        if (_previewCancellation is null)
-            TogglePreviewLoop();
-
-        _fischUiActionStartRequested = true;
-        ArmFischUiActionButton.IsEnabled = false;
-        StopFischUiActionButton.IsEnabled = true;
-        FischUiActionStatusText.Text = $"Start requested for {action.DisplayName()}. Focus Roblox and leave the matching button visible; only one click is permitted.";
-    }
-
-    private void StopFischUiAction_Click(object sender, RoutedEventArgs e) =>
-        StopFischUiAction("Stopped by the user. No further clicks will be sent.");
-
-    private void StartFischUiActionNow(ScreenCaptureFrame firstFrame)
-    {
-        _fischUiActionStartRequested = false;
-        RobloxInputService? input = null;
-        try
-        {
-            if (_automationEnabled || _aquariumAutomationCoordinator?.IsStarted == true
-                || _connectionRecoveryCoordinator?.IsStarted == true)
-                throw new InvalidOperationException("Another GafiFish automation module is already armed.");
-
-            var action = ReadSelectedFischUiAction();
-            input = new RobloxInputService(_capture);
-            var coordinator = new FischUiActionCoordinator(input, _fischUiActionVision);
-            coordinator.Start(action, _profile, DateTimeOffset.UtcNow);
-            _fischUiActionInput = input;
-            _fischUiActionCoordinator = coordinator;
-            ProcessFischUiActionFrame(firstFrame);
-            AddActivityLog("INFO", "FISCH-ACTION", $"One-shot action armed: {action.DisplayName()}.");
-        }
-        catch (Exception exception)
-        {
-            try { input?.Dispose(); } catch { }
-            _fischUiActionInput = null;
-            _fischUiActionCoordinator = null;
-            ArmFischUiActionButton.IsEnabled = true;
-            StopFischUiActionButton.IsEnabled = false;
-            FischUiActionConsentCheckBox.IsChecked = false;
-            FischUiActionStatusText.Text = $"Could not arm one-shot action: {exception.Message}";
-            AddActivityLog("ERROR", "FISCH-ACTION", exception.Message);
-        }
-    }
-
-    private void ProcessFischUiActionFrame(ScreenCaptureFrame frame)
-    {
-        if (_fischUiActionCoordinator is not { IsStarted: true } coordinator)
-            return;
-
-        coordinator.ProcessFrame(frame, _profile);
-        FischUiActionStatusText.Text = coordinator.LastStatus;
-
-        if (coordinator.HasCompleted || !coordinator.IsStarted)
-        {
-            var status = coordinator.LastStatus;
-            var completed = coordinator.HasCompleted;
-            StopFischUiAction(status, log: false, coordinatorAlreadyStopped: true);
-            AddActivityLog(completed ? "INFO" : "WARN", "FISCH-ACTION", status);
-        }
-    }
-
-    private void StopFischUiAction(
-        string reason,
-        bool log = true,
-        bool coordinatorAlreadyStopped = false)
-    {
-        _fischUiActionStartRequested = false;
-        var releaseFailed = false;
-        try
-        {
-            if (!coordinatorAlreadyStopped && _fischUiActionCoordinator?.IsStarted == true)
-                _fischUiActionCoordinator.Stop(reason);
-            else if (_fischUiActionInput?.IsArmed == true)
-                _fischUiActionInput.Disarm();
-        }
-        catch { releaseFailed = true; }
-
-        try { _fischUiActionInput?.Dispose(); }
-        catch { releaseFailed = true; }
-
-        _fischUiActionCoordinator = null;
-        _fischUiActionInput = null;
-        ArmFischUiActionButton.IsEnabled = true;
-        StopFischUiActionButton.IsEnabled = false;
-        FischUiActionConsentCheckBox.IsChecked = false;
-        FischUiActionStatusText.Text = releaseFailed
-            ? $"{reason} Warning: could not confirm every input release."
-            : reason;
-        if (log)
-            AddActivityLog(releaseFailed ? "WARN" : "INFO", "FISCH-ACTION", FischUiActionStatusText.Text);
-    }
-
-    private static VisionProfile WithFischUiActionRegion(
-        VisionProfile profile,
-        FischUiActionKind action,
-        NormalizedRegion region,
-        int referenceWidth,
-        int referenceHeight)
-    {
-        var actions = profile.FischUiActions.ToDictionary(item => item.Key, item => item.Value);
-        var current = actions.TryGetValue(action, out var existing)
-            ? existing
-            : new FischUiActionCalibration();
-        actions[action] = current with { Region = region, RegionCalibrated = true };
-        return profile with
-        {
-            FischUiActions = actions,
-            ReferenceWidth = referenceWidth,
-            ReferenceHeight = referenceHeight
-        };
-    }
-
-    private static VisionProfile WithFischUiActionColor(
-        VisionProfile profile,
-        FischUiActionKind action,
-        HsvColorRange color,
-        int referenceWidth,
-        int referenceHeight)
-    {
-        var actions = profile.FischUiActions.ToDictionary(item => item.Key, item => item.Value);
-        var current = actions.TryGetValue(action, out var existing)
-            ? existing
-            : new FischUiActionCalibration();
-        actions[action] = current with { ButtonColor = color };
-        return profile with
-        {
-            FischUiActions = actions,
-            ReferenceWidth = referenceWidth,
-            ReferenceHeight = referenceHeight
-        };
-    }
-
     private void StopAquariumAutomation_Click(object sender, RoutedEventArgs e) =>
         StopAquariumAutomation("Stopped by the user; Auto Aquarium inputs released.");
 
@@ -1215,8 +993,7 @@ public partial class MainWindow : Window
         }
 
         if (_automationEnabled || _startRequested
-            || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
-            || _fischUiActionStartRequested || _fischUiActionCoordinator?.IsStarted == true)
+            || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true)
         {
             ConnectionRecoveryStatusText.Text = "Stop fishing automation and Auto Aquarium before arming reconnect recovery.";
             return;
@@ -1314,8 +1091,7 @@ public partial class MainWindow : Window
     {
         if (_automationEnabled || _startRequested
             || _connectionRecoveryStartRequested
-            || _connectionRecoveryCoordinator?.IsStarted == true
-            || _fischUiActionStartRequested || _fischUiActionCoordinator?.IsStarted == true)
+            || _connectionRecoveryCoordinator?.IsStarted == true)
         {
             AquariumAutomationStatusText.Text = "Stop the fishing macro and connection watchdog before arming Auto Aquarium.";
             return;
@@ -2301,8 +2077,7 @@ public partial class MainWindow : Window
     {
         if (_aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested
-            || _connectionRecoveryCoordinator?.IsStarted == true
-            || _fischUiActionStartRequested || _fischUiActionCoordinator?.IsStarted == true)
+            || _connectionRecoveryCoordinator?.IsStarted == true)
         {
             AutomationStatusText.Text = "Stop Auto Aquarium and the connection watchdog before starting the fishing macro.";
             return;
@@ -3147,8 +2922,6 @@ public partial class MainWindow : Window
 
     private void StopPreviewLoop()
     {
-        if (_fischUiActionStartRequested || _fischUiActionCoordinator is not null)
-            StopFischUiAction("Observation stopped; one-shot inputs released.");
         if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
             StopConnectionRecovery("Observation stopped; reconnect watchdog inputs released.");
         if (_automationEnabled)
@@ -3204,10 +2977,6 @@ public partial class MainWindow : Window
                             StopMacroButton.IsEnabled = false;
                             StartAutomation();
                         }
-
-                        if (_fischUiActionStartRequested && !_automationEnabled
-                            && !_aquariumStartRequested && !_connectionRecoveryStartRequested)
-                            StartFischUiActionNow(frame);
                     }
                     catch (OperationCanceledException)
                     {
@@ -3219,8 +2988,6 @@ public partial class MainWindow : Window
                         or ArgumentException)
                     {
                         StatusText.Text = $"Capture paused: {exception.Message}";
-                        if (_fischUiActionStartRequested || _fischUiActionCoordinator?.IsStarted == true)
-                            StopFischUiAction($"Screen capture failed; one-shot action stopped: {exception.Message}");
                         if (_automationEnabled)
                             StopAutomation($"Screen capture failed; all game inputs were released: {exception.Message}");
                         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
@@ -3231,8 +2998,6 @@ public partial class MainWindow : Window
                 }
                 else
                 {
-                    if (_fischUiActionStartRequested || _fischUiActionCoordinator?.IsStarted == true)
-                        StopFischUiAction("Roblox lost foreground focus; one-shot action cancelled and inputs released.");
                     if (_automationEnabled)
                         StopAutomation("Roblox lost foreground focus; all Reel inputs were released.");
                     if (_aquariumAutomationCoordinator?.IsStarted == true)
@@ -3751,8 +3516,6 @@ public partial class MainWindow : Window
                     StopConnectionRecovery(connectionRecoveryCoordinator.LastStatus, coordinatorAlreadyStopped: true);
             }
 
-            ProcessFischUiActionFrame(frame);
-
             ProcessAutomationFrame(
                 frame,
                 visionResult.FishMarker,
@@ -4215,8 +3978,6 @@ public partial class MainWindow : Window
 
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
-        if (_fischUiActionStartRequested || _fischUiActionCoordinator is not null)
-            StopFischUiAction("Calibration changed; one-shot action disarmed.");
         if (_automationEnabled)
             StopAutomation("Calibration changed; Reel assist was disarmed and all inputs released.");
         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
@@ -4253,8 +4014,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleDayPhaseColor
             or CalibrationAction.SampleNightPhaseColor
             or CalibrationAction.SampleHuntSignalColor
-            or CalibrationAction.SampleAquariumButtonColor
-            or CalibrationAction.SampleFischUiActionColor)
+            or CalibrationAction.SampleAquariumButtonColor)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
@@ -4272,8 +4032,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
-            or CalibrationAction.SelectAquariumButtonRegion
-            or CalibrationAction.SelectFischUiActionRegion)
+            or CalibrationAction.SelectAquariumButtonRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -4300,8 +4059,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
-            or CalibrationAction.SelectAquariumButtonRegion
-            or CalibrationAction.SelectFischUiActionRegion)
+            or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -4329,8 +4087,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
-            or CalibrationAction.SelectAquariumButtonRegion
-            or CalibrationAction.SelectFischUiActionRegion)
+            or CalibrationAction.SelectAquariumButtonRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -4454,8 +4211,6 @@ public partial class MainWindow : Window
             },
             CalibrationAction.SelectAquariumButtonRegion => WithAquariumButtonRegion(
                 _profile, _aquariumCalibrationActionKind, selectedRegion, _lastFrame.Width, _lastFrame.Height),
-            CalibrationAction.SelectFischUiActionRegion => WithFischUiActionRegion(
-                _profile, _fischUiActionCalibrationKind, selectedRegion, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
         };
 
@@ -4475,7 +4230,6 @@ public partial class MainWindow : Window
             CalibrationAction.CaptureFishMarkerTemplate => "Fish marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.CaptureControlMarkerTemplate => "Control marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
-            CalibrationAction.SelectFischUiActionRegion => $"{_fischUiActionCalibrationKind.DisplayName()} target area saved.",
             _ => "Region saved."
         };
         await SaveProfileAsync(regionMessage);
@@ -4518,7 +4272,6 @@ public partial class MainWindow : Window
         var isDayPhaseColor = _calibrationAction == CalibrationAction.SampleDayPhaseColor;
         var isNightPhaseColor = _calibrationAction == CalibrationAction.SampleNightPhaseColor;
         var isHuntSignalColor = _calibrationAction == CalibrationAction.SampleHuntSignalColor;
-        var isFischUiActionColor = _calibrationAction == CalibrationAction.SampleFischUiActionColor;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
         var index = y * _lastFrame.Stride + x * 4;
@@ -4542,8 +4295,6 @@ public partial class MainWindow : Window
             CalibrationAction.SampleHuntSignalColor => _profile with { HuntSignalColor = color },
             CalibrationAction.SampleAquariumButtonColor => WithAquariumButtonColor(
                 _profile, _aquariumCalibrationActionKind, color, _lastFrame.Width, _lastFrame.Height),
-            CalibrationAction.SampleFischUiActionColor => WithFischUiActionColor(
-                _profile, _fischUiActionCalibrationKind, color, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
         };
 
@@ -4566,8 +4317,6 @@ public partial class MainWindow : Window
                 ? "Hunt cue calibration complete. Enable alerts to monitor live frames."
                 : "Hunt cue colour saved. Select the cue region to complete calibration.";
         }
-        if (isFischUiActionColor)
-            FischUiActionStatusText.Text = GetFischUiActionCalibrationStatus(_fischUiActionCalibrationKind);
         if (isDayPhaseColor || isNightPhaseColor)
         {
             WorldPhaseCalibrationStatusText.Text = _profile.IsWorldPhaseCalibrated
@@ -4585,8 +4334,6 @@ public partial class MainWindow : Window
 
     private async void ResetCalibration_Click(object sender, RoutedEventArgs e)
     {
-        if (_fischUiActionStartRequested || _fischUiActionCoordinator is not null)
-            StopFischUiAction("Calibration reset; one-shot action disarmed.");
         if (_automationEnabled)
             StopAutomation("Calibration reset; Reel assist was disarmed and all inputs released.");
         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
@@ -5358,7 +5105,6 @@ public partial class MainWindow : Window
 
     private async void Window_Closed(object? sender, EventArgs e)
     {
-        StopFischUiAction("Application closing; one-shot inputs released.", log: false);
         _dashboardSessionTimer.Stop();
         _aquariumTimer.Stop();
         StopAquariumAutomation("Application closing; Auto Aquarium inputs released.", log: false);

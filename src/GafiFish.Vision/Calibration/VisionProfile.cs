@@ -40,7 +40,6 @@ public sealed record VisionProfile
     public HsvColorRange? ShakePromptColor { get; init; }
     public HsvColorRange? SellButtonColor { get; init; }
     public Dictionary<AquariumActionKind, AquariumButtonCalibration> AquariumButtons { get; init; } = [];
-    public Dictionary<FischUiActionKind, FischUiActionCalibration> FischUiActions { get; init; } = [];
     public double MinimumBlobArea { get; init; } = 5;
     public double MinimumConfidence { get; init; } = 0.60;
 
@@ -105,9 +104,6 @@ public sealed record VisionProfile
         ArgumentNullException.ThrowIfNull(AquariumButtons);
         foreach (var button in AquariumButtons.Values)
             button.Validate();
-        ArgumentNullException.ThrowIfNull(FischUiActions);
-        foreach (var action in FischUiActions.Values)
-            action.Validate();
     }
 
     private static void ValidateTemplate(byte[]? template, string propertyName)
