@@ -2724,7 +2724,7 @@ public partial class MainWindow : Window
 
             _videoReplaySession?.Dispose();
             _videoReplaySession = session;
-            _videoReplayFileName = Path.GetFileName(dialog.FileName);
+            _videoReplayFileName = System.IO.Path.GetFileName(dialog.FileName);
             _frameReplaySequence = null;
             _videoReplayFrameStep = session.PlaybackFrameStep;
             _frameReplayTimer.Interval = session.PlaybackInterval;

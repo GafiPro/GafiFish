@@ -93,11 +93,13 @@ internal sealed class OpenCvVideoFrameReader : IVideoFrameReader
         if (bgra.Type() != MatType.CV_8UC4)
             return false;
 
-        var stride = checked(bgra.Cols * 4);
+        var rows = bgra.Rows;
+        var columns = bgra.Cols;
+        var stride = checked(columns * 4);
         var sourceStride = checked((int)bgra.Step());
-        var pixels = new byte[checked(stride * bgra.Rows)];
+        var pixels = new byte[checked(stride * rows)];
 
-        for (var row = 0; row < bgra.Rows; row++)
+        for (var row = 0; row < rows; row++)
         {
             Marshal.Copy(
                 IntPtr.Add(bgra.Data, checked(row * sourceStride)),
@@ -107,7 +109,7 @@ internal sealed class OpenCvVideoFrameReader : IVideoFrameReader
         }
 
         _lastDecodedIndex = frameIndex;
-        frame = new VideoReplayFrame(bgra.Cols, bgra.Rows, stride, pixels, frameIndex);
+        frame = new VideoReplayFrame(columns, rows, stride, pixels, frameIndex);
         return true;
     }
 
