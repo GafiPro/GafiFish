@@ -1147,9 +1147,8 @@ public partial class MainWindow : Window
             AnglerQuestAutomationStatusText.Text = $"Angler automation could not start: {exception.Message}";
             AddActivityLog("WARN", "ANGLER", $"Angler automation start refused: {exception.Message}");
         }
-    }
-
         SyncModuleToggles();
+    }
 
     private void AnglerQuestActionConfirmed(AnglerQuestButtonKind action, DateTimeOffset confirmedAt)
     {
@@ -1466,9 +1465,8 @@ public partial class MainWindow : Window
             AquariumAutomationStatusText.Text = $"Auto Aquarium could not start: {exception.Message}";
             AddActivityLog("ERROR", "AQUARIUM", $"Auto Aquarium start failed: {exception.Message}");
         }
-    }
-
         SyncModuleToggles();
+    }
 
     private void AquariumActionConfirmed(AquariumActionKind action, DateTimeOffset confirmedAt)
     {
