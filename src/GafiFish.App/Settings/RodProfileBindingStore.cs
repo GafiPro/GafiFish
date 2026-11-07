@@ -10,10 +10,14 @@ namespace GafiFish.App.Settings;
 public sealed record RodProfileSlotBindings
 {
     public Dictionary<int, string> SlotProfiles { get; init; } = [];
+    public Dictionary<string, string> RodNameProfiles { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     public void Validate()
     {
         ArgumentNullException.ThrowIfNull(SlotProfiles);
+        ArgumentNullException.ThrowIfNull(RodNameProfiles);
+        if (RodNameProfiles.Count > 100)
+            throw new ArgumentException("At most one hundred rod-name mappings can be stored.");
         if (SlotProfiles.Count > 10)
             throw new ArgumentException("At most ten rod hotbar slots can be mapped.");
 
@@ -21,15 +25,29 @@ public sealed record RodProfileSlotBindings
         {
             if (slot is < 0 or > 9)
                 throw new ArgumentOutOfRangeException(nameof(SlotProfiles), "Rod slots must be between 0 and 9.");
-            if (string.IsNullOrWhiteSpace(profileName) || profileName.Trim().Length is < 2 or > 48)
-                throw new ArgumentException("Profile names must contain 2–48 non-whitespace characters.");
-            var slug = new string(profileName.Trim().ToLowerInvariant()
-                .Select(character => char.IsLetterOrDigit(character) ? character : '-').ToArray());
-            while (slug.Contains("--", StringComparison.Ordinal))
-                slug = slug.Replace("--", "-", StringComparison.Ordinal);
-            if (slug.Trim('-').Length is < 2 or > 48)
-                throw new ArgumentException("The profile name must produce a valid profile file name.");
+            ValidateProfileName(profileName);
         }
+
+        foreach (var (rodName, profileName) in RodNameProfiles)
+        {
+            var normalizedName = RodNameMatcher.NormalizeName(rodName);
+            if (normalizedName.Length is < 3 or > 64
+                || !string.Equals(normalizedName, rodName, StringComparison.Ordinal))
+                throw new ArgumentException("Rod-name mapping keys must be normalized OCR names of 3–64 letters or digits.");
+            ValidateProfileName(profileName);
+        }
+    }
+
+    private static void ValidateProfileName(string? profileName)
+    {
+        if (string.IsNullOrWhiteSpace(profileName) || profileName.Trim().Length is < 2 or > 48)
+            throw new ArgumentException("Profile names must contain 2–48 non-whitespace characters.");
+        var slug = new string(profileName.Trim().ToLowerInvariant()
+            .Select(character => char.IsLetterOrDigit(character) ? character : '-').ToArray());
+        while (slug.Contains("--", StringComparison.Ordinal))
+            slug = slug.Replace("--", "-", StringComparison.Ordinal);
+        if (slug.Trim('-').Length is < 2 or > 48)
+            throw new ArgumentException("The profile name must produce a valid profile file name.");
     }
 }
 
