@@ -2233,8 +2233,11 @@ public partial class MainWindow : Window
                 PreviewButton?.Content?.ToString() == "Stop observation"
                 && _previewCancellation is { IsCancellationRequested: false };
             FishingMacroToggleCheckBox.IsChecked = _startRequested || _automationEnabled;
-            LocalOcrSessionToggleCheckBox.IsChecked =
-                _activeSessionId.HasValue || _sessionStartPending || _sessionEndPending;
+            LocalOcrSessionToggleCheckBox.IsChecked = _sessionEndPending
+                ? false
+                : _activeSessionId.HasValue || _sessionStartPending;
+            LocalOcrSessionToggleCheckBox.IsEnabled =
+                !_sessionStartPending && !_sessionEndPending;
             AquariumAutomationToggleCheckBox.IsChecked =
                 _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true;
             AnglerAutomationToggleCheckBox.IsChecked =
