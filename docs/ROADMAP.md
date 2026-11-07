@@ -99,7 +99,10 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Watchdog visual de reconexão com região/cor calibradas, três frames estáveis, clique único e máximo de três tentativas por ativação.
 - [ ] Confirmar o regresso efetivo à sessão em cada tipo de desconexão; o desaparecimento do botão não é prova de reconexão.
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
-- [ ] Módulos posteriores: Hunt Detection, Appraise/Treasure Appraise, Auto Enchant, Angler Quest e outros minijogos por cana; dependem de frames reais e de validação isolada. Auto Aquarium já tem motor visual calibrável, mas continua por validar no Fisch real.
+- [x] Hunt Detection: alerta visual calibrável, apenas de leitura, com debounce e proteção contra frames repetidos.
+- [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada e gere o cooldown após confirmação manual da entrega.
+- [ ] Appraise/Treasure Appraise e Auto Enchant: automação adiada até existirem capturas reais dos diálogos, botões, custos e estados de sucesso; não executar gastos ou tentativas às cegas.
+- [ ] Minijogos específicos por cana: dependem de frames reais e validação isolada. Auto Aquarium continua por validar no Fisch real.
 
 ## Próximo bloqueio técnico
 
@@ -133,7 +136,7 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Ainda por implementar
 
-Appraise/Treasure Appraise, Auto Enchant e Angler Quest continuam por implementar; a deteção de hunts tem agora um módulo visual de alerta calibrável, apenas de leitura, que continua a precisar de calibração com frames reais; o watchdog de reconexão visual está implementado, mas a recuperação efetiva ainda exige validação no Fisch. O Auto Aquarium já tem automação visual calibrável para alimentação/reposição/claim, mas exige calibração das sete ações e validação com capturas reais do Fisch. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
+Appraise/Treasure Appraise e Auto Enchant continuam sem automação; não devem ser implementados por cliques cegos porque podem consumir moeda/itens. Precisam de capturas reais dos diálogos, dos custos e da confirmação de sucesso. Hunt Detection tem alerta visual calibrável e apenas de leitura; falta validar falsos positivos com frames reais. Angler Quest Assist acompanha o alvo por OCR e o cooldown, mas aceitar e entregar a quest ao NPC continua manual. O watchdog de reconexão, Auto Aquarium, OCR, Perfect Cast, Reel e restantes detetores precisam de calibração e validação no Fisch real. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
 
 
 ## Inspiração ExoPanda — próximos módulos
@@ -290,7 +293,8 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Rejeição de frames repetidos ou fora de ordem.
 - [x] Calibração incluída nos perfis de cana e testes sintéticos do detetor/coordenador.
 - [ ] Calibrar com uma imagem real da mensagem/indicador de Hunt na versão atual do Fisch e verificar falsos positivos.
-- [ ] Appraise, Treasure Appraise, Auto Enchant e Angler Quest continuam por implementar automaticamente até existirem frames reais dos respetivos diálogos, botões e estados de sucesso/custo. Não são usados alvos, preços ou coordenadas inventados.
+- [ ] Appraise/Treasure Appraise e Auto Enchant continuam por implementar automaticamente até existirem frames reais dos respetivos diálogos, botões e estados de sucesso/custo. Não são usados alvos, preços ou coordenadas inventados.
+- [x] Angler Quest Assist tem tracker e integração OCR; a aceitação e entrega ao NPC permanecem manuais.
 
 
 ## Angler Quest Assist — novembro de 2026
@@ -303,3 +307,12 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Testes para alvo, captura, entrega, cooldown e pedido seguinte.
 - [ ] Validar o OCR dos nomes dos peixes em diálogos reais do Angler e diferentes resoluções.
 - [ ] Aceitação e entrega da quest ao NPC continuam manuais.
+
+## Proteção de foco e destino de input — 7 de novembro de 2026
+
+- [x] O arranque do macro exige Roblox em primeiro plano e um frame recente da mesma instância.
+- [x] O processo Roblox/PID fica fixo durante a ativação; mudar para outra janela ou outra instância invalida o macro.
+- [x] Novos cliques, teclas e movimentos são recusados quando a janela ou o PID deixam de corresponder.
+- [x] Ao perder o foco, o macro desarma e liberta os controlos que já estavam premidos.
+- [x] Testes cobrem foco noutra aplicação, mudança de instância, cliques e movimento do cursor.
+- [ ] Validar a experiência completa numa sessão real do Fisch e confirmar a recuperação manual após perda de foco.
