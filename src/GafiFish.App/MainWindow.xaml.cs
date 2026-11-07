@@ -289,6 +289,9 @@ public partial class MainWindow : Window
         SellStatusText.Text = _profile.IsSellButtonCalibrated
             ? "Sell Anywhere: saved button calibration loaded."
             : "Sell Anywhere: awaiting button calibration.";
+        ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated
+            ? "Reconnect button calibration loaded. Watchdog ready."
+            : "Calibrate the reconnect button region and colour before arming the watchdog.";
         OcrStatusText.Text = _profile.IsCatchNotificationCalibrated
             ? "Local OCR: catch notification region loaded; start a session to initialise the engine."
             : "Local OCR: select the catch notification region before starting a session.";
@@ -3405,6 +3408,8 @@ public partial class MainWindow : Window
             CalibrationModeText.Text = "Stop the macro before importing a calibration profile.";
             return;
         }
+        if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
+            StopConnectionRecovery("Profile import requested; reconnect watchdog was disarmed.");
 
         var dialog = new OpenFileDialog
         {
@@ -3424,7 +3429,8 @@ public partial class MainWindow : Window
                 || importedProfile.IsShakeCalibrated
                 || importedProfile.IsSellButtonCalibrated
                 || importedProfile.IsInventoryVerificationCalibrated
-                || importedProfile.IsCatchNotificationCalibrated;
+                || importedProfile.IsCatchNotificationCalibrated
+                || importedProfile.IsReconnectButtonCalibrated;
             if (!hasCalibration)
                 throw new InvalidDataException("The selected JSON does not contain a usable GafiFish calibration profile.");
 
@@ -3445,7 +3451,9 @@ public partial class MainWindow : Window
             CastStatusText.Text = _profile.IsCastCalibrated ? "Perfect Cast: profile calibration loaded." : "Perfect Cast: awaiting meter calibration.";
             ShakeStatusText.Text = _profile.IsShakeCalibrated ? "Shake: profile calibration loaded." : "Shake: awaiting prompt calibration.";
             SellStatusText.Text = _profile.IsSellButtonCalibrated ? "Sell Anywhere: profile calibration loaded." : "Sell Anywhere: awaiting button calibration.";
+            ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated ? "Reconnect button calibration imported." : "Reconnect button calibration is missing.";
             OcrStatusText.Text = _profile.IsCatchNotificationCalibrated ? "Local OCR: catch notification region loaded." : "Local OCR: select the catch notification region before starting a session.";
+            UpdateConnectionRecoveryControls();
             TelemetryText.Text = $"Profile: {_activeProfileName} · imported.";
         }
         catch (Exception exception)
@@ -3481,6 +3489,8 @@ public partial class MainWindow : Window
             CalibrationModeText.Text = "Stop the macro before loading a profile.";
             return;
         }
+        if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
+            StopConnectionRecovery("Profile change requested; reconnect watchdog was disarmed.");
         try
         {
             _activeProfileName = RodProfileNameTextBox.Text.Trim();
@@ -3493,7 +3503,9 @@ public partial class MainWindow : Window
             CastStatusText.Text = _profile.IsCastCalibrated ? "Perfect Cast: profile calibration loaded." : "Perfect Cast: awaiting meter calibration.";
             ShakeStatusText.Text = _profile.IsShakeCalibrated ? "Shake: profile calibration loaded." : "Shake: awaiting prompt calibration.";
             SellStatusText.Text = _profile.IsSellButtonCalibrated ? "Sell Anywhere: profile calibration loaded." : "Sell Anywhere: awaiting button calibration.";
+            ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated ? "Reconnect button calibration loaded." : "Reconnect button calibration is missing.";
             OcrStatusText.Text = _profile.IsCatchNotificationCalibrated ? "Local OCR: catch notification region loaded." : "Local OCR: select the catch notification region before starting a session.";
+            UpdateConnectionRecoveryControls();
             TelemetryText.Text = $"Profile: {_activeProfileName} · loaded.";
             AddActivityLog("INFO", "PROFILE", $"Calibration profile '{_activeProfileName}' loaded.");
         }
@@ -3889,6 +3901,7 @@ public partial class MainWindow : Window
         try
         {
             await _profileStore.SaveAsync(_profile);
+            UpdateConnectionRecoveryControls();
             CalibrationModeText.Text = successMessage;
             if (_lastFrame is not null)
             {

@@ -149,3 +149,8 @@ Os testes do controlador usam inputs simulados. Os testes de visão usam frames 
 A UI usa `OpenCvVideoFrameReader` para abrir ficheiros de vídeo suportados pelo backend OpenCV. `VideoReplaySession` no Core mantém o índice e valida cada buffer BGRA sem carregar o vídeo inteiro. O leitor procura fotogramas apenas quando necessário; a reprodução limita o trabalho visual a 30 atualizações por segundo e salta fotogramas de fontes mais rápidas.
 
 O replay usa `DisplayFrame(..., allowAutomation: false)`: os detetores e overlays são apresentados, mas a automação, o input do Roblox e a escrita OCR/sessão são ignorados. O descodificador é fechado quando uma nova fonte substitui a anterior ou quando a janela termina. A disponibilidade de codecs depende da build/runtime OpenCV e do ficheiro selecionado.
+
+
+## 12. Watchdog de reconexão
+
+O detetor `ConnectionRecoveryVisionDetector` procura apenas a região e a cor HSV calibradas pelo utilizador. O `ConnectionRecoveryCoordinator` exige três frames estáveis, envia um clique normal do Windows e aguarda dois frames sem o botão. Aplica um intervalo de segurança e um máximo de três tentativas por ativação. Se o botão não desaparecer dentro do timeout, desarma sem repetir. Não infere que a sessão foi recuperada e não pode correr em simultâneo com a pesca ou o Aquarium.

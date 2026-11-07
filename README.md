@@ -13,7 +13,8 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Deteção de prompts Shake e Auto-shake opcional: só clica após dois frames estáveis, evita repetir o mesmo prompt e reconhece o fim da sequência após quatro frames sem prompt.
 - Auto-cast opcional: segura e liberta o rato na janela Perfect Cast calibrada; por defeito, após 30 segundos sem mordida faz até dois recasts adicionais. O modo opcional “Keep fishing until the first fish is caught” remove esse limite e termina após uma notificação OCR de captura com confiança elevada. O modo “Fish until this exact target is caught” permite escrever um nome como “Wrath Scylla”; continua a tentar até todos os termos do alvo aparecerem numa notificação de captura reconhecida com confiança elevada.
 - Deteção visual do botão Sell Anywhere e verificação de alterações estáveis na lista do inventário.
-- Auto Aquarium visual calibrável para sete ações (feed/restock das três comidas e claim horário): cada botão tem região/cor próprias, clique único após deteção estável e cooldown atualizado apenas após mudança visual. Alimentação, reposição e claim são opções independentes e desligadas por defeito; a reposição pode gastar moeda do jogo e exige ativação explícita.
+- Auto Aquarium visual calibrável para sete ações (feed/restock das três comidas e claim horário): cada botão tem região/cor próprias, clique único após deteção estável e cooldown atualizado apenas após mudança visual.
+- Watchdog de reconexão opcional: botão de reconexão calibrado pelo utilizador, estabilidade de três frames, clique único, no máximo três tentativas por ativação e desarme sem retry cego. Alimentação, reposição e claim são opções independentes e desligadas por defeito; a reposição pode gastar moeda do jogo e exige ativação explícita.
 - Aquarium Planner com registo manual, temporizadores horários persistentes e alerta sonoro opcional quando cada ação fica pronta.
 - Botões visíveis Start macro / Stop macro, além dos atalhos F8/F9. O modo de recast contínuo exige Auto-cast, sessão OCR ativa e região de notificação calibrada; o timeout de Reel liberta o controlo e reinicia o ciclo, sem eliminar os stops de emergência.
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
@@ -56,6 +57,10 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 8. Para iniciar, clica em **Start macro (F8)** e muda para a janela Roblox; o GafiFish arma-se assim que captura o primeiro fotograma do Roblox. Também podes usar F8 diretamente com o Roblox em primeiro plano. Para parar, clica em **Stop macro (F9)** ou usa F9. Para o modo ilimitado até à primeira captura, ativa **Keep fishing until the first fish is caught** — exige Auto-cast, sessão OCR e região de notificação calibrada. Para vender automaticamente, marca **Enable Sell Anywhere every 10 minutes**; a gamepass vende os itens não favoritos, por isso marca como favoritos os que pretendes guardar.
 9. Para procurar um peixe específico, ativa **Fish until this exact target is caught**, escreve o nome (por exemplo, **Wrath Scylla**) e inicia o macro. O modo exige Auto-cast, sessão OCR ativa e região de notificação calibrada. Só termina quando o texto da notificação incluir todos os termos do alvo e a confiança OCR for pelo menos 90%; capturas de outros peixes não terminam a procura. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
 10. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
+
+### Watchdog de reconexão
+
+Calibra a região e a cor do botão de reconexão no separador **Calibration**. Com F7 ativo, usa **Arm reconnect watchdog**. O módulo espera três frames estáveis, envia um clique e aguarda dois frames sem o botão antes de poder tentar de novo. Cada ativação tem no máximo três cliques e intervalo de segurança. Se o botão não mudar dentro do timeout, o watchdog pára sem repetir. O desaparecimento do botão não prova que a sessão foi recuperada: confirma manualmente que voltaste ao jogo antes de rearmar a pesca. Não pode correr em simultâneo com Reel assist ou Auto Aquarium.
 
 ### Replay de vídeo offline
 
@@ -131,7 +136,7 @@ Projeto independente, sem afiliação ao Roblox ou aos criadores de Fisch.
 
 ### Melhorias adicionais e limites
 
-A aplicação inclui perfis de calibração nomeados manualmente por cana, telemetria, intervalo de captura adaptativo, ações temporizadas para dois slots de totem/poção, cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. Appraise/Treasure Appraise, Auto Enchant, Angler Quest, deteção de hunts e reconexão automática continuam por implementar. Auto Aquarium já tem motor visual calibrável, mas ainda exige calibração e validação prática no Fisch.
+A aplicação inclui perfis de calibração nomeados manualmente por cana, telemetria, intervalo de captura adaptativo, ações temporizadas para dois slots de totem/poção, cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. Appraise/Treasure Appraise, Auto Enchant, Angler Quest e deteção de hunts continuam por implementar e exigem capturas reais para calibrar os diálogos/minijogos. A reconexão tem agora um watchdog visual calibrável, mas a confirmação de regresso à sessão continua pendente de validação no jogo. Auto Aquarium já tem motor visual calibrável, mas ainda exige calibração e validação prática no Fisch.
 
 
 ### Alertas e estatísticas

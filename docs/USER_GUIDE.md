@@ -165,3 +165,15 @@ A automação do Aquarium é independente da pesca e tem de ser armada separadam
 As opções **Auto feed**, **Auto restock** e **Auto claim** são independentes e começam desligadas. A reposição pode gastar moeda do jogo e, por isso, exige ativação explícita. As ações só ficam elegíveis quando o respetivo horário inicial já foi registado e o cooldown horário terminou. Mantém o painel do Aquarium aberto e o Roblox em primeiro plano: o GafiFish não tenta navegar até ao Aquarium.
 
 O motor espera por três frames estáveis antes de enviar um clique único. Só atualiza o horário depois de o botão na cor de estado ativo desaparecer em dois frames consecutivos. Se a confirmação não acontecer no prazo de cinco segundos, desarma sem repetir o clique. A calibração depende da resolução, tema e estado da interface; testa primeiro cada ação e não uses coordenadas ou cores aproximadas.
+
+
+## Watchdog de reconexão
+
+1. Abre o separador **Calibration** e captura um frame F6 quando o botão de reconexão estiver visível.
+2. Escolhe **Select reconnect button region** e desenha um retângulo apertado à volta do botão.
+3. Escolhe **Sample reconnect button colour** e clica num pixel limpo dentro do botão.
+4. Guarda o perfil. No separador **Fishing**, inicia F7 e usa **Arm reconnect watchdog**.
+5. Mantém Roblox em primeiro plano. O módulo exige três frames estáveis, envia um clique e aguarda dois frames sem o botão. Faz no máximo três tentativas por ativação, com um intervalo de segurança.
+6. Se o botão não desaparecer no timeout, o watchdog pára sem repetir. O desaparecimento do botão não confirma que voltaste à sessão; verifica o jogo manualmente antes de rearmar o macro.
+
+O watchdog não funciona ao mesmo tempo que Reel assist ou Auto Aquarium. A calibração depende da resolução, escala e aparência do botão; repete-a quando a UI mudar.

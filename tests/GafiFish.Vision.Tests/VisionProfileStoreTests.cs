@@ -17,7 +17,10 @@ public sealed class VisionProfileStoreTests
             FishingRegion = new NormalizedRegion(0.20, 0.70, 0.60, 0.20),
             FishingRegionCalibrated = true,
             FishMarkerColor = new HsvColorRange(20, 100, 80, 40, 255, 255),
-            ControlMarkerColor = new HsvColorRange(0, 0, 160, 10, 80, 255)
+            ControlMarkerColor = new HsvColorRange(0, 0, 160, 10, 80, 255),
+            ReconnectButtonRegion = new NormalizedRegion(0.35, 0.25, 0.20, 0.08),
+            ReconnectButtonRegionCalibrated = true,
+            ReconnectButtonColor = new HsvColorRange(100, 80, 100, 120, 255, 255)
         };
 
         try
@@ -30,6 +33,9 @@ public sealed class VisionProfileStoreTests
             Assert.Equal(profile.FishingRegion, loaded.FishingRegion);
             Assert.Equal(profile.FishMarkerColor, loaded.FishMarkerColor);
             Assert.Equal(profile.ControlMarkerColor, loaded.ControlMarkerColor);
+            Assert.Equal(profile.ReconnectButtonRegion, loaded.ReconnectButtonRegion);
+            Assert.Equal(profile.ReconnectButtonColor, loaded.ReconnectButtonColor);
+            Assert.True(loaded.IsReconnectButtonCalibrated);
             Assert.True(loaded.IsFishingCalibrated);
         }
         finally

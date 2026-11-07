@@ -88,7 +88,8 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] HUD de telemetria com posição, erro, confiança, estado, FPS de captura e motivo das decisões.
 - [x] Perfis nomeados manualmente por cana, com calibração visual exportável/importável em JSON.\n- [ ] Seleção automática de perfil por cana e afinação do controlador com dados reais.
 - [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.\n- [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
-- [ ] Deteção de desconexão e recuperação/reconexão segura.
+- [x] Watchdog visual de reconexão com região/cor calibradas, três frames estáveis, clique único e máximo de três tentativas por ativação.
+- [ ] Confirmar o regresso efetivo à sessão em cada tipo de desconexão; o desaparecimento do botão não é prova de reconexão.
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
 - [ ] Módulos posteriores: Hunt Detection, Appraise/Treasure Appraise, Auto Enchant, Angler Quest e outros minijogos por cana; dependem de frames reais e de validação isolada. Auto Aquarium já tem motor visual calibrável, mas continua por validar no Fisch real.
 
@@ -124,7 +125,7 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Ainda por implementar
 
-Appraise/Treasure Appraise, Auto Enchant, Angler Quest, deteção de hunts e reconexão automática continuam por implementar. O Auto Aquarium já tem automação visual calibrável para alimentação/reposição/claim, mas exige calibração das sete ações e validação com capturas reais do Fisch. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
+Appraise/Treasure Appraise, Auto Enchant, Angler Quest e deteção de hunts continuam por implementar; o watchdog de reconexão visual está implementado, mas a recuperação efetiva ainda exige validação no Fisch. O Auto Aquarium já tem automação visual calibrável para alimentação/reposição/claim, mas exige calibração das sete ações e validação com capturas reais do Fisch. Os perfis por cana são selecionados manualmente. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
 
 
 ## Inspiração ExoPanda — próximos módulos
@@ -233,3 +234,13 @@ A validação que falta nesta fase não pode ser provada por frames sintéticos 
 - [x] Executar os detetores visuais durante o replay, sem enviar inputs, executar automação do Aquarium ou gravar capturas OCR/sessões.
 - [x] Fechar o descodificador ao terminar a aplicação ou substituir a fonte de replay.
 - [ ] Validar codecs e sincronização com gravações reais captadas no computador do utilizador; a compatibilidade depende dos codecs disponíveis no runtime OpenCV.
+
+
+## Watchdog de reconexão — novembro de 2026
+
+- [x] Calibração manual da região e cor HSV do botão de reconexão.
+- [x] Exigir três frames estáveis e enviar um clique por aparição.
+- [x] Aguardar dois frames sem o botão antes de permitir novo ciclo.
+- [x] Intervalo de segurança de 20 segundos e máximo de três cliques por ativação.
+- [x] Desarmar sem retry quando o botão não desaparece no timeout.
+- [ ] Validar com diferentes ecrãs reais de desconexão e confirmar visualmente a entrada na sessão.
