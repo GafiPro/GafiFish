@@ -2025,6 +2025,7 @@ public partial class MainWindow : Window
         {
             KeepFishingUntilCatchCheckBox.IsChecked = false;
             TargetFishCheckBox.IsChecked = false;
+            AnglerQuestAssistCheckBox.IsChecked = false;
             AutoTotemCheckBox.IsChecked = false;
             AutoSecondTotemCheckBox.IsChecked = false;
             AutoDayNightTotemCheckBox.IsChecked = false;
@@ -2476,7 +2477,8 @@ public partial class MainWindow : Window
         AutoCastCheckBox.IsEnabled = true;
         KeepFishingUntilCatchCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
         TargetFishCheckBox.IsEnabled = AutoCastCheckBox.IsChecked == true;
-        TargetFishTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true && TargetFishCheckBox.IsChecked == true;
+        TargetFishTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true
+            && (TargetFishCheckBox.IsChecked == true || AnglerQuestAssistCheckBox.IsChecked == true);
         TargetFishCatchGoalTextBox.IsEnabled = AutoCastCheckBox.IsChecked == true
             && (TargetFishCheckBox.IsChecked == true || AnglerQuestAssistCheckBox.IsChecked == true);
         UpdateTimedItemControls();
