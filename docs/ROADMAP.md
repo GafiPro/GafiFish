@@ -263,6 +263,7 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Watchdog de reconexão e rotação dia/noite também só contam observações com timestamps novos; o detetor dia/noite transporta o timestamp do fotograma até ao coordenador.
 - [x] Testes impedem que capturas repetidas estabeleçam um baseline ou consumam um totem.
 - [x] Perfect Cast rejeita leituras duplicadas/fora de ordem e liberta o botão do rato em vez de decidir com base numa observação antiga.
+- [x] Fish motion tracking rejeita timestamps duplicados/fora de ordem e confidence não finita sem substituir a última medição válida; o Reel assist recebe uma observação neutra e liberta o input durante o frame inválido.
 
 ## Rotação de totens dia/noite — novembro de 2026
 

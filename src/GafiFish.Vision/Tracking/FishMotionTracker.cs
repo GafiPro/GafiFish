@@ -45,12 +45,20 @@ public sealed class FishMotionTracker
 
     public FishMotionEstimate? Update(DetectedMarker? marker, DateTimeOffset capturedAt)
     {
+        // Never let a replayed or delayed frame roll the tracking clock
+        // backwards. Returning null makes the Reel coordinator release input
+        // for this frame while preserving the latest valid tracking state.
+        if (_lastPosition.HasValue && capturedAt <= _lastObservedAt)
+            return null;
+
         if (marker is null)
         {
             return GetEstimate(capturedAt);
         }
 
-        if (!double.IsFinite(marker.CenterX) || marker.Confidence is < 0 or > 1)
+        if (!double.IsFinite(marker.CenterX)
+            || !double.IsFinite(marker.Confidence)
+            || marker.Confidence is < 0 or > 1)
         {
             return GetEstimate(capturedAt);
         }
@@ -95,7 +103,13 @@ public sealed class FishMotionTracker
         }
 
         var age = now - _lastObservedAt;
-        if (age < TimeSpan.Zero || age > _maximumPredictionAge)
+        if (age < TimeSpan.Zero)
+        {
+            // An older caller must not erase a newer valid estimate.
+            return null;
+        }
+
+        if (age > _maximumPredictionAge)
         {
             Reset();
             return null;

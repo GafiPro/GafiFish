@@ -50,6 +50,61 @@ public sealed class FishMotionTrackerTests
         Assert.True(estimate.Confidence < 0.75);
     }
 
+    [Fact]
+    public void Update_IgnoresDuplicateAndOutOfOrderFramesWithoutRollingBackState()
+    {
+        var tracker = new FishMotionTracker(smoothing: 1);
+        var start = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
+
+        tracker.Update(Marker(100), start);
+        var latest = tracker.Update(Marker(120), start.AddMilliseconds(100));
+        Assert.NotNull(latest);
+        Assert.Equal(200, latest.VelocityPixelsPerSecond, precision: 5);
+
+        Assert.Null(tracker.Update(Marker(900), start.AddMilliseconds(100)));
+        Assert.Null(tracker.Update(Marker(800), start.AddMilliseconds(50)));
+
+        var next = tracker.Update(Marker(140), start.AddMilliseconds(200));
+        Assert.NotNull(next);
+        Assert.Equal(200, next.VelocityPixelsPerSecond, precision: 5);
+        Assert.Equal(140, next.PositionX, precision: 5);
+    }
+
+    [Fact]
+    public void Update_IgnoresNonFiniteConfidenceWithoutPoisoningVelocity()
+    {
+        var tracker = new FishMotionTracker(smoothing: 1);
+        var start = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
+
+        tracker.Update(Marker(100), start);
+        var invalid = Marker(900) with { Confidence = double.NaN };
+        var decayed = tracker.Update(invalid, start.AddMilliseconds(100));
+
+        Assert.NotNull(decayed);
+        Assert.False(decayed.IsFresh);
+        Assert.Equal(100, decayed.PositionX, precision: 5);
+
+        var next = tracker.Update(Marker(120), start.AddMilliseconds(200));
+        Assert.NotNull(next);
+        Assert.Equal(100, next.VelocityPixelsPerSecond, precision: 5);
+    }
+
+    [Fact]
+    public void GetEstimate_EarlierTimestampDoesNotResetLatestTrack()
+    {
+        var tracker = new FishMotionTracker(smoothing: 1);
+        var start = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
+
+        tracker.Update(Marker(100), start);
+        tracker.Update(Marker(120), start.AddMilliseconds(100));
+
+        Assert.Null(tracker.GetEstimate(start.AddMilliseconds(50)));
+
+        var next = tracker.Update(Marker(140), start.AddMilliseconds(200));
+        Assert.NotNull(next);
+        Assert.Equal(200, next.VelocityPixelsPerSecond, precision: 5);
+    }
+
     private static DetectedMarker Marker(double x) =>
         new(x, 40, new Rect((int)x - 3, 37, 6, 6), 25, 0.95);
 }
