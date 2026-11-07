@@ -276,6 +276,11 @@ public partial class MainWindow : Window
             _anglerQuestTracker.Restore(anglerSnapshot);
             AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
             AnglerQuestSubmittedButton.IsEnabled = _anglerQuestTracker.HasCatchToSubmit;
+            if (!string.IsNullOrWhiteSpace(_anglerQuestTracker.TargetSpecies))
+            {
+                TargetFishTextBox.Text = _anglerQuestTracker.TargetSpecies;
+                AnglerQuestAssistCheckBox.IsChecked = true;
+            }
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
@@ -1075,6 +1080,10 @@ public partial class MainWindow : Window
 
         try
         {
+            var foregroundProcessId = _capture.GetForegroundRobloxProcessId();
+            if (!foregroundProcessId.HasValue || foregroundProcessId.Value != frame.ProcessId)
+                throw new InvalidOperationException("Roblox lost foreground focus before Angler automation could arm.");
+
             var needsAccept = !_anglerQuestTracker.IsTracking && !_anglerQuestTracker.HasCatchToSubmit;
             if (needsAccept && !_profile.IsAnglerAcceptButtonCalibrated)
                 throw new InvalidOperationException("Accept Request button calibration is missing.");
