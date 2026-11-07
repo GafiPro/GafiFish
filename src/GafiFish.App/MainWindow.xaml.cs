@@ -5299,7 +5299,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
-            or CalibrationAction.SelectRodNameRegion
+            or CalibrationAction.SelectRodNameRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -5330,7 +5330,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
-            or CalibrationAction.SelectRodNameRegion
+            or CalibrationAction.SelectRodNameRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
