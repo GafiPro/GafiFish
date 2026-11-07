@@ -47,7 +47,15 @@ public sealed class EmergencyStopHotkeyListener : IDisposable
             IsBackground = true,
             Name = "GafiFish emergency stop hotkey"
         };
-        _thread.Start();
+        try
+        {
+            _thread.Start();
+        }
+        catch
+        {
+            _thread = null;
+            throw;
+        }
 
         if (!_ready.Wait(timeout ?? TimeSpan.FromSeconds(2)))
         {
