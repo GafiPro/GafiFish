@@ -2029,8 +2029,8 @@ public partial class MainWindow : Window
         try
         {
             _anglerQuestTracker.ConfirmQuestSubmitted(DateTimeOffset.UtcNow);
-            SaveAnglerQuestState("Angler hand-in and cooldown confirmed.");
             AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
+            SaveAnglerQuestState("Angler hand-in and cooldown confirmed.");
             AnglerQuestSubmittedButton.IsEnabled = false;
             AddActivityLog("INFO", "ANGLER", "Quest fish hand-in confirmed manually. The 120-second request cooldown has started.");
         }
@@ -2365,8 +2365,8 @@ public partial class MainWindow : Window
             if (anglerQuestAssistEnabled)
             {
                 _anglerQuestTracker.StartTarget(targetFishName, DateTimeOffset.UtcNow);
-                SaveAnglerQuestState("New Angler target started.");
                 AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
+                SaveAnglerQuestState("New Angler target started.");
                 AnglerQuestSubmittedButton.IsEnabled = false;
             }
             TargetFishProgressText.Text = $"Target progress · 0 / {targetCatchGoal}";
@@ -5029,8 +5029,10 @@ public partial class MainWindow : Window
                 if (targetGoalReached && _anglerQuestAssistEnabled)
                 {
                     if (_anglerQuestTracker.MarkTargetFishCaught(_targetFishName!, frame.CapturedAt))
+                    {
+                        AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(frame.CapturedAt);
                         SaveAnglerQuestState("Angler target catch confirmed by OCR.");
-                    AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(frame.CapturedAt);
+                    }
                     AnglerQuestSubmittedButton.IsEnabled = true;
                     AddActivityLog("INFO", "ANGLER", $"Angler target caught: {_targetFishName}. Hand it in manually to start the cooldown.");
                 }
