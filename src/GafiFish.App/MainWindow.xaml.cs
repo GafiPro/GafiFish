@@ -3258,12 +3258,12 @@ public partial class MainWindow : Window
                 if (rhythmObservation is null)
                     throw new InvalidOperationException("Tranquility rhythm observation was not produced.");
 
-                _ = _rhythmCoordinator.ProcessObservation(
+                var acceptedRhythmObservation = _rhythmCoordinator.ProcessObservation(
                     rhythmObservation,
                     _profile,
                     allowInput: _runtimeStateMachine.CurrentState == FishingState.Reeling);
                 RhythmNoteStatusText.Text = _rhythmCoordinator.LastStatus;
-                if (rhythmObservation is { IsCalibrated: true, HasNotes: true }
+                if (acceptedRhythmObservation is { IsCalibrated: true, HasNotes: true }
                     && (_runtimeStateMachine.CurrentState is
                         FishingState.Preparing or FishingState.Casting
                         or FishingState.WaitingForBite or FishingState.Shaking))
@@ -4162,7 +4162,7 @@ public partial class MainWindow : Window
         {
             RhythmNoteStatusText.Text = rhythmObservation.Status;
             RhythmCalibrationStatusText.Text = rhythmObservation.IsCalibrated
-                ? "Rhythm lanes are calibrated. Replay is visual-only and will not send key taps."
+                ? "Four lanes calibrated. Replay is visual-only; live key taps require the Reeling state."
                 : rhythmObservation.Status;
         }
         DrawMarker(_fishMarkerOverlay, visionResult.FishMarker);
