@@ -60,6 +60,7 @@ public partial class MainWindow : Window
 
     private readonly RobloxWindowCapture _capture = new();
     private readonly FishingVisionDetector _vision = new();
+    private readonly RodChargeMeterVisionDetector _rodChargeMeterVision = new();
     private readonly CastMeterVisionDetector _castVision = new();
     private readonly ShakePromptVisionDetector _shakeVision = new();
     private readonly SellAnywhereVisionDetector _sellVision = new();
@@ -245,7 +246,9 @@ public partial class MainWindow : Window
         SampleAnglerSubmitButtonColor,
         SelectRodNameRegion,
         SelectAppraisalPanelRegion,
-        SelectEnchantPanelRegion
+        SelectEnchantPanelRegion,
+        SelectRodChargeMeterRegion,
+        SampleRodChargeMeterColor
     }
 
     public MainWindow()
@@ -2649,6 +2652,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_profile.RodMinigameMode == RodMinigameMode.ChargeMeterBonus
+            && !_profile.IsRodChargeMeterCalibrated)
+        {
+            AutomationStatusText.Text =
+                "This rod profile uses Charge Meter Bonus. Calibrate the complete meter track and its fill colour in Calibration first.";
+            return;
+        }
+
         if (autoShakeEnabled && !_profile.IsShakeCalibrated)
         {
             AutomationStatusText.Text = "Auto-shake requires a calibrated Shake region and prompt color.";
@@ -3335,11 +3346,18 @@ public partial class MainWindow : Window
             if (!(_runtimeStateMachine.CurrentState == FishingState.Casting
                 && _castCoordinator?.IsHolding == true))
             {
+                var chargeMeter = _profile.RodMinigameMode == RodMinigameMode.ChargeMeterBonus
+                    ? _rodChargeMeterVision.Detect(frame, _profile)
+                    : null;
+                if (chargeMeter is not null)
+                    RodChargeMeterStatusText.Text = chargeMeter.Status;
+
                 var decision = _reelCoordinator.Apply(
                     _runtimeStateMachine.CurrentState,
                     fishMarker,
                     controlMarker,
-                    motion);
+                    motion,
+                    chargeMeter);
 
                 if (_runtimeStateMachine.CurrentState == FishingState.Reeling)
                 {
@@ -4246,6 +4264,8 @@ public partial class MainWindow : Window
         try
         {
             RodReelPresetComboBox.SelectedValue = _profile.RodPreset.ToString();
+            RodMinigameModeComboBox.SelectedValue = _profile.RodMinigameMode.ToString();
+            RodChargeMeterFillFromRightCheckBox.IsChecked = _profile.RodChargeMeterFillFromRight;
         }
         finally
         {
@@ -4285,6 +4305,66 @@ public partial class MainWindow : Window
         await SaveProfileAsync($"Rod Reel preset changed to {preset}.");
         RefreshRodReelPresetControls();
     }
+
+    private async void RodMinigameModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingRodReelPreset || !IsLoaded
+            || RodMinigameModeComboBox.SelectedValue is not string selected
+            || !Enum.TryParse<RodMinigameMode>(selected, ignoreCase: true, out var mode)
+            || !Enum.IsDefined(mode))
+            return;
+
+        if (_profile.RodMinigameMode == mode)
+            return;
+
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            RodNameRecognitionStatusText.Text =
+                "Stop the macro and finish loading the active rod profile before changing its minigame mode.";
+            RefreshRodReelPresetControls();
+            return;
+        }
+
+        _profile = _profile with { RodMinigameMode = mode };
+        await SaveProfileAsync($"Rod minigame mode changed to {mode}.");
+        RodMinigameModeStatusText.Text = mode == RodMinigameMode.ChargeMeterBonus
+            ? _profile.IsRodChargeMeterCalibrated
+                ? "Charge Meter Bonus · calibrated. The macro releases at 80% while the fish is in the control bar."
+                : "Charge Meter Bonus · calibrate the meter region and fill colour before starting."
+            : "Standard Reel · uses the shared marker-based controller.";
+        RefreshRodReelPresetControls();
+    }
+
+    private async void RodChargeMeterFillDirection_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingRodReelPreset || !IsLoaded)
+            return;
+
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            RefreshRodReelPresetControls();
+            RodMinigameModeStatusText.Text = "Stop the macro before changing charge-meter calibration.";
+            return;
+        }
+
+        var fromRight = RodChargeMeterFillFromRightCheckBox.IsChecked == true;
+        if (_profile.RodChargeMeterFillFromRight == fromRight)
+            return;
+
+        _profile = _profile with { RodChargeMeterFillFromRight = fromRight };
+        await SaveProfileAsync("Rod charge-meter fill direction updated.");
+        RefreshRodReelPresetControls();
+    }
+
+    private void SelectRodChargeMeterRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SelectRodChargeMeterRegion,
+            "Select the full horizontal charge-meter track, from 0% to 100%. Avoid its border and labels.");
+
+    private void SampleRodChargeMeterColor_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SampleRodChargeMeterColor,
+            "Sample a clear pixel from the filled portion of the rod charge meter.");
 
     private async void BindDetectedRodNameToProfile_Click(object sender, RoutedEventArgs e)
     {
@@ -5199,7 +5279,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleHuntSignalColor
             or CalibrationAction.SampleAquariumButtonColor
             or CalibrationAction.SampleAnglerAcceptButtonColor
-            or CalibrationAction.SampleAnglerSubmitButtonColor)
+            or CalibrationAction.SampleAnglerSubmitButtonColor
+            or CalibrationAction.SampleRodChargeMeterColor)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
@@ -5436,6 +5517,13 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectRodChargeMeterRegion => _profile with
+            {
+                RodChargeMeterRegion = selectedRegion,
+                RodChargeMeterRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             _ => _profile
         };
 
@@ -5460,6 +5548,7 @@ public partial class MainWindow : Window
             CalibrationAction.SelectRodNameRegion => "Rod-name OCR region saved.",
             CalibrationAction.SelectAppraisalPanelRegion => "Appraiser panel OCR region saved.",
             CalibrationAction.SelectEnchantPanelRegion => "Enchant panel OCR region saved.",
+            CalibrationAction.SelectRodChargeMeterRegion => "Rod charge-meter region saved.",
             _ => "Region saved."
         };
         await SaveProfileAsync(regionMessage);
@@ -5504,6 +5593,7 @@ public partial class MainWindow : Window
         var isHuntSignalColor = _calibrationAction == CalibrationAction.SampleHuntSignalColor;
         var isAnglerButtonColor = _calibrationAction is CalibrationAction.SampleAnglerAcceptButtonColor
             or CalibrationAction.SampleAnglerSubmitButtonColor;
+        var isRodChargeMeterColor = _calibrationAction == CalibrationAction.SampleRodChargeMeterColor;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
         var index = y * _lastFrame.Stride + x * 4;
@@ -5531,6 +5621,7 @@ public partial class MainWindow : Window
                 _profile, AnglerQuestButtonKind.AcceptRequest, color, _lastFrame.Width, _lastFrame.Height),
             CalibrationAction.SampleAnglerSubmitButtonColor => WithAnglerQuestButtonColor(
                 _profile, AnglerQuestButtonKind.SubmitFish, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleRodChargeMeterColor => _profile with { RodChargeMeterColor = color },
             _ => _profile
         };
 
@@ -5558,6 +5649,13 @@ public partial class MainWindow : Window
                 && _profile.IsAnglerSubmitButtonCalibrated
                 ? "Both Angler dialogue buttons are calibrated."
                 : "Angler button colour saved. Complete the remaining button calibration.";
+        if (isRodChargeMeterColor)
+        {
+            RodMinigameModeStatusText.Text = _profile.IsRodChargeMeterCalibrated
+                ? "Charge Meter Bonus · calibration complete. It will release at 80% when the fish is inside the bar."
+                : "Charge fill colour saved. Select the full meter track to finish calibration.";
+            RodChargeMeterStatusText.Text = "Charge meter calibration updated.";
+        }
 
         if (isDayPhaseColor || isNightPhaseColor)
         {
