@@ -2488,18 +2488,33 @@ public partial class MainWindow : Window
                 fishMarker is not null
                 && controlMarker is not null
                 && fishMarker.Confidence >= 0.70
-                && controlMarker.Confidence >= 0.70;
+                && controlMarker.Confidence >= 0.70
+                && motion is { IsFresh: true }
+                && motion.Confidence >= 0.70;
 
             if (reelMarkersVisible
                 && (_runtimeStateMachine.CurrentState is
-                    FishingState.Preparing or FishingState.WaitingForBite or FishingState.Shaking))
+                    FishingState.Preparing or FishingState.Casting
+                    or FishingState.WaitingForBite or FishingState.Shaking))
             {
+                // If the Reel minigame appears before the cast meter reports its
+                // release window, Reel owns the mouse: release the charged cast
+                // immediately and move on only with fresh, confident markers.
+                if (_runtimeStateMachine.CurrentState == FishingState.Casting)
+                {
+                    _castCoordinator?.Stop();
+                    _castVision.Reset();
+                }
+
                 _shakeCoordinator?.Reset();
                 _missedBiteRetries.Reset();
-                _ = _runtimeStateMachine.TryTransition(
-                    FishingState.Reeling,
-                    "Both calibrated reel markers are visible with sufficient confidence.",
-                    frame.CapturedAt);
+                if (!_runtimeStateMachine.TryTransition(
+                        FishingState.Reeling,
+                        "Fresh fish/control markers confirmed Reel; any active cast input was released.",
+                        frame.CapturedAt))
+                {
+                    throw new InvalidOperationException("Could not enter Reeling after detecting fresh Reel markers.");
+                }
             }
 
             // The phase detector runs throughout the live fishing loop. It only

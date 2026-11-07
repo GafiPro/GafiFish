@@ -37,6 +37,7 @@
 - [x] Libertar o input ao perder foco, parar F7, falhar captura ou ocorrer erro.
 - [x] Deteção visual do indicador e zona-alvo de Perfect Cast; cálculo diagnóstico de timing e latência.
 - [x] Auto-cast opt-in: segura o botão até o medidor Perfect Cast indicar a janela calibrada, com timeout e libertação segura.
+- [x] Se marcadores de Reel frescos e de confiança elevada surgirem durante Casting, o macro interrompe o cast, liberta o rato e transita diretamente para Reeling.
 - [x] Auto-shake opt-in: deteta candidatos de confiança elevada, clica após dois frames estáveis e deteta o fim da sequência após quatro frames sem prompt.
 - [x] Auto-recast normal: duas tentativas adicionais após 30 segundos sem mordida.
 - [x] Modo opcional de tentativas ilimitadas até à primeira captura confirmada por OCR de confiança elevada (requer sessão e região de notificação calibradas).

@@ -52,6 +52,17 @@ public sealed class FishingStateMachineTests
     }
 
     [Fact]
+    public void StateMachine_AllowsFreshReelMarkersToInterruptAnActiveCast()
+    {
+        var machine = new FishingStateMachine();
+
+        Assert.True(machine.TryTransition(FishingState.Preparing, "Automation armed."));
+        Assert.True(machine.TryTransition(FishingState.Casting, "Cast started."));
+        Assert.True(machine.TryTransition(FishingState.Reeling, "Fresh Reel markers appeared during cast."));
+        Assert.Equal(FishingState.Reeling, machine.CurrentState);
+    }
+
+    [Fact]
     public void StateMachine_AllowsReelAfterCastWaitsForBite()
     {
         var machine = new FishingStateMachine();

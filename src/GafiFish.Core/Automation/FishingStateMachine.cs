@@ -69,6 +69,7 @@ public sealed class FishingStateMachine
             // The visible fish/control markers can confirm that the reel
             // minigame is already active, even if earlier UI states were not seen.
             FishingState.Reeling => current is FishingState.Preparing
+                or FishingState.Casting
                 or FishingState.WaitingForBite
                 or FishingState.Shaking,
             // A high-confidence OCR notification is a reliable catch boundary
