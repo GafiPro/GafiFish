@@ -66,7 +66,7 @@ O motor de input deve libertar o rato e o teclado e parar quando:
 - ocorre uma exceção não recuperável;
 - o utilizador fecha a aplicação.
 
-F9 está registado como hotkey global quando o Windows permite o registo. A paragem também é acionada quando F7 pára, a janela Roblox perde o foco ou uma captura falha. Os cliques de ponto são associados ao PID que originou o frame e usam estados de rato rastreados para tentar libertar o botão mesmo após falha parcial do Windows. O tratamento da paragem global continua dependente do dispatcher WPF; um bloqueio total da interface ainda não garante F9.
+F9 (ou a tecla Stop configurada) é registado num ciclo de mensagens Win32 dedicado, separado do dispatcher WPF. A primeira ação do callback é bloquear novos inputs e libertar os botões/teclas rastreados de forma síncrona; a limpeza visual dos coordenadores é colocada na fila do WPF e termina quando a interface voltar a responder. Se o Windows não permitir reservar a tecla no thread independente, a aplicação tenta o registo WPF normal e identifica explicitamente esse fallback no estado das hotkeys. A paragem também é acionada quando F7 pára, a janela Roblox perde o foco ou uma captura falha. Os cliques de ponto são associados ao PID que originou o frame e usam estados de rato rastreados para tentar libertar o botão mesmo após falha parcial do Windows. A libertação continua dependente de o Windows aceitar os eventos de input.
 
 ## Privacidade
 
