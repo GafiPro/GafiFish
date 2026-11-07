@@ -50,6 +50,7 @@ Detetores OpenCV
   - indicador e zona-alvo de Perfect Cast
   - candidatos Shake
   - botão Sell Anywhere
+  - replay de vídeo offline (um frame de cada vez)
       |
       v
 Tracker temporal / estimador de confiança
@@ -141,3 +142,10 @@ A CI Windows:
 - publica um ZIP Windows x64 self-contained.
 
 Os testes do controlador usam inputs simulados. Os testes de visão usam frames sintéticos. Ainda falta testar a deteção e o controlo com capturas reais do jogo, especialmente Perfect Cast e Shake.
+
+
+## 11. Replay de vídeo offline
+
+A UI usa `OpenCvVideoFrameReader` para abrir ficheiros de vídeo suportados pelo backend OpenCV. `VideoReplaySession` no Core mantém o índice e valida cada buffer BGRA sem carregar o vídeo inteiro. O leitor procura fotogramas apenas quando necessário; a reprodução limita o trabalho visual a 30 atualizações por segundo e salta fotogramas de fontes mais rápidas.
+
+O replay usa `DisplayFrame(..., allowAutomation: false)`: os detetores e overlays são apresentados, mas a automação, o input do Roblox e a escrita OCR/sessão são ignorados. O descodificador é fechado quando uma nova fonte substitui a anterior ou quando a janela termina. A disponibilidade de codecs depende da build/runtime OpenCV e do ficheiro selecionado.

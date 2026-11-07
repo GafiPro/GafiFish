@@ -52,6 +52,12 @@ Regiões disponíveis:
 
 Não uses uma captura de outro tamanho de janela/resolução sem voltar a confirmar a calibração. O perfil guarda a resolução de referência, mas a região normalizada é reaplicada proporcionalmente.
 
+## 3.1 Replay offline de vídeo
+
+Na página **Fishing**, na secção **Offline frame replay**, escolhe **Load video** e seleciona um ficheiro MP4, M4V, AVI, MOV, MKV, WMV ou WEBM. Usa **Previous**, **Next**, **Play** e **Pause** para inspecionar a gravação. Para vídeos acima de 30 FPS, o replay pode saltar fotogramas para manter a interface responsiva.
+
+O replay descodifica apenas o fotograma atual. Os detetores visuais e overlays continuam ativos para ajudar a rever a calibração, mas não envia cliques/teclas, não executa Auto Aquarium e não grava OCR nem capturas na base de dados. O suporte de cada codec depende do ficheiro e das bibliotecas OpenCV disponíveis. Se o vídeo não abrir, exporta alguns frames PNG com a ferramenta de gravação e usa **Load image sequence**.
+
 ## 4. OCR e sessões
 
 Antes de iniciares uma sessão, calibra **Catch notification region**.

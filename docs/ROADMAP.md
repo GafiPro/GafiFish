@@ -22,7 +22,7 @@
 - [x] Tracking horizontal com confiança e expiração de deteções antigas.
 - [x] Testes com frames sintéticos.
 - [x] Testes sintéticos de frames para cast e Shake coordinators.
-- [x] Replay offline de sequências de imagens PNG/JPG/BMP, com navegação/reprodução e execução apenas dos detetores visuais (sem inputs nem registos OCR).\n- [ ] Importação/reprodução de gravações de vídeo.
+- [x] Replay offline de sequências de imagens PNG/JPG/BMP, com navegação/reprodução e execução apenas dos detetores visuais (sem inputs nem registos OCR).\n- [x] Importação e reprodução offline de gravações de vídeo (MP4/AVI/MOV/MKV/WMV/WEBM), descodificadas um fotograma de cada vez; sem inputs nem escrita OCR.
 - [ ] Validar a calibração com capturas reais do Fisch em diferentes resoluções.
 
 ## Fase 2 — Pesca e Perfect Cast
@@ -81,7 +81,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 
 - [x] Ajuste adaptativo da cadência de captura com perfis Economy, Balanced e Responsive.
 - [x] Limites de tempo e recuperação segura nos estados Cast, Shake, espera por mordida e Reel.
-- [x] Reprodução offline de sequências de imagens reais para diagnóstico sem abrir o jogo.\n- [ ] Reprodução direta de gravações de vídeo para diagnóstico.
+- [x] Reprodução offline de sequências de imagens reais para diagnóstico sem abrir o jogo.\n- [x] Reprodução direta de gravações de vídeo para diagnóstico, em streaming e com limite de 30 atualizações visuais/s.
 - [x] Estatísticas acumuladas de todas as sessões: espécies mais capturadas, raridade alta, mutações, peso médio/máximo, valor estimado reconhecido por OCR e capturas por hora de sessões concluídas.
 - [ ] Relatórios de diagnóstico exportáveis.
 - [x] Alertas sonoros locais para espécies configuradas, raridade Legendary+ e mutações detetadas por OCR.
@@ -220,6 +220,16 @@ Appraise/Treasure Appraise, Auto Enchant, Angler Quest, deteção de hunts e rec
 
 ## Estado da versão publicada — 6 de novembro de 2026
 
-A revisão `acbcef3` passou Restore, Build, as cinco suites de testes, Publish Windows x64, Package e Upload do artefacto.
+A revisão `acbcef3` passou Restore, Build, as cinco suites de testes, Publish Windows x64, Package e Upload do artefacto. A revisão de documentação `9fdc0c9` também passou a CI. O replay de vídeo foi acrescentado depois desta revisão e aguarda a sua própria execução CI.
 
-A validação que falta nesta fase não pode ser provada por frames sintéticos: inclui calibração e teste no jogo real, em particular tempos do Reel/Perfect Cast/Shake, venda com a gamepass e as sete ações visuais do Aquarium. Até essa validação, estes módulos devem ser tratados como experimentais e testados um de cada vez.
+A validação que falta nesta fase não pode ser provada por frames sintéticos nem pelo replay de vídeo: inclui calibração e teste no jogo real, em particular tempos do Reel/Perfect Cast/Shake, venda com a gamepass e as sete ações visuais do Aquarium. Até essa validação, estes módulos devem ser tratados como experimentais e testados um de cada vez.
+
+
+## Replay offline de gravações de vídeo — novembro de 2026
+
+- [x] Importar ficheiros MP4, M4V, AVI, MOV, MKV, WMV e WEBM através do descodificador OpenCV.
+- [x] Descodificar e manter apenas o fotograma atual em memória.
+- [x] Navegar fotograma a fotograma e reproduzir com cadência baseada no FPS, limitando atualizações a 30 FPS e saltando frames quando necessário.
+- [x] Executar os detetores visuais durante o replay, sem enviar inputs, executar automação do Aquarium ou gravar capturas OCR/sessões.
+- [x] Fechar o descodificador ao terminar a aplicação ou substituir a fonte de replay.
+- [ ] Validar codecs e sincronização com gravações reais captadas no computador do utilizador; a compatibilidade depende dos codecs disponíveis no runtime OpenCV.

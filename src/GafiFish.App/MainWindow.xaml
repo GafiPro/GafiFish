@@ -741,12 +741,14 @@
                         CornerRadius="16" Padding="16" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="Offline frame replay" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,5" />
-                        <TextBlock Text="Save real Fisch frames, then load a numbered PNG/JPG/BMP sequence to inspect detection and tune calibration without keeping the game open."
+                        <TextBlock Text="Inspect saved PNG/JPG/BMP frame sequences or replay a supported video file offline to review the visual detectors and tune calibration."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,9" />
                         <WrapPanel>
                             <Button Content="Save current frame" Click="SaveCurrentFrame_Click"
                                     Height="32" Margin="0,0,7,7" Background="#294153" />
                             <Button Content="Load image sequence" Click="LoadFrameReplay_Click"
+                                    Height="32" Margin="0,0,7,7" Background="#285B50" />
+                            <Button Content="Load video" Click="LoadVideoReplay_Click"
                                     Height="32" Margin="0,0,7,7" Background="#285B50" />
                             <Button x:Name="ReplayPreviousButton" Content="Previous" Click="ReplayPrevious_Click"
                                     Height="32" Margin="0,0,7,7" IsEnabled="False" />
@@ -756,9 +758,9 @@
                                     Height="32" Margin="0,0,0,7" IsEnabled="False" />
                         </WrapPanel>
                         <TextBlock x:Name="FrameReplayStatusText"
-                                   Text="No replay loaded. Save frames with F6, then load a sequence named in order (for example frame_001.png, frame_002.png)."
+                                   Text="No replay loaded. Save frames with F6, load an ordered image sequence, or open an MP4/AVI/MOV/MKV/WMV/WEBM video."
                                    Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" />
-                        <TextBlock Text="Replay is preview-only: it never sends game inputs and never records OCR catches or session data."
+                        <TextBlock Text="Replay is preview-only: it never sends game inputs, runs Aquarium actions, or records OCR catches/session data. Video codec support depends on the file and OpenCV runtime."
                                    Foreground="#EACB80" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
                     </StackPanel>
                 </Border>

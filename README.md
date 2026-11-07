@@ -19,6 +19,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário.
 - OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
 - Histórico local SQLite, explorador das 20 sessões mais recentes, detalhes das últimas 15 capturas por sessão e novo Catchbook pesquisável para consultar o arquivo completo, filtrar por raridade/mutação/espécies e exportar resultados CSV.
+- Replay offline de sequências de imagens e gravações de vídeo MP4/M4V/AVI/MOV/MKV/WMV/WEBM, com descodificação frame a frame e detetores visuais; sem inputs ou registos OCR durante o replay.
 - Ritmos de captura Economy/Balanced/Responsive, com cadência adaptativa e controlo do compromisso entre CPU e atualização visual.
 - Objetivos de peixe-alvo de 1 a 100 capturas confirmadas, em vez de parar obrigatoriamente após o primeiro exemplar.
 - Importação/exportação de perfis de calibração JSON e arquivo completo de capturas em CSV/JSON com metadados da sessão.
@@ -55,6 +56,10 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 8. Para iniciar, clica em **Start macro (F8)** e muda para a janela Roblox; o GafiFish arma-se assim que captura o primeiro fotograma do Roblox. Também podes usar F8 diretamente com o Roblox em primeiro plano. Para parar, clica em **Stop macro (F9)** ou usa F9. Para o modo ilimitado até à primeira captura, ativa **Keep fishing until the first fish is caught** — exige Auto-cast, sessão OCR e região de notificação calibrada. Para vender automaticamente, marca **Enable Sell Anywhere every 10 minutes**; a gamepass vende os itens não favoritos, por isso marca como favoritos os que pretendes guardar.
 9. Para procurar um peixe específico, ativa **Fish until this exact target is caught**, escreve o nome (por exemplo, **Wrath Scylla**) e inicia o macro. O modo exige Auto-cast, sessão OCR ativa e região de notificação calibrada. Só termina quando o texto da notificação incluir todos os termos do alvo e a confiança OCR for pelo menos 90%; capturas de outros peixes não terminam a procura. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
 10. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
+
+### Replay de vídeo offline
+
+Na página Fishing, escolhe **Load video** para abrir MP4, M4V, AVI, MOV, MKV, WMV ou WEBM. A reprodução mantém apenas um fotograma descodificado em memória, usa Previous/Next/Play/Pause e limita o trabalho de análise visual a 30 atualizações por segundo. O replay permite rever os detetores e overlays, mas não envia inputs, não executa Auto Aquarium e não grava OCR nem capturas na sessão. A disponibilidade de codecs depende do ficheiro e do runtime OpenCV.
 
 ### Auto Aquarium
 
@@ -100,7 +105,7 @@ dotnet run --project tests/GafiFish.App.Tests/GafiFish.App.Tests.csproj --config
 dotnet run --project tests/GafiFish.Ocr.Tests/GafiFish.Ocr.Tests.csproj --configuration Release
 ```
 
-A CI Windows compila a solução, executa as cinco suites de testes e publica um ZIP `win-x64`.
+A CI Windows compila a solução, executa as cinco suites de testes e publica um ZIP `win-x64`. O replay de vídeo tem testes de estado e navegação no Core; a descodificação efetiva depende de codecs disponíveis no computador.
 
 ## Princípios de segurança
 

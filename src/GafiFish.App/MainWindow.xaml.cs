@@ -32,6 +32,7 @@ using GafiFish.Core.Control;
 using GafiFish.Core.Scheduling;
 using GafiFish.Core.Services;
 using GafiFish.App.Automation;
+using GafiFish.App.Diagnostics;
 using GafiFish.App.Settings;
 using GafiFish.App.Logging;
 using GafiFish.App.Backup;
@@ -76,6 +77,9 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _aquariumTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _frameReplayTimer = new() { Interval = TimeSpan.FromMilliseconds(120) };
     private FrameReplaySequence? _frameReplaySequence;
+    private VideoReplaySession? _videoReplaySession;
+    private string? _videoReplayFileName;
+    private int _videoReplayFrameStep = 1;
     private bool _isLoadingAquariumSchedule;
     private readonly ObservableCollection<string> _activityLog = [];
     private readonly ObservableCollection<string> _visibleActivityLog = [];
@@ -2654,6 +2658,11 @@ public partial class MainWindow : Window
         {
             var sequence = FrameReplaySequence.Create(dialog.FileNames);
 
+            _videoReplaySession?.Dispose();
+            _videoReplaySession = null;
+            _videoReplayFileName = null;
+            _videoReplayFrameStep = 1;
+            _frameReplayTimer.Interval = TimeSpan.FromMilliseconds(120);
             StopFrameReplay();
             if (_previewCancellation is not null)
                 StopPreviewLoop();
@@ -2680,11 +2689,82 @@ public partial class MainWindow : Window
         }
     }
 
+    private void LoadVideoReplay_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Load Fisch video for offline replay",
+            Filter = "Video files (*.mp4;*.m4v;*.avi;*.mov;*.mkv;*.wmv;*.webm)|*.mp4;*.m4v;*.avi;*.mov;*.mkv;*.wmv;*.webm|All files (*.*)|*.*",
+            Multiselect = false,
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var reader = new OpenCvVideoFrameReader(dialog.FileName);
+            VideoReplaySession session;
+            try
+            {
+                session = new VideoReplaySession(reader);
+            }
+            catch
+            {
+                reader.Dispose();
+                throw;
+            }
+
+            StopFrameReplay();
+            if (_previewCancellation is not null)
+                StopPreviewLoop();
+            if (_automationEnabled)
+                StopAutomation("Offline video replay started; all game inputs were released.");
+            StopAquariumAutomation("Offline video replay started; Aquarium inputs were released.", log: false);
+
+            _videoReplaySession?.Dispose();
+            _videoReplaySession = session;
+            _videoReplayFileName = Path.GetFileName(dialog.FileName);
+            _frameReplaySequence = null;
+            _videoReplayFrameStep = session.PlaybackFrameStep;
+            _frameReplayTimer.Interval = session.PlaybackInterval;
+            _motionTracker.Reset();
+            _lastDisplayedFrameAt = DateTimeOffset.MinValue;
+            _smoothedCaptureFps = 0;
+
+            if (!session.TryMoveTo(0, out _))
+                throw new InvalidDataException("The video opened, but its first frame could not be decoded.");
+
+            if (DisplayCurrentReplayFrame())
+            {
+                AddActivityLog("INFO", "REPLAY",
+                    $"Loaded offline video '{_videoReplayFileName}' with {session.FrameCount} frames at {session.FramesPerSecond:F1} FPS.");
+            }
+            UpdateFrameReplayControls();
+        }
+        catch (Exception exception)
+        {
+            StopFrameReplay();
+            _videoReplaySession?.Dispose();
+            _videoReplaySession = null;
+            _videoReplayFileName = null;
+            FrameReplayStatusText.Text = $"Could not load video replay: {exception.Message}";
+            UpdateFrameReplayControls();
+        }
+    }
+
     private void ReplayPrevious_Click(object sender, RoutedEventArgs e)
     {
         StopFrameReplay();
-        if (_frameReplaySequence is null || !_frameReplaySequence.MovePrevious())
+        if (_videoReplaySession is not null)
+        {
+            if (!_videoReplaySession.TryMovePrevious(out _))
+                return;
+        }
+        else if (_frameReplaySequence is null || !_frameReplaySequence.MovePrevious())
+        {
             return;
+        }
 
         _motionTracker.Reset();
         _lastDisplayedFrameAt = DateTimeOffset.MinValue;
@@ -2696,8 +2776,15 @@ public partial class MainWindow : Window
     private void ReplayNext_Click(object sender, RoutedEventArgs e)
     {
         StopFrameReplay();
-        if (_frameReplaySequence is null || !_frameReplaySequence.MoveNext())
+        if (_videoReplaySession is not null)
+        {
+            if (!_videoReplaySession.TryMoveNext(out _))
+                return;
+        }
+        else if (_frameReplaySequence is null || !_frameReplaySequence.MoveNext())
+        {
             return;
+        }
 
         _ = DisplayCurrentReplayFrame();
         UpdateFrameReplayControls();
@@ -2705,7 +2792,7 @@ public partial class MainWindow : Window
 
     private void ReplayPlay_Click(object sender, RoutedEventArgs e)
     {
-        if (_frameReplaySequence is null)
+        if (_frameReplaySequence is null && _videoReplaySession is null)
             return;
 
         if (_frameReplayTimer.IsEnabled)
@@ -2715,12 +2802,26 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_frameReplaySequence.HasNext)
+        var hasNext = _videoReplaySession is not null
+            ? _videoReplaySession.HasNext
+            : _frameReplaySequence?.HasNext == true;
+
+        if (!hasNext)
         {
-            _frameReplaySequence.Restart();
             _motionTracker.Reset();
             _lastDisplayedFrameAt = DateTimeOffset.MinValue;
             _smoothedCaptureFps = 0;
+
+            if (_videoReplaySession is not null)
+            {
+                if (!_videoReplaySession.TryMoveTo(0, out _))
+                    return;
+            }
+            else
+            {
+                _frameReplaySequence!.Restart();
+            }
+
             if (!DisplayCurrentReplayFrame())
                 return;
         }
@@ -2731,7 +2832,27 @@ public partial class MainWindow : Window
 
     private void FrameReplayTimer_Tick(object? sender, EventArgs e)
     {
-        if (_frameReplaySequence is null || !_frameReplaySequence.MoveNext())
+        if (_videoReplaySession is not null)
+        {
+            if (!_videoReplaySession.HasNext)
+            {
+                StopFrameReplay();
+                UpdateFrameReplayControls();
+                return;
+            }
+
+            var nextIndex = Math.Min(
+                _videoReplaySession.CurrentIndex + _videoReplayFrameStep,
+                _videoReplaySession.FrameCount - 1);
+            if (!_videoReplaySession.TryMoveTo(nextIndex, out _))
+            {
+                StopFrameReplay();
+                FrameReplayStatusText.Text = "Video replay stopped because the next frame could not be decoded.";
+                UpdateFrameReplayControls();
+                return;
+            }
+        }
+        else if (_frameReplaySequence is null || !_frameReplaySequence.MoveNext())
         {
             StopFrameReplay();
             UpdateFrameReplayControls();
@@ -2745,7 +2866,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_frameReplaySequence.HasNext)
+        var hasNext = _videoReplaySession is not null
+            ? _videoReplaySession.HasNext
+            : _frameReplaySequence?.HasNext == true;
+        if (!hasNext)
             StopFrameReplay();
 
         UpdateFrameReplayControls();
@@ -2761,15 +2885,42 @@ public partial class MainWindow : Window
     private void UpdateFrameReplayControls()
     {
         var sequence = _frameReplaySequence;
+        var hasReplay = sequence is not null || _videoReplaySession is not null;
+        var hasPrevious = _videoReplaySession is not null
+            ? _videoReplaySession.HasPrevious
+            : sequence?.HasPrevious == true;
+        var hasNext = _videoReplaySession is not null
+            ? _videoReplaySession.HasNext
+            : sequence?.HasNext == true;
         var offlineModeAvailable = _previewCancellation is null && !_automationEnabled;
-        ReplayPreviousButton.IsEnabled = offlineModeAvailable && sequence?.HasPrevious == true;
-        ReplayNextButton.IsEnabled = offlineModeAvailable && sequence?.HasNext == true;
-        ReplayPlayButton.IsEnabled = offlineModeAvailable && sequence is not null && sequence.Count > 1;
+
+        ReplayPreviousButton.IsEnabled = offlineModeAvailable && hasReplay && hasPrevious;
+        ReplayNextButton.IsEnabled = offlineModeAvailable && hasReplay && hasNext;
+        ReplayPlayButton.IsEnabled = offlineModeAvailable && hasReplay
+            && (_videoReplaySession?.FrameCount ?? sequence?.Count ?? 0) > 1;
         ReplayPlayButton.Content = _frameReplayTimer.IsEnabled ? "Pause" : "Play";
     }
 
     private bool DisplayCurrentReplayFrame()
     {
+        if (_videoReplaySession is not null && _videoReplaySession.CurrentFrame is { } videoFrame)
+        {
+            var frame = new ScreenCaptureFrame(
+                videoFrame.Width,
+                videoFrame.Height,
+                videoFrame.Stride,
+                videoFrame.BgraPixels,
+                DateTimeOffset.UtcNow,
+                $"Offline video replay · {_videoReplayFileName ?? "video"}",
+                0);
+
+            DisplayFrame(frame, allowAutomation: false);
+            FrameReplayStatusText.Text =
+                $"Preview-only video replay · {_videoReplaySession.CurrentIndex + 1}/{_videoReplaySession.FrameCount} · " +
+                $"{_videoReplayFileName ?? "video"} · {_videoReplaySession.FramesPerSecond:F1} FPS";
+            return true;
+        }
+
         if (_frameReplaySequence is null)
             return false;
 
@@ -4313,6 +4464,9 @@ public partial class MainWindow : Window
                 // Preserve the existing session record if finalisation fails.
             }
         }
+
+        _videoReplaySession?.Dispose();
+        _videoReplaySession = null;
 
         _ocr?.Dispose();
         _ocr = null;
