@@ -3361,7 +3361,7 @@ public partial class MainWindow : Window
                     controlMarker,
                     motion,
                     chargeMeter,
-                    requireDualFishCoverage: _profile.RodMinigameMode == RodMinigameMode.DualFish);
+                    requireDualFishCoverage: isDualFishMode);
 
                 if (_runtimeStateMachine.CurrentState == FishingState.Reeling)
                 {
@@ -3966,8 +3966,25 @@ public partial class MainWindow : Window
         DrawMarker(_controlMarkerOverlay, visionResult.ControlMarker);
 
         var trackingMarker = visionResult.FishMarker;
-        if (_profile.RodMinigameMode == RodMinigameMode.DualFish)
+        var isDualFishMode = _profile.RodMinigameMode == RodMinigameMode.DualFish;
+        DualFishCoverageStatusText.Visibility = isDualFishMode ? Visibility.Visible : Visibility.Collapsed;
+        if (isDualFishMode)
         {
+            if (visionResult.FishMarker is null
+                || visionResult.SecondaryFishMarker is null
+                || visionResult.ControlMarker is null)
+            {
+                DualFishCoverageStatusText.Text = "Dual Fish coverage: waiting for both fish and the control bar.";
+            }
+            else
+            {
+                var coveredFish = DualFishCoverageEvaluator.CountCoveredFish(
+                    visionResult.FishMarker,
+                    visionResult.SecondaryFishMarker,
+                    visionResult.ControlMarker);
+                DualFishCoverageStatusText.Text = $"Dual Fish coverage: {coveredFish}/2 fish inside the control bar.";
+            }
+
             trackingMarker = visionResult.FishMarker is not null && visionResult.SecondaryFishMarker is not null
                 ? CreateDualFishTrackingMarker(visionResult.FishMarker, visionResult.SecondaryFishMarker)
                 : null;
@@ -3975,7 +3992,7 @@ public partial class MainWindow : Window
 
         var motion = _motionTracker.Update(trackingMarker, frame.CapturedAt);
         VisionStatusText.Text = motion is not null && trackingMarker is not null
-            ? _profile.RodMinigameMode == RodMinigameMode.DualFish
+            ? isDualFishMode
                 ? $"Vision: {visionResult.Status} · dual target centre X={motion.PositionX:F0}px · confidence {motion.Confidence:P0}"
                 : $"Vision: {visionResult.Status} Fish X={motion.PositionX:F0}px · {motion.VelocityPixelsPerSecond:+0.0;-0.0;0} px/s · confidence {motion.Confidence:P0}"
             : $"Vision: {visionResult.Status}";
@@ -4317,6 +4334,8 @@ public partial class MainWindow : Window
                 : "Dual Fish · calibration required.",
             _ => "Standard Reel · shared marker-based controller."
         };
+        DualFishCoverageStatusText.Visibility =
+            _profile.RodMinigameMode == RodMinigameMode.DualFish ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void RodReelPresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

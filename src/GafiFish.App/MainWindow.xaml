@@ -585,6 +585,10 @@
                         <TextBlock x:Name="RodMinigameModeStatusText"
                                    Text="Standard Reel · shared fish/bar controller."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6" />
+                        <TextBlock x:Name="DualFishCoverageStatusText"
+                                   Text="Dual Fish coverage: waiting for detections."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Visibility="Collapsed" />
                         <CheckBox x:Name="RodChargeMeterFillFromRightCheckBox"
                                   Content="Charge meter fills from right to left"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,5"
