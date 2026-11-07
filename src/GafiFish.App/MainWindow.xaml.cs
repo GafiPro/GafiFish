@@ -189,6 +189,10 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _dashboardSessionTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private CatchGoalProgress? _targetCatchProgress;
     private readonly AnglerQuestTracker _anglerQuestTracker = new();
+    private readonly AnglerQuestButtonVisionDetector _anglerQuestButtonVision = new();
+    private AnglerQuestAutomationCoordinator? _anglerQuestAutomationCoordinator;
+    private RobloxInputService? _anglerQuestAutomationInput;
+    private bool _anglerQuestStartRequested;
     private readonly AnglerQuestStateStore _anglerQuestStateStore = new();
     private bool _anglerQuestStateAvailable = true;
     private bool _anglerQuestAssistEnabled;
@@ -226,7 +230,11 @@ public partial class MainWindow : Window
         SelectHuntSignalRegion,
         SampleHuntSignalColor,
         SelectAquariumButtonRegion,
-        SampleAquariumButtonColor
+        SampleAquariumButtonColor,
+        SelectAnglerAcceptButtonRegion,
+        SampleAnglerAcceptButtonColor,
+        SelectAnglerSubmitButtonRegion,
+        SampleAnglerSubmitButtonColor
     }
 
     public MainWindow()
@@ -962,6 +970,215 @@ public partial class MainWindow : Window
         throw new InvalidOperationException("Select a valid Aquarium action to calibrate.");
     }
 
+    private void SelectAnglerAcceptButtonRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SelectAnglerAcceptButtonRegion,
+            "Drag a tight rectangle around the enabled Angler Accept Request button.");
+
+    private void SampleAnglerAcceptButtonColor_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SampleAnglerAcceptButtonColor,
+            "Click a clear pixel inside the enabled Angler Accept Request button.");
+
+    private void SelectAnglerSubmitButtonRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SelectAnglerSubmitButtonRegion,
+            "Drag a tight rectangle around the enabled Angler Submit Fish button.");
+
+    private void SampleAnglerSubmitButtonColor_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SampleAnglerSubmitButtonColor,
+            "Click a clear pixel inside the enabled Angler Submit Fish button.");
+
+    private void StartAnglerQuestAutomation_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_anglerQuestStateAvailable)
+        {
+            AnglerQuestAutomationStatusText.Text =
+                "Angler automation is unavailable because the saved quest state could not be read or written.";
+            return;
+        }
+
+        if (_anglerQuestAutomationCoordinator?.IsStarted == true || _anglerQuestStartRequested)
+        {
+            AnglerQuestAutomationStatusText.Text = "Angler automation is already armed or waiting for Roblox focus.";
+            return;
+        }
+
+        if (_automationEnabled || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
+            || _connectionRecoveryStartRequested || _connectionRecoveryCoordinator?.IsStarted == true)
+        {
+            AnglerQuestAutomationStatusText.Text =
+                "Stop the fishing macro, Auto Aquarium and reconnect watchdog before arming Angler interactions.";
+            return;
+        }
+
+        if (AnglerQuestAssistCheckBox.IsChecked != true)
+        {
+            AnglerQuestAutomationStatusText.Text =
+                "Enable Angler Quest assist first and enter the exact requested fish name above.";
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (_anglerQuestTracker.HasCatchToSubmit)
+        {
+            if (!_profile.IsAnglerSubmitButtonCalibrated)
+            {
+                AnglerQuestAutomationStatusText.Text =
+                    "Calibrate the Submit Fish button region and colour before arming hand-in automation.";
+                return;
+            }
+        }
+        else if (_anglerQuestTracker.IsTracking)
+        {
+            AnglerQuestAutomationStatusText.Text =
+                "The Angler request is already accepted. Start the fishing macro to catch the requested fish.";
+            return;
+        }
+        else
+        {
+            if (!_anglerQuestTracker.CanStartNewQuest(now))
+            {
+                AnglerQuestAutomationStatusText.Text = _anglerQuestTracker.GetStatus(now);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(TargetFishTextBox.Text))
+            {
+                AnglerQuestAutomationStatusText.Text = "Enter the requested fish name before arming Angler automation.";
+                return;
+            }
+
+            if (!_profile.IsAnglerAcceptButtonCalibrated)
+            {
+                AnglerQuestAutomationStatusText.Text =
+                    "Calibrate the Accept Request button region and colour before arming quest acceptance.";
+                return;
+            }
+        }
+
+        if (_previewCancellation is null)
+            TogglePreviewLoop();
+
+        _anglerQuestStartRequested = true;
+        StartAnglerQuestAutomationButton.IsEnabled = false;
+        StopAnglerQuestAutomationButton.IsEnabled = true;
+        AnglerQuestAutomationStatusText.Text =
+            "Start requested. Switch to Roblox; the input guard will arm only after it captures the foreground game window.";
+    }
+
+    private void StartAnglerQuestAutomationNow(ScreenCaptureFrame frame)
+    {
+        if (!_anglerQuestStartRequested || Volatile.Read(ref _emergencyStopLatch) != 0)
+            return;
+
+        try
+        {
+            var needsAccept = !_anglerQuestTracker.IsTracking && !_anglerQuestTracker.HasCatchToSubmit;
+            if (needsAccept && !_profile.IsAnglerAcceptButtonCalibrated)
+                throw new InvalidOperationException("Accept Request button calibration is missing.");
+            if (_anglerQuestTracker.HasCatchToSubmit && !_profile.IsAnglerSubmitButtonCalibrated)
+                throw new InvalidOperationException("Submit Fish button calibration is missing.");
+
+            var input = new RobloxInputService();
+            var coordinator = new AnglerQuestAutomationCoordinator(
+                input,
+                _anglerQuestButtonVision,
+                AnglerQuestActionConfirmed);
+            coordinator.Start();
+            _anglerQuestAutomationInput = input;
+            _anglerQuestAutomationCoordinator = coordinator;
+            _anglerQuestStartRequested = false;
+            AnglerQuestAutomationStatusText.Text = coordinator.LastStatus;
+            AddActivityLog("INFO", "ANGLER", "Angler visual interaction armed.");
+        }
+        catch (Exception exception)
+        {
+            _anglerQuestStartRequested = false;
+            _anglerQuestAutomationInput?.Dispose();
+            _anglerQuestAutomationInput = null;
+            _anglerQuestAutomationCoordinator = null;
+            StartAnglerQuestAutomationButton.IsEnabled = true;
+            StopAnglerQuestAutomationButton.IsEnabled = false;
+            AnglerQuestAutomationStatusText.Text = $"Angler automation could not start: {exception.Message}";
+            AddActivityLog("WARN", "ANGLER", $"Angler automation start refused: {exception.Message}");
+        }
+    }
+
+    private void AnglerQuestActionConfirmed(AnglerQuestButtonKind action, DateTimeOffset confirmedAt)
+    {
+        try
+        {
+            if (action == AnglerQuestButtonKind.AcceptRequest)
+            {
+                var target = TargetFishTextBox.Text.Trim();
+                _anglerQuestTracker.StartTarget(target, confirmedAt);
+                AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(confirmedAt);
+                SaveAnglerQuestState("Angler request acceptance visually confirmed.");
+                if (!_anglerQuestStateAvailable)
+                    throw new InvalidOperationException("The Angler quest state could not be saved.");
+                AnglerQuestSubmittedButton.IsEnabled = false;
+                AnglerQuestAutomationStatusText.Text =
+                    "Request accepted. Start the fishing macro; re-arm this module after the target fish is caught.";
+                AddActivityLog("INFO", "ANGLER", $"Angler request accepted; tracking target '{target}'.");
+            }
+            else
+            {
+                _anglerQuestTracker.ConfirmQuestSubmitted(confirmedAt);
+                AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(confirmedAt);
+                SaveAnglerQuestState("Angler fish hand-in visually confirmed.");
+                if (!_anglerQuestStateAvailable)
+                    throw new InvalidOperationException("The Angler cooldown could not be saved.");
+                AnglerQuestSubmittedButton.IsEnabled = false;
+                AnglerQuestAutomationStatusText.Text =
+                    "Fish hand-in confirmed; the 120-second cooldown has started.";
+                AddActivityLog("INFO", "ANGLER", "Angler fish hand-in visually confirmed; the 120-second cooldown has started.");
+            }
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            AnglerQuestAutomationStatusText.Text = $"Angler state update failed: {exception.Message}";
+            AddActivityLog("ERROR", "ANGLER", $"Could not update confirmed Angler action: {exception.Message}");
+            throw;
+        }
+    }
+
+    private void StopAnglerQuestAutomation_Click(object sender, RoutedEventArgs e) =>
+        StopAnglerQuestAutomation("Stopped by the user; Angler inputs released.");
+
+    private void StopAnglerQuestAutomation(string reason, bool log = true, bool coordinatorAlreadyStopped = false)
+    {
+        _anglerQuestStartRequested = false;
+        var releaseFailed = false;
+        try
+        {
+            if (!coordinatorAlreadyStopped)
+                _anglerQuestAutomationCoordinator?.Stop();
+            else if (_anglerQuestAutomationInput?.IsArmed == true)
+                _anglerQuestAutomationInput.Disarm();
+        }
+        catch
+        {
+            releaseFailed = true;
+        }
+
+        try { _anglerQuestAutomationInput?.Dispose(); }
+        catch { releaseFailed = true; }
+
+        _anglerQuestAutomationCoordinator = null;
+        _anglerQuestAutomationInput = null;
+        StartAnglerQuestAutomationButton.IsEnabled = true;
+        StopAnglerQuestAutomationButton.IsEnabled = false;
+        AnglerQuestAutomationStatusText.Text = releaseFailed
+            ? $"{reason} Warning: could not confirm every input release."
+            : reason;
+
+        if (log)
+            AddActivityLog(releaseFailed ? "WARN" : "INFO", "ANGLER", AnglerQuestAutomationStatusText.Text);
+    }
+
     private void SelectAquariumButtonRegion_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -1255,6 +1472,46 @@ public partial class MainWindow : Window
         return profile with
         {
             AquariumButtons = buttons,
+            ReferenceWidth = referenceWidth,
+            ReferenceHeight = referenceHeight
+        };
+    }
+
+    private static VisionProfile WithAnglerQuestButtonRegion(
+        VisionProfile profile,
+        AnglerQuestButtonKind kind,
+        NormalizedRegion region,
+        int referenceWidth,
+        int referenceHeight)
+    {
+        var buttons = profile.AnglerQuestButtons.ToDictionary(item => item.Key, item => item.Value);
+        var current = buttons.TryGetValue(kind, out var existing)
+            ? existing
+            : new AnglerQuestButtonCalibration();
+        buttons[kind] = current with { Region = region, RegionCalibrated = true };
+        return profile with
+        {
+            AnglerQuestButtons = buttons,
+            ReferenceWidth = referenceWidth,
+            ReferenceHeight = referenceHeight
+        };
+    }
+
+    private static VisionProfile WithAnglerQuestButtonColor(
+        VisionProfile profile,
+        AnglerQuestButtonKind kind,
+        HsvColorRange color,
+        int referenceWidth,
+        int referenceHeight)
+    {
+        var buttons = profile.AnglerQuestButtons.ToDictionary(item => item.Key, item => item.Value);
+        var current = buttons.TryGetValue(kind, out var existing)
+            ? existing
+            : new AnglerQuestButtonCalibration();
+        buttons[kind] = current with { ButtonColor = color };
+        return profile with
+        {
+            AnglerQuestButtons = buttons,
             ReferenceWidth = referenceWidth,
             ReferenceHeight = referenceHeight
         };
@@ -1700,6 +1957,7 @@ public partial class MainWindow : Window
         try { Volatile.Read(ref _automationInput)?.EmergencyStop(); } catch { }
         try { Volatile.Read(ref _aquariumAutomationInput)?.EmergencyStop(); } catch { }
         try { Volatile.Read(ref _connectionRecoveryInput)?.EmergencyStop(); } catch { }
+        try { Volatile.Read(ref _anglerQuestAutomationInput)?.EmergencyStop(); } catch { }
 
         try
         {
@@ -1712,6 +1970,7 @@ public partial class MainWindow : Window
 
                 StopAquariumAutomation($"Emergency stop ({stopKey}): Auto Aquarium inputs released.");
                 StopConnectionRecovery($"Emergency stop ({stopKey}): reconnect watchdog stopped.");
+                StopAnglerQuestAutomation($"Emergency stop ({stopKey}): Angler automation stopped.");
                 StopAutomation($"Emergency stop ({stopKey}): all game inputs released.");
                 if (_isUiHidden) RestoreMainWindow();
             }));
@@ -2524,7 +2783,20 @@ public partial class MainWindow : Window
             _anglerQuestAssistEnabled = anglerQuestAssistEnabled;
             if (anglerQuestAssistEnabled)
             {
-                _anglerQuestTracker.StartTarget(targetFishName, _targetFishStartedAt ?? DateTimeOffset.UtcNow);
+                if (_anglerQuestTracker.HasCatchToSubmit)
+                    throw new InvalidOperationException("The Angler target is already caught. Hand it in before starting another Angler fishing cycle.");
+
+                if (_anglerQuestTracker.IsTracking)
+                {
+                    if (!string.Equals(_anglerQuestTracker.TargetSpecies, targetFishName, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("The entered target does not match the currently accepted Angler request.");
+                    _targetFishStartedAt = _anglerQuestTracker.TargetStartedAt ?? _targetFishStartedAt;
+                }
+                else
+                {
+                    _anglerQuestTracker.StartTarget(targetFishName, _targetFishStartedAt ?? DateTimeOffset.UtcNow);
+                }
+
                 AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(DateTimeOffset.UtcNow);
                 SaveAnglerQuestState("New Angler target started.");
                 if (!_anglerQuestStateAvailable)
@@ -3104,6 +3376,8 @@ public partial class MainWindow : Window
 
         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
             StopAquariumAutomation("Observation stopped; Auto Aquarium inputs released.");
+        if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
+            StopAnglerQuestAutomation("Observation stopped; Angler inputs released.");
         _previewCancellation?.Cancel();
         PreviewButton.Content = "Start observation";
         StatusText.Text = "Observation stopped.";
@@ -3135,6 +3409,8 @@ public partial class MainWindow : Window
                                 StopAquariumAutomation("Pending Auto Aquarium start cancelled by emergency stop.");
                             if (_connectionRecoveryStartRequested)
                                 StopConnectionRecovery("Pending reconnect start cancelled by emergency stop.");
+                            if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
+                                StopAnglerQuestAutomation("Emergency stop; pending or active Angler automation stopped.");
                             if (_startRequested)
                             {
                                 _startRequested = false;
@@ -3152,6 +3428,9 @@ public partial class MainWindow : Window
                             && _connectionRecoveryStartRequested && !_automationEnabled
                             && !_aquariumStartRequested)
                             StartConnectionRecoveryNow(frame);
+
+                        if (Volatile.Read(ref _emergencyStopLatch) == 0 && _anglerQuestStartRequested)
+                            StartAnglerQuestAutomationNow(frame);
 
                         if (Volatile.Read(ref _emergencyStopLatch) == 0
                             && _startRequested && !_automationEnabled)
@@ -3721,6 +4000,16 @@ public partial class MainWindow : Window
 
                 if (!aquariumCoordinator.IsStarted)
                     StopAquariumAutomation(aquariumCoordinator.LastStatus, log: true, coordinatorAlreadyStopped: true);
+            }
+
+            if (_anglerQuestAutomationCoordinator is { IsStarted: true } anglerCoordinator)
+            {
+                anglerCoordinator.ProcessFrame(frame, _profile, _anglerQuestTracker, TargetFishTextBox.Text);
+                AnglerQuestAutomationStatusText.Text = anglerCoordinator.LastStatus;
+
+                if (!anglerCoordinator.IsStarted)
+                    StopAnglerQuestAutomation(
+                        anglerCoordinator.LastStatus, log: true, coordinatorAlreadyStopped: true);
             }
         }
         else
@@ -4470,6 +4759,8 @@ public partial class MainWindow : Window
             StopAquariumAutomation("Calibration changed; Auto Aquarium was disarmed.");
         if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
             StopConnectionRecovery("Calibration changed; connection watchdog was disarmed.");
+        if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
+            StopAnglerQuestAutomation("Calibration changed; Angler automation was disarmed.");
 
         if (_lastFrame is null)
         {
@@ -4500,7 +4791,9 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleDayPhaseColor
             or CalibrationAction.SampleNightPhaseColor
             or CalibrationAction.SampleHuntSignalColor
-            or CalibrationAction.SampleAquariumButtonColor)
+            or CalibrationAction.SampleAquariumButtonColor
+            or CalibrationAction.SampleAnglerAcceptButtonColor
+            or CalibrationAction.SampleAnglerSubmitButtonColor)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
@@ -4518,7 +4811,9 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
-            or CalibrationAction.SelectAquariumButtonRegion)
+            or CalibrationAction.SelectAquariumButtonRegion
+            or CalibrationAction.SelectAnglerAcceptButtonRegion
+            or CalibrationAction.SelectAnglerSubmitButtonRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -4545,7 +4840,9 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
-            or CalibrationAction.SelectAquariumButtonRegion)
+            or CalibrationAction.SelectAquariumButtonRegion
+            or CalibrationAction.SelectAnglerAcceptButtonRegion
+            or CalibrationAction.SelectAnglerSubmitButtonRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -4573,7 +4870,9 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectHuntSignalRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
-            or CalibrationAction.SelectAquariumButtonRegion)
+            or CalibrationAction.SelectAquariumButtonRegion
+            or CalibrationAction.SelectAnglerAcceptButtonRegion
+            or CalibrationAction.SelectAnglerSubmitButtonRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
@@ -4697,6 +4996,10 @@ public partial class MainWindow : Window
             },
             CalibrationAction.SelectAquariumButtonRegion => WithAquariumButtonRegion(
                 _profile, _aquariumCalibrationActionKind, selectedRegion, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SelectAnglerAcceptButtonRegion => WithAnglerQuestButtonRegion(
+                _profile, AnglerQuestButtonKind.AcceptRequest, selectedRegion, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SelectAnglerSubmitButtonRegion => WithAnglerQuestButtonRegion(
+                _profile, AnglerQuestButtonKind.SubmitFish, selectedRegion, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
         };
 
@@ -4716,6 +5019,8 @@ public partial class MainWindow : Window
             CalibrationAction.CaptureFishMarkerTemplate => "Fish marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.CaptureControlMarkerTemplate => "Control marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
+            CalibrationAction.SelectAnglerAcceptButtonRegion => "Angler Accept Request button area saved.",
+            CalibrationAction.SelectAnglerSubmitButtonRegion => "Angler Submit Fish button area saved.",
             _ => "Region saved."
         };
         await SaveProfileAsync(regionMessage);
@@ -4758,6 +5063,8 @@ public partial class MainWindow : Window
         var isDayPhaseColor = _calibrationAction == CalibrationAction.SampleDayPhaseColor;
         var isNightPhaseColor = _calibrationAction == CalibrationAction.SampleNightPhaseColor;
         var isHuntSignalColor = _calibrationAction == CalibrationAction.SampleHuntSignalColor;
+        var isAnglerButtonColor = _calibrationAction is CalibrationAction.SampleAnglerAcceptButtonColor
+            or CalibrationAction.SampleAnglerSubmitButtonColor;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
         var index = y * _lastFrame.Stride + x * 4;
@@ -4781,6 +5088,10 @@ public partial class MainWindow : Window
             CalibrationAction.SampleHuntSignalColor => _profile with { HuntSignalColor = color },
             CalibrationAction.SampleAquariumButtonColor => WithAquariumButtonColor(
                 _profile, _aquariumCalibrationActionKind, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleAnglerAcceptButtonColor => WithAnglerQuestButtonColor(
+                _profile, AnglerQuestButtonKind.AcceptRequest, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleAnglerSubmitButtonColor => WithAnglerQuestButtonColor(
+                _profile, AnglerQuestButtonKind.SubmitFish, color, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
         };
 
@@ -4803,6 +5114,12 @@ public partial class MainWindow : Window
                 ? "Hunt cue calibration complete. Enable alerts to monitor live frames."
                 : "Hunt cue colour saved. Select the cue region to complete calibration.";
         }
+        if (isAnglerButtonColor)
+            AnglerQuestAutomationStatusText.Text = _profile.IsAnglerAcceptButtonCalibrated
+                && _profile.IsAnglerSubmitButtonCalibrated
+                ? "Both Angler dialogue buttons are calibrated."
+                : "Angler button colour saved. Complete the remaining button calibration.";
+
         if (isDayPhaseColor || isNightPhaseColor)
         {
             WorldPhaseCalibrationStatusText.Text = _profile.IsWorldPhaseCalibrated
@@ -4826,6 +5143,8 @@ public partial class MainWindow : Window
             StopAquariumAutomation("Calibration reset; Auto Aquarium was disarmed.");
         if (_connectionRecoveryStartRequested || _connectionRecoveryCoordinator is not null)
             StopConnectionRecovery("Calibration reset; connection watchdog was disarmed.");
+        if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
+            StopAnglerQuestAutomation("Calibration reset; Angler automation was disarmed.");
 
         _profile = new VisionProfile();
         _motionTracker.Reset();
@@ -5595,6 +5914,7 @@ public partial class MainWindow : Window
     {
         _dashboardSessionTimer.Stop();
         _aquariumTimer.Stop();
+        StopAnglerQuestAutomation("Application closing; Angler inputs released.", log: false);
         StopAquariumAutomation("Application closing; Auto Aquarium inputs released.", log: false);
         StopConnectionRecovery("Application closing; reconnect watchdog inputs released.", log: false);
         StopAutomation("Application closing; all inputs released.");
