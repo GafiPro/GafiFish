@@ -46,6 +46,25 @@ public sealed class ConnectionRecoveryCoordinatorTests
     }
 
     [Fact]
+    public void RefusesReconnectClickWhenSessionHudIndicatorIsAlreadyVisible()
+    {
+        var start = new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero);
+        var input = new FakeInput();
+        var coordinator = CreateCoordinator(input);
+        var profile = CreateProfile();
+
+        coordinator.Start();
+        coordinator.ProcessFrame(CreateFrame(start, true, true), profile);
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(120), true, true), profile);
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(240), true, true), profile);
+
+        Assert.False(coordinator.IsStarted);
+        Assert.Equal(0, input.Clicks);
+        Assert.False(input.IsArmed);
+        Assert.Contains("already visible", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void DuplicateFrameCannotSatisfyReconnectStabilityThreshold()
     {
         var start = new DateTimeOffset(2026, 11, 7, 12, 0, 0, TimeSpan.Zero);

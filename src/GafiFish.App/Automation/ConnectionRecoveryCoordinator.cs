@@ -155,6 +155,17 @@ public sealed class ConnectionRecoveryCoordinator
             if (_stableFrames < _requiredStableFrames)
                 return;
 
+            // Refuse to click when the supposed "in-game" anchor is already
+            // visible alongside the reconnect prompt. This prevents a poor
+            // calibration from making the prompt disappearance look successful.
+            var sessionAlreadyVisible = _detector.DetectSessionIndicator(frame, profile);
+            if (sessionAlreadyVisible is { Confidence: >= 0.65 })
+            {
+                Fail(
+                    "The in-game HUD indicator is already visible with the reconnect prompt. No click was sent; recalibrate with an indicator absent from the reconnect screen.");
+                return;
+            }
+
             _input.ClickClient((int)Math.Round(marker.CenterX), (int)Math.Round(marker.CenterY), frame);
             AttemptsMade++;
             _pendingClickAt = frame.CapturedAt;
