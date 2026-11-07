@@ -59,6 +59,29 @@ public sealed class VisionProfileStoreTests
         }
     }
 
+    [Fact]
+    public async Task LoadOrDefault_ReturnsEmptyProfileForInvalidTemplateBytes()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gafifish-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(
+            path,
+            """{"FishMarkerTemplatePng":"AQID"}""",
+            TestContext.Current.CancellationToken);
+
+        try
+        {
+            var profile = await new VisionProfileStore(path).LoadOrDefaultAsync(TestContext.Current.CancellationToken);
+
+            Assert.False(profile.IsFishingCalibrated);
+            Assert.Null(profile.FishMarkerTemplatePng);
+            Assert.Equal(NormalizedRegion.FullFrame, profile.FishingRegion);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static byte[] CreatePngTemplate()
     {
         using var image = new OpenCvSharp.Mat(8, 8, OpenCvSharp.MatType.CV_8UC1, OpenCvSharp.Scalar.All(0));

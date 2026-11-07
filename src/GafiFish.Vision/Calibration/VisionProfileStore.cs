@@ -45,7 +45,7 @@ public sealed class VisionProfileStore
             return profile;
         }
         catch (Exception exception) when (
-            exception is IOException or UnauthorizedAccessException or JsonException or ArgumentOutOfRangeException)
+            exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
         {
             return new VisionProfile();
         }
