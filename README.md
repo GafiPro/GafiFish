@@ -2,7 +2,7 @@
 
 Aplicação Windows para observação visual, calibração, Reel assistido e registo de sessões de pesca no Roblox Fisch.
 
-**Estado: aplicação gráfica Windows com Reel assistido, Auto-cast/Auto-shake, recast por OCR, Sell Anywhere temporizado, sessão/Catchbook e Auto Aquarium visual calibrável; validação prática no Fisch ainda pendente.**
+**Estado: aplicação Windows com Reel assistido, Auto-cast/Auto-shake, recast por OCR, Sell Anywhere, sessões/Catchbook, Auto Aquarium, watchdog de reconexão, rotação de totens dia/noite e fallback de templates dos marcadores. Os módulos visuais continuam a precisar de calibração e validação prática no Fisch.**
 
 ## O que já funciona
 

@@ -22,7 +22,8 @@
 - [x] Tracking horizontal com confiança e expiração de deteções antigas.
 - [x] Testes com frames sintéticos.
 - [x] Testes sintéticos de frames para cast e Shake coordinators.
-- [x] Replay offline de sequências de imagens PNG/JPG/BMP, com navegação/reprodução e execução apenas dos detetores visuais (sem inputs nem registos OCR).\n- [x] Importação e reprodução offline de gravações de vídeo (MP4/AVI/MOV/MKV/WMV/WEBM), descodificadas um fotograma de cada vez; sem inputs nem escrita OCR.
+- [x] Replay offline de sequências de imagens PNG/JPG/BMP, com navegação/reprodução e execução apenas dos detetores visuais (sem inputs nem registos OCR).
+- [x] Importação e reprodução offline de gravações de vídeo (MP4/AVI/MOV/MKV/WMV/WEBM), descodificadas um fotograma de cada vez; sem inputs nem escrita OCR.
 - [ ] Validar a calibração com capturas reais do Fisch em diferentes resoluções.
 
 ## Fase 2 — Pesca e Perfect Cast
@@ -82,13 +83,16 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 
 - [x] Ajuste adaptativo da cadência de captura com perfis Economy, Balanced e Responsive.
 - [x] Limites de tempo e recuperação segura nos estados Cast, Shake, espera por mordida e Reel.
-- [x] Reprodução offline de sequências de imagens reais para diagnóstico sem abrir o jogo.\n- [x] Reprodução direta de gravações de vídeo para diagnóstico, em streaming e com limite de 30 atualizações visuais/s.
+- [x] Reprodução offline de sequências de imagens reais para diagnóstico sem abrir o jogo.
+- [x] Reprodução direta de gravações de vídeo para diagnóstico, em streaming e com limite de 30 atualizações visuais/s.
 - [x] Estatísticas acumuladas de todas as sessões: espécies mais capturadas, raridade alta, mutações, peso médio/máximo, valor estimado reconhecido por OCR e capturas por hora de sessões concluídas.
 - [ ] Relatórios de diagnóstico exportáveis.
 - [x] Alertas sonoros locais para espécies configuradas, raridade Legendary+ e mutações detetadas por OCR.
 - [x] HUD de telemetria com posição, erro, confiança, estado, FPS de captura e motivo das decisões.
-- [x] Perfis nomeados manualmente por cana, com calibração visual exportável/importável em JSON.\n- [ ] Seleção automática de perfil por cana e afinação do controlador com dados reais.
-- [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.\n- [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
+- [x] Perfis nomeados manualmente por cana, com calibração visual exportável/importável em JSON.
+- [ ] Seleção automática de perfil por cana e afinação do controlador com dados reais.
+- [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.
+- [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
 - [x] Watchdog visual de reconexão com região/cor calibradas, três frames estáveis, clique único e máximo de três tentativas por ativação.
 - [ ] Confirmar o regresso efetivo à sessão em cada tipo de desconexão; o desaparecimento do botão não é prova de reconexão.
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
@@ -135,11 +139,13 @@ Appraise/Treasure Appraise, Auto Enchant, Angler Quest e deteção de hunts cont
 - [x] Hotkeys globais configuráveis e persistentes, incluindo show/hide e auto-hide opcional.
 - [x] Quick Info para estado dos módulos.
 - [x] Aquarium Planner: registar alimentação e reposição independentes para as três comidas, acompanhar cooldowns horários e guardar horários localmente.
-- [x] Auto Aquarium: motor visual calibrável para sete botões; ações independentes de alimentação/reposição/claim, cooldown registado, deteção estável, clique único e falha fechada.\n- [ ] Detetar automaticamente o painel e validar os botões/calibrações em frames reais do Fisch.
+- [x] Auto Aquarium: motor visual calibrável para sete botões; ações independentes de alimentação/reposição/claim, cooldown registado, deteção estável, clique único e falha fechada.
+- [ ] Detetar automaticamente o painel e validar os botões/calibrações em frames reais do Fisch.
 - [ ] Auto Appraisal: calibrar as zonas de diálogo, selecionar um peixe pela hotbar, ler peso/mutação e limitar tentativas/custo antes de repetir.
 - [ ] Custom Rod handlers: implementar cada minijogo específico apenas após recolher e validar frames reais.
 - [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.
-- [ ] Rotação de Totems por fase do dia/noite, com deteção visual do ciclo e confirmação do uso.
+- [x] Motor de rotação dia/noite por indicador HUD calibrado, três frames estáveis, baseline inicial sem consumo e execução em Preparing.
+- [ ] Validar com capturas reais do indicador HUD do Fisch, em dia e noite, antes de usar os slots reais.
 
 
 ## Melhorias de manutenção e interface — novembro de 2026
@@ -198,7 +204,7 @@ Appraise/Treasure Appraise, Auto Enchant, Angler Quest e deteção de hunts cont
 - [x] Carregar sequências locais PNG/JPG/JPEG/BMP, com validação de formato, existência e limite de tamanho.
 - [x] Navegar frame a frame ou reproduzir a cerca de 8 FPS.
 - [x] O modo replay não envia inputs, não arma o macro e não grava resultados OCR na sessão.
-- [ ] Importação direta de gravações de vídeo continua pendente.
+- [x] Importação direta de gravações MP4, M4V, AVI, MOV, MKV, WMV e WEBM com descodificação frame a frame; codecs e sincronização continuam dependentes dos ficheiros/runtime do computador.
 
 
 ## Alertas de cooldown do Aquarium — novembro de 2026
@@ -220,11 +226,11 @@ Appraise/Treasure Appraise, Auto Enchant, Angler Quest e deteção de hunts cont
 - [ ] Validar as sete calibrações com frames reais do Fisch e testar o fluxo completo no jogo.
 
 
-## Estado da versão publicada — 6 de novembro de 2026
+## Estado da versão — 7 de novembro de 2026
 
-A revisão `acbcef3` passou Restore, Build, as cinco suites de testes, Publish Windows x64, Package e Upload do artefacto. A revisão de documentação `9fdc0c9` também passou a CI. O replay de vídeo foi acrescentado depois desta revisão e aguarda a sua própria execução CI.
+A revisão de código `d0a7c17` passou Restore, Build, todas as suites de testes, Publish Windows x64, Package e Upload do artefacto na [execução CI 42375885718](https://github.com/GafiPro/GafiFish/actions/runs/42375885718). O pacote Windows x64 `GafiFish-win-x64` foi gerado com sucesso.
 
-A validação que falta nesta fase não pode ser provada por frames sintéticos nem pelo replay de vídeo: inclui calibração e teste no jogo real, em particular tempos do Reel/Perfect Cast/Shake, venda com a gamepass e as sete ações visuais do Aquarium. Até essa validação, estes módulos devem ser tratados como experimentais e testados um de cada vez.
+A CI confirma compilação e testes com frames sintéticos; não substitui validação no jogo. Continuam pendentes capturas reais para afinar Reel/Perfect Cast/Shake, OCR, Sell Anywhere, Auto Aquarium, o indicador dia/noite, a recuperação efetiva da sessão e a compatibilidade de codecs no PC.
 
 
 ## Replay offline de gravações de vídeo — novembro de 2026
