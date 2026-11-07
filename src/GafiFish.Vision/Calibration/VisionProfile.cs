@@ -27,10 +27,6 @@ public sealed record VisionProfile
     public bool HuntSignalRegionCalibrated { get; init; }
     public NormalizedRegion RodNameRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool RodNameRegionCalibrated { get; init; }
-    public NormalizedRegion AppraisalPanelRegion { get; init; } = NormalizedRegion.FullFrame;
-    public bool AppraisalPanelRegionCalibrated { get; init; }
-    public NormalizedRegion EnchantPanelRegion { get; init; } = NormalizedRegion.FullFrame;
-    public bool EnchantPanelRegionCalibrated { get; init; }
     public RodReelPreset RodPreset { get; init; } = RodReelPreset.Balanced;
     public RodMinigameMode RodMinigameMode { get; init; } = RodMinigameMode.StandardReel;
     public NormalizedRegion RodChargeMeterRegion { get; init; } = NormalizedRegion.FullFrame;
@@ -95,8 +91,6 @@ public sealed record VisionProfile
         WorldPhaseRegion.Validate();
         HuntSignalRegion.Validate();
         RodNameRegion.Validate();
-        AppraisalPanelRegion.Validate();
-        EnchantPanelRegion.Validate();
         if (!Enum.IsDefined(RodPreset))
             throw new ArgumentOutOfRangeException(nameof(RodPreset));
         if (!Enum.IsDefined(RodMinigameMode))
