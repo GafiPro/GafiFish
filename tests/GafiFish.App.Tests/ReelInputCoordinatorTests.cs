@@ -132,6 +132,50 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_DoesNotUseStaleChargeMeterObservation()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var barContainingFish = new DetectedMarker(
+            150, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            barContainingFish,
+            Motion(150, now),
+            new RodChargeMeterObservation(now.AddMilliseconds(-250), 0.95, 0.95, "Stale charge."));
+
+        Assert.DoesNotContain("charge", decision.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Apply_DoesNotUseFutureChargeMeterObservation()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var barContainingFish = new DetectedMarker(
+            150, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            barContainingFish,
+            Motion(150, now),
+            new RodChargeMeterObservation(now.AddMilliseconds(20), 0.95, 0.95, "Future charge."));
+
+        Assert.DoesNotContain("charge", decision.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Apply_DoesNotUseChargeReleaseWhenFishIsOutsideTheControlBar()
     {
         var input = new FakeRobloxInput();
