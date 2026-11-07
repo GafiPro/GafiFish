@@ -77,6 +77,12 @@ public partial class MainWindow : Window
     private RodProfileSlotBindings _rodProfileBindings = new();
     private bool _isLoadingBoundRodProfile;
     private bool _rodProfileBindingError;
+    private readonly SemaphoreSlim _ocrInitializationGate = new(1, 1);
+    private bool _isLoadingRodReelPreset = true;
+    private DateTimeOffset _lastRodNameOcrAt = DateTimeOffset.MinValue;
+    private int _rodNameOcrInProgress;
+    private string? _pendingRodNameKey;
+    private int _pendingRodNameFrames;
     private int _rodProfileSelectionVersion;
     private readonly CatchAlertSettingsStore _catchAlertSettingsStore = new();
     private readonly AquariumScheduleStore _aquariumScheduleStore = new();
@@ -235,7 +241,10 @@ public partial class MainWindow : Window
         SelectAnglerAcceptButtonRegion,
         SampleAnglerAcceptButtonColor,
         SelectAnglerSubmitButtonRegion,
-        SampleAnglerSubmitButtonColor
+        SampleAnglerSubmitButtonColor,
+        SelectRodNameRegion,
+        SelectAppraisalPanelRegion,
+        SelectEnchantPanelRegion
     }
 
     public MainWindow()
@@ -268,6 +277,10 @@ public partial class MainWindow : Window
     {
         RodProfileNameTextBox.Text = _activeProfileName;
         _profile = await _profileStore.LoadOrDefaultAsync();
+        RefreshRodReelPresetControls();
+        RodNameRecognitionStatusText.Text = _profile.RodNameRegionCalibrated
+            ? "Rod-name OCR region loaded. Start local OCR once, then enable automatic recognition."
+            : "Select the rod-name label region in Calibration before enabling recognition.";
         _hotkeySettings = await _hotkeySettingsStore.LoadAsync();
         _rodProfileBindings = await _rodProfileBindingStore.LoadAsync();
         RefreshRodProfileBindingStatus();
@@ -990,6 +1003,16 @@ public partial class MainWindow : Window
         SetCalibrationAction(
             CalibrationAction.SelectAnglerSubmitButtonRegion,
             "Drag a tight rectangle around the enabled Angler Submit Fish button.");
+
+    private void SelectAppraisalPanelRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SelectAppraisalPanelRegion,
+            "Select the visible text area of the regular or Treasure Appraiser panel. This region is used for read-only OCR only.");
+
+    private void SelectEnchantPanelRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SelectEnchantPanelRegion,
+            "Select the visible text area of the Enchant altar panel. This region is used for read-only OCR only.");
 
     private void SampleAnglerSubmitButtonColor_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(
@@ -2660,10 +2683,11 @@ public partial class MainWindow : Window
                 throw new InvalidOperationException("Could not initialise the fishing state machine.");
             }
 
-            var controller = new ReelController(new ReelControlSettings
+            var controllerSettings = RodReelPresetFactory.Create(_profile.RodPreset) with
             {
                 PositiveErrorMeansHold = InvertReelDirectionCheckBox.IsChecked != true
-            });
+            };
+            var controller = new ReelController(controllerSettings);
             var reelCoordinator = new ReelInputCoordinator(input, controller);
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
                 throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
@@ -4011,6 +4035,7 @@ public partial class MainWindow : Window
                 shakeResult.Prompts);
 
             TryStartCatchRecognition(frame);
+            TryStartRodNameRecognition(frame);
 
             if (_aquariumAutomationCoordinator is { IsStarted: true } aquariumCoordinator)
             {
@@ -4214,6 +4239,353 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RefreshRodReelPresetControls()
+    {
+        _isLoadingRodReelPreset = true;
+        try
+        {
+            RodReelPresetComboBox.SelectedValue = _profile.RodPreset.ToString();
+        }
+        finally
+        {
+            _isLoadingRodReelPreset = false;
+        }
+
+        RodReelPresetStatusText.Text = _profile.RodPreset switch
+        {
+            RodReelPreset.Balanced => "Balanced · default Reel response.",
+            RodReelPreset.Precision => "Precision · quicker correction and a narrower deadband.",
+            RodReelPreset.HeavyFish => "Heavy fish · more smoothing and a wider correction window.",
+            RodReelPreset.Stable => "Stable · slower, steadier corrections.",
+            _ => "Unknown preset."
+        };
+    }
+
+    private async void RodReelPresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingRodReelPreset || !IsLoaded
+            || RodReelPresetComboBox.SelectedValue is not string selected
+            || !Enum.TryParse<RodReelPreset>(selected, ignoreCase: true, out var preset)
+            || !Enum.IsDefined(preset))
+            return;
+
+        if (_profile.RodPreset == preset)
+            return;
+
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            RodNameRecognitionStatusText.Text =
+                "Stop the macro and finish loading the active rod profile before changing its Reel preset.";
+            RefreshRodReelPresetControls();
+            return;
+        }
+
+        _profile = _profile with { RodPreset = preset };
+        await SaveProfileAsync($"Rod Reel preset changed to {preset}.");
+        RefreshRodReelPresetControls();
+    }
+
+    private async void BindDetectedRodNameToProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            RodNameRecognitionStatusText.Text = "Stop the macro before changing rod-name profile mappings.";
+            return;
+        }
+
+        var rawName = RodNameMatcher.CleanCandidate(RecognizedRodNameTextBox.Text);
+        var normalizedName = RodNameMatcher.NormalizeName(rawName);
+        var profileName = _activeProfileName.Trim();
+        if (normalizedName.Length is < 3 or > 64)
+        {
+            RodNameRecognitionStatusText.Text = "Recognize a clear rod name before binding it to a profile.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(profileName)
+            || !string.Equals(profileName, RodProfileNameTextBox.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            RodNameRecognitionStatusText.Text =
+                "Load or save the calibration profile you want to associate before binding the detected rod name.";
+            return;
+        }
+
+        try
+        {
+            await _profileStore.SaveAsync(_profile);
+            var nameMappings = new Dictionary<string, string>(
+                _rodProfileBindings.RodNameProfiles, StringComparer.OrdinalIgnoreCase)
+            {
+                [normalizedName] = profileName
+            };
+            var updated = new RodProfileSlotBindings
+            {
+                SlotProfiles = new Dictionary<int, string>(_rodProfileBindings.SlotProfiles),
+                RodNameProfiles = nameMappings
+            };
+            await _rodProfileBindingStore.SaveAsync(updated);
+            _rodProfileBindings = updated;
+            _pendingRodNameKey = normalizedName;
+            _pendingRodNameFrames = 0;
+            RodNameRecognitionStatusText.Text =
+                $"“{rawName}” is now associated with profile “{profileName}”. Automatic recognition requires two stable reads.";
+            AddActivityLog("INFO", "PROFILE", $"Rod OCR name '{rawName}' mapped to profile '{profileName}'.");
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            RodNameRecognitionStatusText.Text = $"Could not save rod-name mapping: {exception.Message}";
+        }
+    }
+
+    private void SelectRodNameRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SelectRodNameRegion,
+            "Select a tight rectangle containing only the equipped rod name label. Keep it clear of other HUD text.");
+
+    private async void RecognizeRodNow_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastFrame is null)
+        {
+            RodNameRecognitionStatusText.Text = "Capture a fresh Roblox frame with F6 first.";
+            return;
+        }
+
+        if (!_profile.RodNameRegionCalibrated)
+        {
+            RodNameRecognitionStatusText.Text = "Calibrate the rod-name OCR region first.";
+            return;
+        }
+
+        await RecognizeRodNameFrameAsync(_lastFrame, automatic: false);
+    }
+
+    private void TryStartRodNameRecognition(ScreenCaptureFrame frame)
+    {
+        if (AutoDetectRodCheckBox.IsChecked != true
+            || !_profile.RodNameRegionCalibrated
+            || _ocr is null
+            || _automationEnabled
+            || _startRequested
+            || frame.CapturedAt - _lastRodNameOcrAt < TimeSpan.FromSeconds(1.5)
+            || Volatile.Read(ref _rodNameOcrInProgress) != 0)
+            return;
+
+        _lastRodNameOcrAt = frame.CapturedAt;
+        _ = RecognizeRodNameFrameAsync(frame, automatic: true);
+    }
+
+    private async Task RecognizeRodNameFrameAsync(ScreenCaptureFrame frame, bool automatic)
+    {
+        if (Interlocked.CompareExchange(ref _rodNameOcrInProgress, 1, 0) != 0)
+            return;
+
+        var selectionVersion = Volatile.Read(ref _rodProfileSelectionVersion);
+        var region = _profile.RodNameRegion;
+        try
+        {
+            var ocr = await EnsureLocalOcrEngineAsync();
+            var result = await Task.Run(() => ocr.Recognize(frame, region));
+
+            if (!IsLoaded || selectionVersion != Volatile.Read(ref _rodProfileSelectionVersion))
+                return;
+            if (_lastFrame is not null && _lastFrame.CapturedAt - frame.CapturedAt > TimeSpan.FromSeconds(2))
+                return;
+
+            var candidate = RodNameMatcher.CleanCandidate(result.Text);
+            RecognizedRodNameTextBox.Text = candidate;
+            var normalized = RodNameMatcher.NormalizeName(candidate);
+            if (result.Confidence < 0.72 || normalized.Length < 3)
+            {
+                _pendingRodNameKey = null;
+                _pendingRodNameFrames = 0;
+                RodNameRecognitionStatusText.Text =
+                    $"Rod name was not clear enough (OCR {result.Confidence:P0}). Keep the label unobstructed and recalibrate if needed.";
+                return;
+            }
+
+            if (!automatic)
+            {
+                RodNameRecognitionStatusText.Text =
+                    $"Detected “{candidate}” · OCR {result.Confidence:P0}. Bind it to the currently active profile below.";
+                return;
+            }
+
+            if (string.Equals(_pendingRodNameKey, normalized, StringComparison.Ordinal))
+                _pendingRodNameFrames++;
+            else
+            {
+                _pendingRodNameKey = normalized;
+                _pendingRodNameFrames = 1;
+            }
+
+            if (_pendingRodNameFrames < 2)
+            {
+                RodNameRecognitionStatusText.Text =
+                    $"Possible rod: “{candidate}” · confirming {_pendingRodNameFrames}/2 stable reads.";
+                return;
+            }
+
+            if (!_rodProfileBindings.RodNameProfiles.TryGetValue(normalized, out var profileName))
+            {
+                RodNameRecognitionStatusText.Text =
+                    $"Recognized “{candidate}”, but it has no profile mapping. Bind it to the correct active profile below.";
+                return;
+            }
+
+            if (string.Equals(profileName, _activeProfileName, StringComparison.OrdinalIgnoreCase))
+            {
+                RodNameRecognitionStatusText.Text =
+                    $"Rod “{candidate}” confirmed. Profile “{profileName}” is already active.";
+                return;
+            }
+
+            await ApplyRecognizedRodProfileAsync(profileName, candidate, selectionVersion);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidOperationException
+            or ArgumentException or System.ComponentModel.Win32Exception)
+        {
+            if (IsLoaded)
+                RodNameRecognitionStatusText.Text = $"Rod-name OCR failed: {exception.Message}";
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _rodNameOcrInProgress, 0);
+        }
+    }
+
+    private async Task ApplyRecognizedRodProfileAsync(
+        string profileName,
+        string recognizedName,
+        int selectionVersion)
+    {
+        if (_automationEnabled || _startRequested)
+        {
+            RodNameRecognitionStatusText.Text =
+                $"“{recognizedName}” matches profile “{profileName}”, but profile switching is deferred until the macro stops.";
+            return;
+        }
+
+        var profilePath = GetProfilePath(profileName);
+        if (!File.Exists(profilePath))
+        {
+            RodNameRecognitionStatusText.Text =
+                $"Profile “{profileName}” for “{recognizedName}” is missing. Rebind the rod name after saving that profile.";
+            return;
+        }
+
+        _isLoadingBoundRodProfile = true;
+        try
+        {
+            var store = CreateProfileStore(profileName);
+            var profile = await store.LoadOrDefaultAsync();
+            if (selectionVersion != Volatile.Read(ref _rodProfileSelectionVersion)
+                || _automationEnabled || _startRequested)
+                return;
+
+            _profileStore = store;
+            _profile = profile;
+            _activeProfileName = profileName;
+            RodProfileNameTextBox.Text = profileName;
+            _rodProfileBindingError = false;
+            _motionTracker.Reset();
+            _castVision.Reset();
+            RefreshRodReelPresetControls();
+            RefreshRodProfileBindingStatus();
+            RodNameRecognitionStatusText.Text =
+                $"Rod “{recognizedName}” confirmed. Loaded calibration profile “{profileName}”.";
+            TelemetryText.Text = $"Profile: {profileName} · selected by rod-name OCR.";
+            AddActivityLog("INFO", "PROFILE", $"Rod OCR selected profile '{profileName}' for '{recognizedName}'.");
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidOperationException
+            or ArgumentException)
+        {
+            RodNameRecognitionStatusText.Text = $"Could not load profile “{profileName}”: {exception.Message}";
+        }
+        finally
+        {
+            _isLoadingBoundRodProfile = false;
+            RefreshRodProfileBindingStatus();
+        }
+    }
+
+    private async Task ReadCalibratedPanelAsync(bool appraisalPanel)
+    {
+        var frame = _lastFrame;
+        if (frame is null)
+        {
+            var status = "Capture a fresh Roblox frame with F6 first.";
+            if (appraisalPanel) AppraisalPanelStatusText.Text = status;
+            else EnchantPanelStatusText.Text = status;
+            return;
+        }
+
+        var calibrated = appraisalPanel
+            ? _profile.AppraisalPanelRegionCalibrated
+            : _profile.EnchantPanelRegionCalibrated;
+        var region = appraisalPanel ? _profile.AppraisalPanelRegion : _profile.EnchantPanelRegion;
+        if (!calibrated)
+        {
+            var status = appraisalPanel
+                ? "Select the Appraiser panel text region in Calibration first."
+                : "Select the Enchant altar text region in Calibration first.";
+            if (appraisalPanel) AppraisalPanelStatusText.Text = status;
+            else EnchantPanelStatusText.Text = status;
+            return;
+        }
+
+        try
+        {
+            var ocr = await EnsureLocalOcrEngineAsync();
+            var result = await Task.Run(() => ocr.Recognize(frame, region));
+            var text = result.Text.Trim();
+            if (appraisalPanel)
+                AppraisalPanelOcrTextBox.Text = text;
+            else
+                EnchantPanelOcrTextBox.Text = text;
+
+            var status = string.IsNullOrWhiteSpace(text)
+                ? "No text recognized. Try a tighter region and a fresh frame."
+                : $"Read-only OCR · confidence {result.Confidence:P0}. No game inputs were sent.";
+            if (appraisalPanel) AppraisalPanelStatusText.Text = status;
+            else EnchantPanelStatusText.Text = status;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidOperationException
+            or ArgumentException or System.ComponentModel.Win32Exception)
+        {
+            var status = $"Panel OCR failed: {exception.Message}";
+            if (appraisalPanel) AppraisalPanelStatusText.Text = status;
+            else EnchantPanelStatusText.Text = status;
+        }
+    }
+
+    private async void ReadAppraisalPanel_Click(object sender, RoutedEventArgs e) =>
+        await ReadCalibratedPanelAsync(appraisalPanel: true);
+
+    private async void ReadEnchantPanel_Click(object sender, RoutedEventArgs e) =>
+        await ReadCalibratedPanelAsync(appraisalPanel: false);
+
+    private async Task<LocalTesseractOcr> EnsureLocalOcrEngineAsync()
+    {
+        await _ocrInitializationGate.WaitAsync();
+        try
+        {
+            if (_ocr is not null)
+                return _ocr;
+
+            var tessdataDirectory = await TesseractModelInstaller.EnsureEnglishModelAsync();
+            _ocr = await Task.Run(() => new LocalTesseractOcr(tessdataDirectory));
+            return _ocr;
+        }
+        finally
+        {
+            _ocrInitializationGate.Release();
+        }
+    }
+
     private async void BindRodProfileToSlot_Click(object sender, RoutedEventArgs e)
     {
         if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
@@ -4349,6 +4721,7 @@ public partial class MainWindow : Window
             _profileStore = profileStore;
             _profile = profile;
             _activeProfileName = profileName;
+            RefreshRodReelPresetControls();
             _rodProfileBindingError = false;
             RodProfileNameTextBox.Text = profileName;
             _motionTracker.Reset();
@@ -4529,6 +4902,7 @@ public partial class MainWindow : Window
             _activeProfileName = profileName;
             _profileStore = CreateProfileStore(_activeProfileName);
             _profile = importedProfile;
+            RefreshRodReelPresetControls();
             await _profileStore.SaveAsync(_profile);
             _rodProfileBindingError = false;
             RodProfileNameTextBox.Text = _activeProfileName;
@@ -4598,6 +4972,7 @@ public partial class MainWindow : Window
             _activeProfileName = requestedProfileName;
             _profileStore = requestedProfileStore;
             _profile = requestedProfile;
+            RefreshRodReelPresetControls();
             _rodProfileBindingError = false;
             _motionTracker.Reset();
             _castVision.Reset();
@@ -5241,9 +5616,7 @@ public partial class MainWindow : Window
         try
         {
             await _sessionStore.InitializeAsync();
-            var tessdataDirectory = await TesseractModelInstaller.EnsureEnglishModelAsync();
-
-            _ocr ??= await Task.Run(() => new LocalTesseractOcr(tessdataDirectory));
+            await EnsureLocalOcrEngineAsync();
             var sessionId = await _sessionStore.StartSessionAsync(DateTimeOffset.UtcNow);
 
             _activeSessionId = sessionId;
