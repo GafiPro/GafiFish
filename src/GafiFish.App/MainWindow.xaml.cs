@@ -149,6 +149,7 @@ public partial class MainWindow : Window
     private bool _emergencyStopHotkeyRegistered;
     private bool _emergencyStopHotkeyUsesDispatcher;
     private EmergencyStopHotkeyListener? _emergencyStopHotkeyListener;
+    private int _emergencyStopLatch;
     private RobloxInputService? _automationInput;
     private ReelInputCoordinator? _reelCoordinator;
     private FishingStateMachine? _runtimeStateMachine;
@@ -1005,6 +1006,7 @@ public partial class MainWindow : Window
         if (_connectionRecoveryCoordinator?.IsStarted == true || _connectionRecoveryStartRequested)
             return;
 
+        Interlocked.Exchange(ref _emergencyStopLatch, 0);
         if (_previewCancellation is null)
             TogglePreviewLoop();
 
@@ -1022,12 +1024,21 @@ public partial class MainWindow : Window
         RobloxInputService? input = null;
         try
         {
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             if (_automationEnabled || _aquariumAutomationCoordinator?.IsStarted == true)
                 throw new InvalidOperationException("Another game automation module is already armed.");
             input = new RobloxInputService(_capture);
+            _connectionRecoveryInput = input;
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             var coordinator = new ConnectionRecoveryCoordinator(input, _connectionRecoveryVision);
             coordinator.Start();
-            _connectionRecoveryInput = input;
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+            {
+                input.EmergencyStop();
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
+            }
             _connectionRecoveryCoordinator = coordinator;
             coordinator.ProcessFrame(firstFrame, _profile);
             ConnectionRecoveryStatusText.Text = coordinator.LastStatus;
@@ -1035,6 +1046,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
+            try { input?.EmergencyStop(); } catch { }
             try { input?.Dispose(); } catch { }
             _connectionRecoveryInput = null;
             _connectionRecoveryCoordinator = null;
@@ -1124,6 +1136,7 @@ public partial class MainWindow : Window
             }
         }
 
+        Interlocked.Exchange(ref _emergencyStopLatch, 0);
         if (_previewCancellation is null)
             TogglePreviewLoop();
 
@@ -1140,23 +1153,33 @@ public partial class MainWindow : Window
         RobloxInputService? input = null;
         try
         {
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             if (_automationEnabled || _connectionRecoveryStartRequested
                 || _connectionRecoveryCoordinator?.IsStarted == true)
                 throw new InvalidOperationException("Stop the fishing macro and connection watchdog first.");
             input = new RobloxInputService(_capture);
+            _aquariumAutomationInput = input;
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             var coordinator = new AquariumAutomationCoordinator(
                 input,
                 _aquariumButtonVision,
                 AquariumActionConfirmed);
             coordinator.Start();
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+            {
+                input.EmergencyStop();
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
+            }
 
-            _aquariumAutomationInput = input;
             _aquariumAutomationCoordinator = coordinator;
             AquariumAutomationStatusText.Text = coordinator.LastStatus;
             AddActivityLog("INFO", "AQUARIUM", "Auto Aquarium armed with user-calibrated action buttons.");
         }
         catch (Exception exception)
         {
+            try { input?.EmergencyStop(); } catch { }
             try { input?.Dispose(); } catch { }
             _aquariumAutomationInput = null;
             _aquariumAutomationCoordinator = null;
@@ -1650,16 +1673,25 @@ public partial class MainWindow : Window
 
     private void EmergencyStopHotkeyPressed(string stopKey)
     {
+        // Publish the latch first: pending starts and in-flight startup code must
+        // not arm a new module after this emergency-stop request.
+        Interlocked.Exchange(ref _emergencyStopLatch, 1);
+
         // This callback runs off the WPF thread. First release active inputs
         // synchronously; UI/coordinator cleanup is queued for when WPF resumes.
-        try { _automationInput?.EmergencyStop(); } catch { }
-        try { _aquariumAutomationInput?.EmergencyStop(); } catch { }
-        try { _connectionRecoveryInput?.EmergencyStop(); } catch { }
+        try { Volatile.Read(ref _automationInput)?.EmergencyStop(); } catch { }
+        try { Volatile.Read(ref _aquariumAutomationInput)?.EmergencyStop(); } catch { }
+        try { Volatile.Read(ref _connectionRecoveryInput)?.EmergencyStop(); } catch { }
 
         try
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                // A user may have explicitly started a fresh module after the
+                // emergency callback was queued. Do not let stale cleanup stop it.
+                if (Volatile.Read(ref _emergencyStopLatch) == 0)
+                    return;
+
                 StopAquariumAutomation($"Emergency stop ({stopKey}): Auto Aquarium inputs released.");
                 StopConnectionRecovery($"Emergency stop ({stopKey}): reconnect watchdog stopped.");
                 StopAutomation($"Emergency stop ({stopKey}): all game inputs released.");
@@ -1917,15 +1949,13 @@ public partial class MainWindow : Window
         }
         else if (id == ReelArmHotkeyId)
         {
+            Interlocked.Exchange(ref _emergencyStopLatch, 0);
             StartAutomation();
             handled = true;
         }
         else if (id == EmergencyStopHotkeyId)
         {
-            StopAquariumAutomation($"Emergency stop ({_hotkeySettings.StopKey}): Auto Aquarium inputs released.");
-            StopConnectionRecovery($"Emergency stop ({_hotkeySettings.StopKey}): reconnect watchdog stopped.");
-            StopAutomation($"Emergency stop ({_hotkeySettings.StopKey}): all game inputs released.");
-            if (_isUiHidden) RestoreMainWindow();
+            EmergencyStopHotkeyPressed(_hotkeySettings.StopKey);
             handled = true;
         }
         else if (id == ToggleUiHotkeyId)
@@ -1949,6 +1979,9 @@ public partial class MainWindow : Window
             AutomationStatusText.Text = "Stop Auto Aquarium and the connection watchdog before starting the fishing macro.";
             return;
         }
+
+        // This is a fresh, explicit user request after any previous emergency stop.
+        Interlocked.Exchange(ref _emergencyStopLatch, 0);
 
         // The button is clicked while this window owns focus. Start observation,
         // then arm only after the capture loop sees Roblox in the foreground.
@@ -2135,6 +2168,15 @@ public partial class MainWindow : Window
 
     private void StartAutomation()
     {
+        if (Volatile.Read(ref _emergencyStopLatch) != 0)
+        {
+            _startRequested = false;
+            StartMacroButton.IsEnabled = true;
+            StopMacroButton.IsEnabled = false;
+            AutomationStatusText.Text = "Start cancelled by emergency stop. Press Start again to re-arm.";
+            return;
+        }
+
         if (_aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested
             || _connectionRecoveryCoordinator?.IsStarted == true)
@@ -2285,6 +2327,10 @@ public partial class MainWindow : Window
         try
         {
             input = new RobloxInputService(_capture);
+            _automationInput = input;
+
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
 
             var stateMachine = new FishingStateMachine();
             if (!stateMachine.TryTransition(
@@ -2300,7 +2346,14 @@ public partial class MainWindow : Window
                 PositiveErrorMeansHold = InvertReelDirectionCheckBox.IsChecked != true
             });
             var reelCoordinator = new ReelInputCoordinator(input, controller);
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             reelCoordinator.Arm();
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+            {
+                input.EmergencyStop();
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
+            }
 
             if (EquipRodCheckBox.IsChecked == true)
             {
@@ -2384,6 +2437,12 @@ public partial class MainWindow : Window
                     sellSchedule,
                     stateMachine);
                 sellCoordinator.Start(DateTimeOffset.UtcNow);
+            }
+
+            if (Volatile.Read(ref _emergencyStopLatch) != 0)
+            {
+                input.EmergencyStop();
+                throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             }
 
             _automationInput = input;
@@ -2484,6 +2543,7 @@ public partial class MainWindow : Window
         {
             try
             {
+                input?.EmergencyStop();
                 input?.Disarm();
                 input?.Dispose();
             }
@@ -3027,14 +3087,32 @@ public partial class MainWindow : Window
                         DisplayFrame(frame);
                         StatusText.Text = "Observing Roblox. Alt+Tab here to inspect the latest frame.";
 
-                        if (_aquariumStartRequested && !_automationEnabled)
+                        if (Volatile.Read(ref _emergencyStopLatch) != 0)
+                        {
+                            if (_aquariumStartRequested)
+                                StopAquariumAutomation("Pending Auto Aquarium start cancelled by emergency stop.");
+                            if (_connectionRecoveryStartRequested)
+                                StopConnectionRecovery("Pending reconnect start cancelled by emergency stop.");
+                            if (_startRequested)
+                            {
+                                _startRequested = false;
+                                StartMacroButton.IsEnabled = true;
+                                StopMacroButton.IsEnabled = false;
+                                AutomationStatusText.Text = "Pending macro start cancelled by emergency stop. Press Start again.";
+                            }
+                        }
+
+                        if (Volatile.Read(ref _emergencyStopLatch) == 0
+                            && _aquariumStartRequested && !_automationEnabled)
                             StartAquariumAutomationNow();
 
-                        if (_connectionRecoveryStartRequested && !_automationEnabled
+                        if (Volatile.Read(ref _emergencyStopLatch) == 0
+                            && _connectionRecoveryStartRequested && !_automationEnabled
                             && !_aquariumStartRequested)
                             StartConnectionRecoveryNow(frame);
 
-                        if (_startRequested && !_automationEnabled)
+                        if (Volatile.Read(ref _emergencyStopLatch) == 0
+                            && _startRequested && !_automationEnabled)
                         {
                             _startRequested = false;
                             StartMacroButton.IsEnabled = true;
