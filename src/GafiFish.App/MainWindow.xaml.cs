@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
 using Mat = OpenCvSharp.Mat;
@@ -279,7 +280,7 @@ public partial class MainWindow : Window
         _profile = await _profileStore.LoadOrDefaultAsync();
         RefreshRodReelPresetControls();
         RodNameRecognitionStatusText.Text = _profile.RodNameRegionCalibrated
-            ? "Rod-name OCR region loaded. Start local OCR once, then enable automatic recognition."
+            ? "Rod-name OCR region loaded. Press Recognize now once to initialise OCR, then enable automatic recognition."
             : "Select the rod-name label region in Calibration before enabling recognition.";
         _hotkeySettings = await _hotkeySettingsStore.LoadAsync();
         _rodProfileBindings = await _rodProfileBindingStore.LoadAsync();
@@ -4442,9 +4443,7 @@ public partial class MainWindow : Window
 
             await ApplyRecognizedRodProfileAsync(profileName, candidate, selectionVersion);
         }
-        catch (Exception exception) when (
-            exception is IOException or UnauthorizedAccessException or InvalidOperationException
-            or ArgumentException or System.ComponentModel.Win32Exception)
+        catch (Exception exception)
         {
             if (IsLoaded)
                 RodNameRecognitionStatusText.Text = $"Rod-name OCR failed: {exception.Message}";
@@ -4498,9 +4497,7 @@ public partial class MainWindow : Window
             TelemetryText.Text = $"Profile: {profileName} · selected by rod-name OCR.";
             AddActivityLog("INFO", "PROFILE", $"Rod OCR selected profile '{profileName}' for '{recognizedName}'.");
         }
-        catch (Exception exception) when (
-            exception is IOException or UnauthorizedAccessException or InvalidOperationException
-            or ArgumentException)
+        catch (Exception exception)
         {
             RodNameRecognitionStatusText.Text = $"Could not load profile “{profileName}”: {exception.Message}";
         }
@@ -4552,9 +4549,7 @@ public partial class MainWindow : Window
             if (appraisalPanel) AppraisalPanelStatusText.Text = status;
             else EnchantPanelStatusText.Text = status;
         }
-        catch (Exception exception) when (
-            exception is IOException or UnauthorizedAccessException or InvalidOperationException
-            or ArgumentException or System.ComponentModel.Win32Exception)
+        catch (Exception exception)
         {
             var status = $"Panel OCR failed: {exception.Message}";
             if (appraisalPanel) AppraisalPanelStatusText.Text = status;
@@ -4619,7 +4614,9 @@ public partial class MainWindow : Window
                 SlotProfiles = new Dictionary<int, string>(_rodProfileBindings.SlotProfiles)
                 {
                     [slot] = profileName
-                }
+                },
+                RodNameProfiles = new Dictionary<string, string>(
+                    _rodProfileBindings.RodNameProfiles, StringComparer.OrdinalIgnoreCase)
             };
             await _rodProfileBindingStore.SaveAsync(updated);
             _rodProfileBindings = updated;
@@ -4805,7 +4802,12 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var updated = new RodProfileSlotBindings { SlotProfiles = updatedSlots };
+            var updated = new RodProfileSlotBindings
+            {
+                SlotProfiles = updatedSlots,
+                RodNameProfiles = new Dictionary<string, string>(
+                    _rodProfileBindings.RodNameProfiles, StringComparer.OrdinalIgnoreCase)
+            };
             await _rodProfileBindingStore.SaveAsync(updated);
             _rodProfileBindings = updated;
             _rodProfileBindingError = false;
@@ -4886,7 +4888,10 @@ public partial class MainWindow : Window
                 || importedProfile.IsReconnectButtonCalibrated
                 || importedProfile.IsWorldPhaseCalibrated
                 || importedProfile.IsAnglerAcceptButtonCalibrated
-                || importedProfile.IsAnglerSubmitButtonCalibrated;
+                || importedProfile.IsAnglerSubmitButtonCalibrated
+                || importedProfile.RodNameRegionCalibrated
+                || importedProfile.AppraisalPanelRegionCalibrated
+                || importedProfile.EnchantPanelRegionCalibrated;
             if (!hasCalibration)
                 throw new InvalidDataException("The selected JSON does not contain a usable GafiFish calibration profile.");
 
