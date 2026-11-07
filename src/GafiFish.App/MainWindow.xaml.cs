@@ -4632,6 +4632,60 @@ public partial class MainWindow : Window
             CalibrationAction.SampleRodChargeMeterColor,
             "Sample a clear pixel from the filled portion of the rod charge meter.");
 
+    private void SelectRhythmHitLine_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(
+            CalibrationAction.SelectRhythmHitLine,
+            "Click the centre of the fixed receptor line inside the calibrated four-lane region.");
+
+    private void SampleRhythmLaneD_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleRhythmLaneDColor,
+            "Click a clear pixel on a falling note in the D lane.");
+
+    private void SampleRhythmLaneF_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleRhythmLaneFColor,
+            "Click a clear pixel on a falling note in the F lane.");
+
+    private void SampleRhythmLaneJ_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleRhythmLaneJColor,
+            "Click a clear pixel on a falling note in the J lane.");
+
+    private void SampleRhythmLaneK_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleRhythmLaneKColor,
+            "Click a clear pixel on a falling note in the K lane.");
+
+    private async void RhythmInputLeadMilliseconds_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingRodReelPreset || !IsLoaded)
+            return;
+
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            RefreshRodReelPresetControls();
+            RhythmCalibrationStatusText.Text = "Stop the macro before changing rhythm input timing.";
+            return;
+        }
+
+        if (!double.TryParse(
+                RhythmInputLeadMillisecondsTextBox.Text.Trim(),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var leadMilliseconds)
+            || !double.IsFinite(leadMilliseconds)
+            || leadMilliseconds is < 0 or > 250)
+        {
+            RefreshRodReelPresetControls();
+            RhythmCalibrationStatusText.Text = "Input lead must be a number from 0 to 250 milliseconds.";
+            return;
+        }
+
+        if (Math.Abs(_profile.RhythmInputLeadMilliseconds - leadMilliseconds) < 0.001)
+            return;
+
+        _profile = _profile with { RhythmInputLeadMilliseconds = leadMilliseconds };
+        await SaveProfileAsync("Tranquility rhythm input lead updated.");
+        RefreshRodReelPresetControls();
+    }
+
     private async void BindDetectedRodNameToProfile_Click(object sender, RoutedEventArgs e)
     {
         if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
@@ -5501,6 +5555,30 @@ public partial class MainWindow : Window
         RefreshModuleQuickInfo();
     }
 
+    private static VisionProfile WithRhythmLaneColor(
+        VisionProfile profile,
+        int lane,
+        HsvColorRange color,
+        int referenceWidth,
+        int referenceHeight)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        if (lane is < 0 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(lane));
+
+        var laneColors = new HsvColorRange?[4];
+        if (profile.RhythmLaneColors is { Length: 4 })
+            Array.Copy(profile.RhythmLaneColors, laneColors, 4);
+        laneColors[lane] = color;
+
+        return profile with
+        {
+            RhythmLaneColors = laneColors,
+            ReferenceWidth = referenceWidth,
+            ReferenceHeight = referenceHeight
+        };
+    }
+
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
         if (_automationEnabled)
@@ -5523,11 +5601,52 @@ public partial class MainWindow : Window
         SelectionRectangle.Visibility = Visibility.Collapsed;
     }
 
-    private void PreviewOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private async void PreviewOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var overlayPoint = e.GetPosition(PreviewOverlay);
         if (!TryMapOverlayPoint(overlayPoint, out var pixelPoint) || _lastFrame is null)
         {
+            return;
+        }
+
+        if (_calibrationAction == CalibrationAction.SelectRhythmHitLine)
+        {
+            if (!_profile.FishingRegionCalibrated)
+            {
+                CalibrationModeText.Text = "Select the four-lane search region before calibrating the rhythm hit line.";
+                e.Handled = true;
+                return;
+            }
+
+            var fishingRegion = _profile.FishingRegion.ToPixelRect(_lastFrame.Width, _lastFrame.Height);
+            if (pixelPoint.Y < fishingRegion.Y || pixelPoint.Y >= fishingRegion.Bottom)
+            {
+                CalibrationModeText.Text = "Click the receptor line inside the selected four-lane region.";
+                e.Handled = true;
+                return;
+            }
+
+            var relativeY = (pixelPoint.Y - fishingRegion.Y) / (double)fishingRegion.Height;
+            if (relativeY is < 0.10 or > 0.99)
+            {
+                CalibrationModeText.Text = "The hit line must be inside the lane area, away from its top and bottom edges.";
+                e.Handled = true;
+                return;
+            }
+
+            _profile = _profile with
+            {
+                RhythmHitLinePosition = relativeY,
+                RhythmHitLineCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            };
+            _calibrationAction = CalibrationAction.None;
+            RhythmCalibrationStatusText.Text = _profile.IsTranquilityRhythmCalibrated
+                ? "Rhythm calibration complete. Review the input lead before starting."
+                : "Hit line saved. Sample the D, F, J and K falling-note colours to finish.";
+            await SaveProfileAsync("Tranquility rhythm hit line saved.");
+            e.Handled = true;
             return;
         }
 
@@ -5545,7 +5664,11 @@ public partial class MainWindow : Window
             or CalibrationAction.SampleAquariumButtonColor
             or CalibrationAction.SampleAnglerAcceptButtonColor
             or CalibrationAction.SampleAnglerSubmitButtonColor
-            or CalibrationAction.SampleRodChargeMeterColor)
+            or CalibrationAction.SampleRodChargeMeterColor
+            or CalibrationAction.SampleRhythmLaneDColor
+            or CalibrationAction.SampleRhythmLaneFColor
+            or CalibrationAction.SampleRhythmLaneJColor
+            or CalibrationAction.SampleRhythmLaneKColor)
         {
             SampleMarkerColor(pixelPoint);
             e.Handled = true;
@@ -5849,6 +5972,10 @@ public partial class MainWindow : Window
         var isAnglerButtonColor = _calibrationAction is CalibrationAction.SampleAnglerAcceptButtonColor
             or CalibrationAction.SampleAnglerSubmitButtonColor;
         var isRodChargeMeterColor = _calibrationAction == CalibrationAction.SampleRodChargeMeterColor;
+        var isRhythmLaneColor = _calibrationAction is CalibrationAction.SampleRhythmLaneDColor
+            or CalibrationAction.SampleRhythmLaneFColor
+            or CalibrationAction.SampleRhythmLaneJColor
+            or CalibrationAction.SampleRhythmLaneKColor;
         var isSecondaryFishColor = _calibrationAction == CalibrationAction.SampleSecondaryFishMarker;
         var x = Math.Clamp((int)Math.Round(pixelPoint.X), 0, _lastFrame.Width - 1);
         var y = Math.Clamp((int)Math.Round(pixelPoint.Y), 0, _lastFrame.Height - 1);
@@ -5880,6 +6007,10 @@ public partial class MainWindow : Window
             CalibrationAction.SampleAnglerSubmitButtonColor => WithAnglerQuestButtonColor(
                 _profile, AnglerQuestButtonKind.SubmitFish, color, _lastFrame.Width, _lastFrame.Height),
             CalibrationAction.SampleRodChargeMeterColor => _profile with { RodChargeMeterColor = color },
+            CalibrationAction.SampleRhythmLaneDColor => WithRhythmLaneColor(_profile, 0, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleRhythmLaneFColor => WithRhythmLaneColor(_profile, 1, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleRhythmLaneJColor => WithRhythmLaneColor(_profile, 2, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleRhythmLaneKColor => WithRhythmLaneColor(_profile, 3, color, _lastFrame.Width, _lastFrame.Height),
             _ => _profile
         };
 
@@ -5924,6 +6055,12 @@ public partial class MainWindow : Window
                 ? "Charge Meter Bonus · calibration complete. It will release at 80% when the fish is inside the bar."
                 : "Charge fill colour saved. Select the full meter track to finish calibration.";
             RodChargeMeterStatusText.Text = "Charge meter calibration updated.";
+        }
+        if (isRhythmLaneColor)
+        {
+            RhythmCalibrationStatusText.Text = _profile.IsTranquilityRhythmCalibrated
+                ? "Tranquility Rhythm calibration complete. Test the detector in replay before using live input."
+                : "Lane colour saved. Continue sampling the remaining D/F/J/K lanes and set the hit line.";
         }
         if (isSecondaryFishColor)
         {
