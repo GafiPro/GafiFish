@@ -21,6 +21,9 @@ public sealed record VisionProfile
     public NormalizedRegion ReconnectButtonRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool ReconnectButtonRegionCalibrated { get; init; }
     public HsvColorRange? ReconnectButtonColor { get; init; }
+    public NormalizedRegion SessionIndicatorRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool SessionIndicatorRegionCalibrated { get; init; }
+    public HsvColorRange? SessionIndicatorColor { get; init; }
     public NormalizedRegion WorldPhaseRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool WorldPhaseRegionCalibrated { get; init; }
     public NormalizedRegion HuntSignalRegion { get; init; } = NormalizedRegion.FullFrame;
@@ -73,6 +76,7 @@ public sealed record VisionProfile
     public bool IsInventoryVerificationCalibrated => InventoryItemsRegionCalibrated;
     public bool IsCatchNotificationCalibrated => CatchNotificationRegionCalibrated;
     public bool IsReconnectButtonCalibrated => ReconnectButtonRegionCalibrated && ReconnectButtonColor.HasValue;
+    public bool IsSessionIndicatorCalibrated => SessionIndicatorRegionCalibrated && SessionIndicatorColor.HasValue;
     public bool IsWorldPhaseCalibrated => WorldPhaseRegionCalibrated
         && DayPhaseColor.HasValue
         && NightPhaseColor.HasValue;
@@ -92,6 +96,7 @@ public sealed record VisionProfile
         InventoryItemsRegion.Validate();
         CatchNotificationRegion.Validate();
         ReconnectButtonRegion.Validate();
+        SessionIndicatorRegion.Validate();
         WorldPhaseRegion.Validate();
         HuntSignalRegion.Validate();
         RodNameRegion.Validate();
@@ -126,6 +131,7 @@ public sealed record VisionProfile
         ShakePromptColor?.Validate();
         SellButtonColor?.Validate();
         ReconnectButtonColor?.Validate();
+        SessionIndicatorColor?.Validate();
         DayPhaseColor?.Validate();
         NightPhaseColor?.Validate();
         HuntSignalColor?.Validate();

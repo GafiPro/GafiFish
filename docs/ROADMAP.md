@@ -102,7 +102,8 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.
 - [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
 - [x] Watchdog visual de reconexão com região/cor calibradas, três frames estáveis, clique único e máximo de três tentativas por ativação.
-- [ ] Confirmar o regresso efetivo à sessão em cada tipo de desconexão; o desaparecimento do botão não é prova de reconexão.
+- [x] A confirmação de regresso exige um segundo indicador HUD calibrado, visível em três frames distintos; o desaparecimento do botão, por si só, nunca é tratado como reconexão.
+- [ ] Validar o indicador HUD e o regresso efetivo à sessão em cada tipo de desconexão, com frames reais do Fisch.
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
 - [x] Hunt Detection: alerta visual calibrável, apenas de leitura, com debounce e proteção contra frames repetidos.
 - [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada, aceita o pedido e entrega o peixe através de botões visuais calibrados com clique único e confirmação de desaparecimento.
@@ -263,11 +264,12 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 ## Watchdog de reconexão — novembro de 2026
 
 - [x] Calibração manual da região e cor HSV do botão de reconexão.
-- [x] Exigir três frames estáveis e enviar um clique por aparição.
-- [x] Aguardar dois frames sem o botão antes de permitir novo ciclo.
-- [x] Intervalo de segurança de 20 segundos e máximo de três cliques por ativação.
-- [x] Desarmar sem retry quando o botão não desaparece no timeout.
-- [ ] Validar com diferentes ecrãs reais de desconexão e confirmar visualmente a entrada na sessão.
+- [x] Calibração independente de um indicador HUD que só está visível dentro da sessão carregada.
+- [x] Exigir três frames estáveis do botão antes de clicar uma vez.
+- [x] Após o desaparecimento do botão, exigir três frames do indicador HUD antes de declarar a reconexão confirmada.
+- [x] Se não houver indicador antes do timeout, esperar por um novo botão antes de qualquer retry; máximo de três cliques por ativação.
+- [x] Desarmar e pedir verificação manual se não for possível confirmar a sessão após o limite de tentativas.
+- [ ] Validar as calibrações e a entrada efetiva na sessão com diferentes ecrãs reais de desconexão e várias resoluções.
 
 
 ## Integridade das capturas de automação — novembro de 2026

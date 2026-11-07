@@ -886,7 +886,7 @@
                         CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Text="Connection watchdog" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,7" />
-                        <TextBlock Text="Watch for a reconnect button that you calibrated. The watchdog waits for three stable frames, clicks once, and waits for the button to disappear before another bounded attempt."
+                        <TextBlock Text="The watchdog clicks a calibrated reconnect button once, then requires a second calibrated in-game HUD indicator to appear in three distinct frames before it reports a successful return to the session."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,9" />
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -900,9 +900,9 @@
                                     Foreground="White" BorderThickness="0" IsEnabled="False" />
                         </Grid>
                         <TextBlock x:Name="ConnectionRecoveryStatusText"
-                                   Text="Calibrate the reconnect button region and colour in Visual calibration first."
+                                   Text="Calibrate the reconnect button and an in-game HUD indicator in Visual calibration first."
                                    Foreground="#EACB80" TextWrapping="Wrap" Margin="0,9,0,0" />
-                        <TextBlock Text="At most three clicks per activation. A disappearing button does not prove reconnection. The watchdog never retries while a click is unconfirmed."
+                        <TextBlock Text="At most three clicks per activation. A disappearing button does not prove reconnection; success requires the calibrated in-game HUD indicator to appear stably."
                                    Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
                     </StackPanel>
                 </Border>
@@ -1030,6 +1030,14 @@
                         <Button Content="Sample reconnect button colour" Click="SampleReconnectButtonColor_Click"
                                 Height="34" Margin="0,0,0,7"
                                 Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Select in-game HUD indicator region" Click="SelectSessionIndicatorRegion_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample in-game HUD indicator colour" Click="SampleSessionIndicatorColor_Click"
+                                Height="34" Margin="0,0,0,7"
+                                Background="#294153" Foreground="White" BorderThickness="0" />
+                        <TextBlock Text="Choose a small, persistent HUD element that appears only after the game world has fully loaded (not the reconnect screen)."
+                                   Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7" />
                         <Separator Margin="0,10,0,8" Background="#33414F" />
                         <TextBlock Text="Day/night totem calibration" FontWeight="SemiBold" Margin="0,0,0,7" />
                         <Button Content="Select day/night HUD indicator region" Click="SelectWorldPhaseRegion_Click"

@@ -239,6 +239,8 @@ public partial class MainWindow : Window
         SelectCatchNotificationRegion,
         SelectReconnectButtonRegion,
         SampleReconnectButtonColor,
+        SelectSessionIndicatorRegion,
+        SampleSessionIndicatorColor,
         CaptureFishMarkerTemplate,
         CaptureControlMarkerTemplate,
         SelectWorldPhaseRegion,
@@ -372,9 +374,10 @@ public partial class MainWindow : Window
         SellStatusText.Text = _profile.IsSellButtonCalibrated
             ? "Sell Anywhere: saved button calibration loaded."
             : "Sell Anywhere: awaiting button calibration.";
-        ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated
-            ? "Reconnect button calibration loaded. Watchdog ready."
-            : "Calibrate the reconnect button region and colour before arming the watchdog.";
+        ConnectionRecoveryStatusText.Text =
+            _profile.IsReconnectButtonCalibrated && _profile.IsSessionIndicatorCalibrated
+                ? "Reconnect button and in-game HUD indicator calibrations loaded. Watchdog ready."
+                : "Calibrate the reconnect button and an in-game HUD indicator before arming the watchdog.";
         WorldPhaseCalibrationStatusText.Text = _profile.IsWorldPhaseCalibrated
             ? "Day/night phase calibration loaded."
             : "Calibrate the phase region and sample the day and night colours.";
@@ -1253,9 +1256,10 @@ public partial class MainWindow : Window
 
     private void StartConnectionRecovery_Click(object sender, RoutedEventArgs e)
     {
-        if (!_profile.IsReconnectButtonCalibrated)
+        if (!_profile.IsReconnectButtonCalibrated || !_profile.IsSessionIndicatorCalibrated)
         {
-            ConnectionRecoveryStatusText.Text = "Calibrate the reconnect button region and colour first.";
+            ConnectionRecoveryStatusText.Text =
+                "Calibrate both the reconnect button and an in-game HUD indicator before arming the watchdog.";
             return;
         }
 
@@ -1361,7 +1365,9 @@ public partial class MainWindow : Window
         var anotherModuleActive = _automationEnabled || _startRequested
             || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true;
         StartConnectionRecoveryButton.IsEnabled =
-            !active && !anotherModuleActive && _profile.IsReconnectButtonCalibrated;
+            !active && !anotherModuleActive
+                && _profile.IsReconnectButtonCalibrated
+                && _profile.IsSessionIndicatorCalibrated;
         StopConnectionRecoveryButton.IsEnabled = active;
     }
 
@@ -5213,6 +5219,18 @@ public partial class MainWindow : Window
             "Click a clear pixel inside the reconnect button. Use the same Roblox UI theme and resolution.");
     }
 
+    private void SelectSessionIndicatorRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SelectSessionIndicatorRegion,
+            "Drag a tight rectangle around a small HUD element that is visible only after the Roblox game world has loaded.");
+    }
+
+    private void SampleSessionIndicatorColor_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(CalibrationAction.SampleSessionIndicatorColor,
+            "Click a clear pixel inside that HUD element while you are fully inside a Fisch game session, not on the reconnect screen.");
+    }
+
     private void CaptureFishMarkerTemplate_Click(object sender, RoutedEventArgs e)
     {
         SetCalibrationAction(CalibrationAction.CaptureFishMarkerTemplate,
@@ -5510,6 +5528,13 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectSessionIndicatorRegion => _profile with
+            {
+                SessionIndicatorRegion = selectedRegion,
+                SessionIndicatorRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             CalibrationAction.SelectWorldPhaseRegion => _profile with
             {
                 WorldPhaseRegion = selectedRegion,
@@ -5570,6 +5595,7 @@ public partial class MainWindow : Window
             CalibrationAction.SelectInventoryItemsRegion => "Inventory item-list region saved.",
             CalibrationAction.SelectCatchNotificationRegion => "Catch notification OCR region saved.",
             CalibrationAction.SelectReconnectButtonRegion => "Reconnect button region saved.",
+            CalibrationAction.SelectSessionIndicatorRegion => "In-game HUD indicator region saved.",
             CalibrationAction.SelectWorldPhaseRegion => "Day/night phase indicator region saved.",
             CalibrationAction.SelectHuntSignalRegion => "Hunt cue region saved.",
             CalibrationAction.CaptureFishMarkerTemplate => "Fish marker template captured. HSV remains preferred when confidence is sufficient.",
@@ -5618,6 +5644,7 @@ public partial class MainWindow : Window
         }
 
         var isReconnectColor = _calibrationAction == CalibrationAction.SampleReconnectButtonColor;
+        var isSessionIndicatorColor = _calibrationAction == CalibrationAction.SampleSessionIndicatorColor;
         var isDayPhaseColor = _calibrationAction == CalibrationAction.SampleDayPhaseColor;
         var isNightPhaseColor = _calibrationAction == CalibrationAction.SampleNightPhaseColor;
         var isHuntSignalColor = _calibrationAction == CalibrationAction.SampleHuntSignalColor;
@@ -5644,6 +5671,7 @@ public partial class MainWindow : Window
             CalibrationAction.SampleShakePrompt => _profile with { ShakePromptColor = color },
             CalibrationAction.SampleSellButton => _profile with { SellButtonColor = color },
             CalibrationAction.SampleReconnectButtonColor => _profile with { ReconnectButtonColor = color },
+            CalibrationAction.SampleSessionIndicatorColor => _profile with { SessionIndicatorColor = color },
             CalibrationAction.SampleDayPhaseColor => _profile with { DayPhaseColor = color },
             CalibrationAction.SampleNightPhaseColor => _profile with { NightPhaseColor = color },
             CalibrationAction.SampleHuntSignalColor => _profile with { HuntSignalColor = color },
@@ -5667,7 +5695,18 @@ public partial class MainWindow : Window
         _motionTracker.Reset();
         if (isReconnectColor)
         {
-            ConnectionRecoveryStatusText.Text = "Reconnect button colour saved. The watchdog is ready to be armed.";
+            ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated
+                && _profile.IsSessionIndicatorCalibrated
+                ? "Reconnect prompt and in-game HUD indicator are calibrated. Watchdog ready."
+                : "Reconnect button colour saved. Calibrate the in-game HUD indicator as well.";
+            UpdateConnectionRecoveryControls();
+        }
+        if (isSessionIndicatorColor)
+        {
+            ConnectionRecoveryStatusText.Text = _profile.IsReconnectButtonCalibrated
+                && _profile.IsSessionIndicatorCalibrated
+                ? "In-game HUD indicator saved. Reconnect watchdog is ready."
+                : "HUD indicator colour saved. Finish reconnect-button calibration too.";
             UpdateConnectionRecoveryControls();
         }
         if (isHuntSignalColor)

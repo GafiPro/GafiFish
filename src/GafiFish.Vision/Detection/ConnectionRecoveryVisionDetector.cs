@@ -6,12 +6,32 @@ using OpenCvSharp;
 namespace GafiFish.Vision.Detection;
 
 /// <summary>
-/// Detects only the reconnect button region and colour explicitly calibrated by the user.
-/// This class detects pixels only; it never sends input or infers successful reconnection.
+/// Detects calibrated reconnect and in-game HUD markers. It only analyses pixels;
+/// it never sends input. Positive session confirmation requires an element chosen
+/// by the user that is visible after the game world has loaded.
 /// </summary>
 public sealed class ConnectionRecoveryVisionDetector
 {
-    public DetectedMarker? DetectReconnectButton(ScreenCaptureFrame frame, VisionProfile profile)
+    public DetectedMarker? DetectReconnectButton(ScreenCaptureFrame frame, VisionProfile profile) =>
+        DetectCalibratedMarker(
+            frame, profile,
+            profile?.ReconnectButtonRegion,
+            profile?.ReconnectButtonColor,
+            profile?.IsReconnectButtonCalibrated == true);
+
+    public DetectedMarker? DetectSessionIndicator(ScreenCaptureFrame frame, VisionProfile profile) =>
+        DetectCalibratedMarker(
+            frame, profile,
+            profile?.SessionIndicatorRegion,
+            profile?.SessionIndicatorColor,
+            profile?.IsSessionIndicatorCalibrated == true);
+
+    private static DetectedMarker? DetectCalibratedMarker(
+        ScreenCaptureFrame frame,
+        VisionProfile profile,
+        NormalizedRegion? calibratedRegion,
+        HsvColorRange? calibratedColor,
+        bool isCalibrated)
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(profile);
@@ -22,7 +42,7 @@ public sealed class ConnectionRecoveryVisionDetector
             || frame.BgraPixels.Length != frame.Stride * frame.Height)
             throw new ArgumentException("Frame pixel buffer is invalid.", nameof(frame));
 
-        if (!profile.IsReconnectButtonCalibrated)
+        if (!isCalibrated || calibratedRegion is null || calibratedColor is null)
             return null;
 
         using var bgra = new Mat(frame.Height, frame.Width, MatType.CV_8UC4);
@@ -32,9 +52,9 @@ public sealed class ConnectionRecoveryVisionDetector
         using var hsv = new Mat();
         Cv2.CvtColor(bgr, hsv, ColorConversionCodes.BGR2HSV);
 
-        var region = profile.ReconnectButtonRegion.ToPixelRect(frame.Width, frame.Height);
+        var region = calibratedRegion.Value.ToPixelRect(frame.Width, frame.Height);
         using var roi = new Mat(hsv, region);
         return FishingVisionDetector.FindLargestMarker(
-            roi, region.X, region.Y, profile.ReconnectButtonColor!.Value, profile.MinimumBlobArea);
+            roi, region.X, region.Y, calibratedColor.Value, profile.MinimumBlobArea);
     }
 }

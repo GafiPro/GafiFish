@@ -23,6 +23,9 @@ public sealed class VisionProfileStoreTests
             ReconnectButtonRegion = new NormalizedRegion(0.35, 0.25, 0.20, 0.08),
             ReconnectButtonRegionCalibrated = true,
             ReconnectButtonColor = new HsvColorRange(100, 80, 100, 120, 255, 255),
+            SessionIndicatorRegion = new NormalizedRegion(0.05, 0.55, 0.20, 0.10),
+            SessionIndicatorRegionCalibrated = true,
+            SessionIndicatorColor = new HsvColorRange(40, 80, 100, 70, 255, 255),
             WorldPhaseRegion = new NormalizedRegion(0.70, 0.10, 0.12, 0.18),
             WorldPhaseRegionCalibrated = true,
             DayPhaseColor = new HsvColorRange(0, 180, 180, 5, 255, 255),
@@ -47,6 +50,9 @@ public sealed class VisionProfileStoreTests
             Assert.Equal(profile.ReconnectButtonRegion, loaded.ReconnectButtonRegion);
             Assert.Equal(profile.ReconnectButtonColor, loaded.ReconnectButtonColor);
             Assert.True(loaded.IsReconnectButtonCalibrated);
+            Assert.Equal(profile.SessionIndicatorRegion, loaded.SessionIndicatorRegion);
+            Assert.Equal(profile.SessionIndicatorColor, loaded.SessionIndicatorColor);
+            Assert.True(loaded.IsSessionIndicatorCalibrated);
             Assert.Equal(profile.WorldPhaseRegion, loaded.WorldPhaseRegion);
             Assert.Equal(profile.DayPhaseColor, loaded.DayPhaseColor);
             Assert.Equal(profile.NightPhaseColor, loaded.NightPhaseColor);

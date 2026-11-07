@@ -23,6 +23,8 @@ public sealed class ConnectionRecoveryCoordinator
     private DetectedMarker? _lastCandidate;
     private int _stableFrames;
     private DateTimeOffset? _pendingClickAt;
+    private DateTimeOffset? _awaitingSessionIndicatorAt;
+    private int _sessionIndicatorFrames;
     private DateTimeOffset _retryAllowedAt = DateTimeOffset.MinValue;
     private int _absentFrames;
     private DateTimeOffset? _lastProcessedFrameAt;
@@ -77,6 +79,8 @@ public sealed class ConnectionRecoveryCoordinator
         _lastProcessedFrameAt = null;
         AttemptsMade = 0;
         _pendingClickAt = null;
+        _awaitingSessionIndicatorAt = null;
+        _sessionIndicatorFrames = 0;
         _retryAllowedAt = DateTimeOffset.MinValue;
         _absentFrames = 0;
         ResetCandidate();
@@ -91,6 +95,8 @@ public sealed class ConnectionRecoveryCoordinator
         {
             _started = false;
             _pendingClickAt = null;
+            _awaitingSessionIndicatorAt = null;
+            _sessionIndicatorFrames = 0;
             _absentFrames = 0;
             _lastProcessedFrameAt = null;
             ResetCandidate();
@@ -121,6 +127,12 @@ public sealed class ConnectionRecoveryCoordinator
             if (_pendingClickAt.HasValue)
             {
                 ProcessPendingClick(frame, marker);
+                return;
+            }
+
+            if (_awaitingSessionIndicatorAt.HasValue)
+            {
+                ProcessSessionConfirmation(frame, profile);
                 return;
             }
 
@@ -170,16 +182,10 @@ public sealed class ConnectionRecoveryCoordinator
                 _pendingClickAt = null;
                 _absentFrames = 0;
                 ResetCandidate();
-
-                if (AttemptsMade >= _maximumAttempts)
-                {
-                    Complete($"Reached the {_maximumAttempts}-attempt limit. The reconnect button disappeared after the last click; check Roblox manually.");
-                    return;
-                }
-
-                _retryAllowedAt = frame.CapturedAt + _retryDelay;
+                _awaitingSessionIndicatorAt = frame.CapturedAt;
+                _sessionIndicatorFrames = 0;
                 _lastStatus =
-                    "Reconnect button disappeared after one click. This is not proof of reconnection; waiting before another possible prompt.";
+                    "Reconnect button disappeared. Waiting for the calibrated in-game HUD indicator; disappearance alone is not proof of reconnection.";
                 return;
             }
         }
@@ -195,6 +201,47 @@ public sealed class ConnectionRecoveryCoordinator
         }
 
         _lastStatus = $"Waiting for reconnect prompt to change · {_absentFrames}/{_requiredAbsentFrames} absent frames.";
+    }
+
+    private void ProcessSessionConfirmation(ScreenCaptureFrame frame, VisionProfile profile)
+    {
+        var marker = _detector.DetectSessionIndicator(frame, profile);
+        if (marker is not null && marker.Confidence >= 0.65)
+        {
+            _sessionIndicatorFrames++;
+            if (_sessionIndicatorFrames >= _requiredStableFrames)
+            {
+                Complete(
+                    "Roblox session reconnection confirmed by the calibrated in-game HUD indicator across stable frames.");
+                return;
+            }
+        }
+        else
+        {
+            _sessionIndicatorFrames = 0;
+        }
+
+        if (_awaitingSessionIndicatorAt.HasValue
+            && frame.CapturedAt - _awaitingSessionIndicatorAt.Value > _phaseTimeout)
+        {
+            _awaitingSessionIndicatorAt = null;
+            _sessionIndicatorFrames = 0;
+
+            if (AttemptsMade >= _maximumAttempts)
+            {
+                Complete(
+                    $"Could not confirm the in-game HUD after {_maximumAttempts} reconnect attempts. No more clicks will be sent; check Roblox manually.");
+                return;
+            }
+
+            _retryAllowedAt = frame.CapturedAt + _retryDelay;
+            _lastStatus =
+                "The session HUD did not appear before the confirmation timeout. Waiting for a new calibrated reconnect prompt before a bounded retry.";
+            return;
+        }
+
+        _lastStatus =
+            $"Waiting for the calibrated in-game HUD indicator · {_sessionIndicatorFrames}/{_requiredStableFrames} stable frames. Button disappearance alone is not proof.";
     }
 
     private void UpdateCandidate(DetectedMarker marker)
@@ -226,6 +273,8 @@ public sealed class ConnectionRecoveryCoordinator
         {
             _started = false;
             _pendingClickAt = null;
+            _awaitingSessionIndicatorAt = null;
+            _sessionIndicatorFrames = 0;
             _lastProcessedFrameAt = null;
             ResetCandidate();
             _lastStatus = status;

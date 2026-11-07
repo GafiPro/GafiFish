@@ -20,6 +20,50 @@ public sealed class ConnectionRecoveryVisionDetectorTests
     }
 
     [Fact]
+    public void DetectsInGameSessionIndicatorOnlyInsideItsCalibratedRegion()
+    {
+        var profile = CreateProfile() with
+        {
+            SessionIndicatorRegion = new NormalizedRegion(0.05, 0.55, 0.35, 0.35),
+            SessionIndicatorRegionCalibrated = true,
+            SessionIndicatorColor = HsvColorSampler.FromBgra(0, 255, 0)
+        };
+
+        var detected = new ConnectionRecoveryVisionDetector()
+            .DetectSessionIndicator(CreateFrame(false, showSessionIndicator: true), profile);
+
+        Assert.NotNull(detected);
+        Assert.InRange(detected.CenterX, 10, 30);
+        Assert.InRange(detected.CenterY, 50, 70);
+        Assert.True(detected.Confidence >= 0.65);
+    }
+
+    [Fact]
+    public void DoesNotGuessSessionIndicatorWithoutCalibration()
+    {
+        var detected = new ConnectionRecoveryVisionDetector()
+            .DetectSessionIndicator(CreateFrame(false, showSessionIndicator: true), CreateProfile());
+
+        Assert.Null(detected);
+    }
+
+    [Fact]
+    public void IgnoresSessionIndicatorColourOutsideItsCalibratedRegion()
+    {
+        var profile = CreateProfile() with
+        {
+            SessionIndicatorRegion = new NormalizedRegion(0.50, 0.10, 0.40, 0.30),
+            SessionIndicatorRegionCalibrated = true,
+            SessionIndicatorColor = HsvColorSampler.FromBgra(0, 255, 0)
+        };
+
+        var detected = new ConnectionRecoveryVisionDetector()
+            .DetectSessionIndicator(CreateFrame(false, showSessionIndicator: true), profile);
+
+        Assert.Null(detected);
+    }
+
+    [Fact]
     public void DoesNotGuessWithoutCalibration()
     {
         var detected = new ConnectionRecoveryVisionDetector()
@@ -50,7 +94,7 @@ public sealed class ConnectionRecoveryVisionDetectorTests
         ReconnectButtonColor = HsvColorSampler.FromBgra(0, 0, 255)
     };
 
-    private static ScreenCaptureFrame CreateFrame(bool showButton)
+    private static ScreenCaptureFrame CreateFrame(bool showButton, bool showSessionIndicator = false)
     {
         const int width = 100;
         const int height = 80;
@@ -62,6 +106,16 @@ public sealed class ConnectionRecoveryVisionDetectorTests
             {
                 var index = (y * width + x) * 4;
                 pixels[index + 2] = 255;
+                pixels[index + 3] = 255;
+            }
+        }
+        if (showSessionIndicator)
+        {
+            for (var y = 50; y < 65; y++)
+            for (var x = 10; x < 25; x++)
+            {
+                var index = (y * width + x) * 4;
+                pixels[index + 1] = 255;
                 pixels[index + 3] = 255;
             }
         }
