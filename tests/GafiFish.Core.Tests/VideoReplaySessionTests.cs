@@ -12,7 +12,7 @@ public sealed class VideoReplaySessionTests
         using var session = new VideoReplaySession(reader);
 
         Assert.Equal(30d, session.FramesPerSecond);
-        Assert.Equal(0, session.PlaybackFrameStep);
+        Assert.Equal(1, session.PlaybackFrameStep);
         Assert.Equal(TimeSpan.FromMilliseconds(1000d / 30d), session.PlaybackInterval);
         Assert.True(session.TryMoveNext(out var first));
         Assert.Equal(0, session.CurrentIndex);
