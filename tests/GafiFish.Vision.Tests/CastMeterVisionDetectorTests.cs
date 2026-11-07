@@ -41,6 +41,41 @@ public sealed class CastMeterVisionDetectorTests
     }
 
     [Fact]
+    public void Detect_IgnoresOutOfOrderFramesWithoutCorruptingVelocity()
+    {
+        var detector = new CastMeterVisionDetector();
+        var profile = CreateProfile();
+        var start = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
+
+        _ = detector.Detect(CreateFrame(start, indicatorLeft: 20), profile);
+        var latest = detector.Detect(CreateFrame(start.AddMilliseconds(100), indicatorLeft: 30), profile);
+        Assert.NotNull(latest);
+        Assert.InRange(latest.IndicatorVelocityPerSecond, 0.9, 1.1);
+
+        Assert.Null(detector.Detect(CreateFrame(start.AddMilliseconds(50), indicatorLeft: 90), profile));
+
+        var next = detector.Detect(CreateFrame(start.AddMilliseconds(200), indicatorLeft: 40), profile);
+        Assert.NotNull(next);
+        Assert.InRange(next.IndicatorVelocityPerSecond, 0.9, 1.1);
+    }
+
+    [Fact]
+    public void Detect_IgnoresDuplicateFramesWithoutUpdatingVelocityBaseline()
+    {
+        var detector = new CastMeterVisionDetector();
+        var profile = CreateProfile();
+        var start = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
+
+        _ = detector.Detect(CreateFrame(start, indicatorLeft: 20), profile);
+        var duplicate = CreateFrame(start, indicatorLeft: 90);
+        Assert.Null(detector.Detect(duplicate, profile));
+
+        var next = detector.Detect(CreateFrame(start.AddMilliseconds(100), indicatorLeft: 30), profile);
+        Assert.NotNull(next);
+        Assert.InRange(next.IndicatorVelocityPerSecond, 0.9, 1.1);
+    }
+
+    [Fact]
     public void Detect_ReturnsNullWhenColorsWereSampledButRegionWasNotSelected()
     {
         var frame = CreateFrame(DateTimeOffset.UtcNow, indicatorLeft: 20);

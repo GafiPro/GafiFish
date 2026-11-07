@@ -33,6 +33,11 @@ public sealed class CastMeterVisionDetector
             throw new ArgumentException("Frame pixel buffer is invalid.", nameof(frame));
         }
 
+        // Do not let duplicate or delayed frames move the temporal baseline
+        // backwards: that would corrupt the next velocity estimate.
+        if (_previousIndicatorPosition.HasValue && frame.CapturedAt <= _previousCapturedAt)
+            return null;
+
         using var bgra = new Mat(frame.Height, frame.Width, MatType.CV_8UC4);
         Marshal.Copy(frame.BgraPixels, 0, bgra.Data, frame.BgraPixels.Length);
 
