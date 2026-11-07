@@ -64,7 +64,7 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             // Only an explicit new Arm call clears the emergency-stop latch.
             _emergencyStopLatched = false;
 
-            }
+        }
     }
 
     public void SetLeftButton(bool isDown)
@@ -86,8 +86,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             EnsureArmedAndForeground();
             _inputSink.SetLeftButton(true);
             _leftButtonDown = true;
-        
-            }
+
+        }
     }
 
     public (int X, int Y)? GetCursorClientPosition(ScreenCaptureFrame frame)
@@ -103,8 +103,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not read the mouse position.");
 
             return (cursor.X - frame.ClientScreenX, cursor.Y - frame.ClientScreenY);
-        
-            }
+
+        }
     }
 
     public void MoveClient(int clientX, int clientY, ScreenCaptureFrame frame)
@@ -129,8 +129,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
                 throw new InvalidOperationException(
                     "The foreground Roblox process changed during cursor movement; input was released and disarmed.");
             }
-        
-            }
+
+        }
     }
 
     public void ClickClient(int clientX, int clientY, ScreenCaptureFrame frame)
@@ -166,8 +166,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
                 catch { /* Keep the held state tracked for a later best-effort release. */ }
                 throw;
             }
-        
-            }
+
+        }
     }
 
     public void SetKey(ushort virtualKey, bool isDown)
@@ -191,8 +191,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             EnsureArmedAndForeground();
             _inputSink.SetKey(virtualKey, true);
             _pressedKeys.Add(virtualKey);
-        
-            }
+
+        }
     }
 
     public void EmergencyStop()
@@ -231,8 +231,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
             {
                 _armedProcessId = null;
             }
-        
-            }
+
+        }
     }
 
     public void ReleaseAll()
@@ -254,8 +254,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
                 throw new AggregateException(
                     "Windows rejected one or more input-release events; unresolved input states remain tracked.",
                     failures);
-        
-            }
+
+        }
     }
 
     public void Dispose()
@@ -272,8 +272,8 @@ public sealed class RobloxInputService : IRobloxInput, IDisposable
                 _armedProcessId = null;
                 _disposed = true;
             }
-        
-            }
+
+        }
     }
 
     private void ValidateClientFrame(ScreenCaptureFrame frame)
