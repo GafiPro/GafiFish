@@ -2,7 +2,7 @@
 
 Aplicação Windows para observação visual, calibração, Reel assistido e registo de sessões de pesca no Roblox Fisch.
 
-**Estado: aplicação Windows com Reel assistido, Auto-cast/Auto-shake, recast por OCR, Sell Anywhere, sessões/Catchbook, Auto Aquarium, watchdog de reconexão, rotação de totens dia/noite, presets Reel por cana, reconhecimento OCR do nome da cana e modo Charge Meter Bonus calibrável. Os módulos visuais continuam a precisar de calibração e validação prática no Fisch.**
+**Estado: aplicação Windows com Reel assistido, Auto-cast/Auto-shake, recast por OCR, Sell Anywhere, sessões/Catchbook, Auto Aquarium, watchdog de reconexão, rotação de totens dia/noite, presets Reel por cana, reconhecimento OCR do nome da cana e handlers para Charge Meter Bonus, Dual Fish e Tranquility Rhythm. Os módulos visuais continuam a precisar de calibração e validação prática no Fisch.**
 
 ## O que já funciona
 
@@ -30,13 +30,14 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Quatro afinações do controlador Reel (Balanced, Precision, Heavy fish e Stable), guardadas no perfil individual de cada cana.
 - Modo Charge Meter Bonus por perfil de cana: lê uma barra horizontal calibrada e liberta aos 80% apenas quando o peixe está dentro da barra.
 - Modo Dual Fish para perfis com dois alvos: deteção de dois marcadores calibrados, medição 0/2–2/2 dos peixes dentro da barra, controlo pelo centro comum e paragem segura se algum alvo faltar ou a barra não conseguir cobrir a distância entre ambos.
+- Modo Tranquility Rhythm: deteta notas nas quatro pistas calibradas e prevê o cruzamento da linha de receção antes de enviar um toque de tecla D/F/J/K. Usa cores, região, linha e avanço temporal configurados por perfil; os testes sintéticos não substituem a validação no jogo real.
 - Interface WPF reorganizada em Dashboard, Fishing, Calibration, Sessions e Settings, com botões arredondados e animações subtis de hover.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR, persistência, objetivos e cadência.
 - O estado do Angler Quest (pedido ativo, peixe por entregar e cooldown de 120 segundos) é persistido localmente entre reinícios.
 
 ## O que falta validar no jogo real
 
-- Toda a lógica de controlo tem testes automatizados e frames sintéticos, mas ainda falta calibrar cores/regiões com capturas reais do teu Fisch e validar o timing numa sessão real. Não afirmamos que a visão esteja pronta para a tua resolução/cana sem esse passo.
+- Os controladores têm testes automatizados e frames sintéticos, incluindo agora o Tranquility Rhythm. Ainda falta calibrar cores/regiões com capturas reais do teu Fisch e validar o timing numa sessão real. Não afirmamos que a visão esteja pronta para a tua resolução/cana sem esse passo.
 - Equipar a cana por hotbar é opcional: podes escolher um slot de 1 a 0; o GafiFish envia a tecla normal do Windows uma vez ao armar, mas não consegue garantir visualmente que a cana correta está nesse slot. Também podes deixar a cana equipada manualmente.
 - A venda real depende da gamepass Sell Anywhere, da lista/botão calibrados e de notificações OCR reconhecidas. O fluxo é testado por frames simulados; a calibração e o resultado real ainda precisam de confirmação no teu jogo.
 
@@ -64,6 +65,10 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 8. Para iniciar, clica em **Start macro (F8)** e muda para a janela Roblox; o GafiFish arma-se assim que captura o primeiro fotograma do Roblox. Também podes usar F8 diretamente com o Roblox em primeiro plano. Para parar, clica em **Stop macro (F9)** ou usa F9. Para o modo ilimitado até à primeira captura, ativa **Keep fishing until the first fish is caught** — exige Auto-cast, sessão OCR e região de notificação calibrada. Para vender automaticamente, marca **Enable Sell Anywhere every 10 minutes**; a gamepass vende os itens não favoritos, por isso marca como favoritos os que pretendes guardar.
 9. Para procurar um peixe específico, ativa **Fish until this exact target is caught**, escreve o nome (por exemplo, **Wrath Scylla**) e inicia o macro. O modo exige Auto-cast, sessão OCR ativa e região de notificação calibrada. Só termina quando o texto da notificação incluir todos os termos do alvo e a confiança OCR for pelo menos 90%; capturas de outros peixes não terminam a procura. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
 10. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
+
+### Tranquility Rhythm
+
+Seleciona **Tranquility Rhythm (four lanes)** no perfil da cana. Em **Calibration**, usa **Select search region** para cobrir as quatro pistas, amostra uma nota em cada pista (D, F, J e K) e clica em **Select rhythm hit line** para indicar a linha fixa dos recetores. Ajusta **Rhythm input lead** apenas depois de rever uma gravação com o replay offline. O macro só envia toques D/F/J/K quando está no estado Reeling, usa duas observações distintas para estimar o movimento e ignora notas que já passaram a janela de timing. Começa por validar com replay e uma sessão de teste; não uses a automação numa sessão importante antes de confirmares a calibração e as teclas no teu cliente.
 
 ### Watchdog de reconexão
 
@@ -143,7 +148,7 @@ Projeto independente, sem afiliação ao Roblox ou aos criadores de Fisch.
 
 ### Melhorias adicionais e limites
 
-A aplicação inclui perfis de calibração nomeados por cana, que podem ser associados aos slots de hotbar ou aos nomes OCR reconhecidos no HUD. A associação por nome exige duas leituras estáveis e só troca de perfil quando o macro está parado. Cada perfil guarda também uma afinação Reel (Balanced, Precision, Heavy fish ou Stable). Inclui também telemetria, intervalo de captura adaptativo, ações temporizadas para dois slots de totem/poção, cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis ainda não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. A deteção de Hunts é um alerta visual apenas de leitura; o Angler Quest Assist acompanha o peixe pedido e o cooldown, e inclui agora automação visual calibrável para aceitar o pedido e entregar o peixe: cada ação é um clique único após três frames estáveis e só é considerada concluída quando o botão desaparece em frames posteriores distintos. A aceitação e a entrega continuam a exigir que o utilizador esteja junto do Angler e abra o diálogo; a captura é feita pelo macro de pesca. As ações aleatórias que consomem moeda ou itens não são automatizadas nem repetidas pelo GafiFish. Os controladores Reel têm presets por perfil e o modo Charge Meter Bonus já tem detector calibrável; os restantes minijogos exclusivos de certas canas continuam por implementar até existirem frames reais para os estudar e validar. O OCR do nome da cana, a reconexão, o Aquarium e os restantes detetores visuais ainda precisam de validação prática no Fisch real.
+A aplicação inclui perfis de calibração nomeados por cana, que podem ser associados aos slots de hotbar ou aos nomes OCR reconhecidos no HUD. A associação por nome exige duas leituras estáveis e só troca de perfil quando o macro está parado. Cada perfil guarda também uma afinação Reel (Balanced, Precision, Heavy fish ou Stable). Inclui também telemetria, intervalo de captura adaptativo, ações temporizadas para dois slots de totem/poção, cópia do resumo e exportação de diagnóstico JSON. A ativação dos consumíveis ainda não é confirmada visualmente, pelo que um slot mal configurado pode gastar um item. A deteção de Hunts é um alerta visual apenas de leitura; o Angler Quest Assist acompanha o peixe pedido e o cooldown, e inclui agora automação visual calibrável para aceitar o pedido e entregar o peixe: cada ação é um clique único após três frames estáveis e só é considerada concluída quando o botão desaparece em frames posteriores distintos. A aceitação e a entrega continuam a exigir que o utilizador esteja junto do Angler e abra o diálogo; a captura é feita pelo macro de pesca. As ações aleatórias que consomem moeda ou itens não são automatizadas nem repetidas pelo GafiFish. Os controladores por cana incluem Standard Reel, Charge Meter Bonus, Dual Fish e Tranquility Rhythm. O handler Tranquility usa as quatro pistas D/F/J/K e uma linha de receção calibrada, mas continua por validar com frames reais. Outros minijogos exclusivos (por exemplo, barras rotativas/deslocáveis ou desafios de timing diferentes) continuam por implementar até existirem frames reais para os estudar. O OCR do nome da cana, a reconexão, o Aquarium e os restantes detetores visuais ainda precisam de validação prática no Fisch real.
 
 
 ### Alertas e estatísticas
