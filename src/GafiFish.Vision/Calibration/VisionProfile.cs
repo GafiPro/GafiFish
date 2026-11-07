@@ -1,5 +1,6 @@
 using GafiFish.Core.Aquarium;
 using GafiFish.Core.Automation;
+using GafiFish.Core.Control;
 namespace GafiFish.Vision.Calibration;
 
 /// <summary>
@@ -24,6 +25,13 @@ public sealed record VisionProfile
     public bool WorldPhaseRegionCalibrated { get; init; }
     public NormalizedRegion HuntSignalRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool HuntSignalRegionCalibrated { get; init; }
+    public NormalizedRegion RodNameRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool RodNameRegionCalibrated { get; init; }
+    public NormalizedRegion AppraisalPanelRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool AppraisalPanelRegionCalibrated { get; init; }
+    public NormalizedRegion EnchantPanelRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool EnchantPanelRegionCalibrated { get; init; }
+    public RodReelPreset RodPreset { get; init; } = RodReelPreset.Balanced;
     public HsvColorRange? DayPhaseColor { get; init; }
     public HsvColorRange? NightPhaseColor { get; init; }
     public HsvColorRange? HuntSignalColor { get; init; }
@@ -79,6 +87,11 @@ public sealed record VisionProfile
         ReconnectButtonRegion.Validate();
         WorldPhaseRegion.Validate();
         HuntSignalRegion.Validate();
+        RodNameRegion.Validate();
+        AppraisalPanelRegion.Validate();
+        EnchantPanelRegion.Validate();
+        if (!Enum.IsDefined(RodPreset))
+            throw new ArgumentOutOfRangeException(nameof(RodPreset));
 
         if (ReferenceWidth < 0 || ReferenceHeight < 0)
         {
