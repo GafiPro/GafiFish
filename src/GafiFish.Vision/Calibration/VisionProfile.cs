@@ -16,6 +16,9 @@ public sealed record VisionProfile
     public NormalizedRegion InventoryItemsRegion { get; init; } = NormalizedRegion.FullFrame;
     public NormalizedRegion CatchNotificationRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool CatchNotificationRegionCalibrated { get; init; }
+    public NormalizedRegion ReconnectButtonRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool ReconnectButtonRegionCalibrated { get; init; }
+    public HsvColorRange? ReconnectButtonColor { get; init; }
     public bool FishingRegionCalibrated { get; init; }
     public bool CastRegionCalibrated { get; init; }
     public bool ShakeRegionCalibrated { get; init; }
@@ -42,6 +45,7 @@ public sealed record VisionProfile
     public bool IsSellButtonCalibrated => SellButtonColor.HasValue && SellButtonRegionCalibrated;
     public bool IsInventoryVerificationCalibrated => InventoryItemsRegionCalibrated;
     public bool IsCatchNotificationCalibrated => CatchNotificationRegionCalibrated;
+    public bool IsReconnectButtonCalibrated => ReconnectButtonRegionCalibrated && ReconnectButtonColor.HasValue;
 
     public void Validate()
     {
@@ -51,6 +55,7 @@ public sealed record VisionProfile
         SellButtonRegion.Validate();
         InventoryItemsRegion.Validate();
         CatchNotificationRegion.Validate();
+        ReconnectButtonRegion.Validate();
 
         if (ReferenceWidth < 0 || ReferenceHeight < 0)
         {
@@ -73,6 +78,7 @@ public sealed record VisionProfile
         CastTargetColor?.Validate();
         ShakePromptColor?.Validate();
         SellButtonColor?.Validate();
+        ReconnectButtonColor?.Validate();
         ArgumentNullException.ThrowIfNull(AquariumButtons);
         foreach (var button in AquariumButtons.Values)
             button.Validate();
