@@ -147,6 +147,8 @@ public partial class MainWindow : Window
     private bool _previewHotkeyRegistered;
     private bool _reelArmHotkeyRegistered;
     private bool _emergencyStopHotkeyRegistered;
+    private bool _emergencyStopHotkeyUsesDispatcher;
+    private EmergencyStopHotkeyListener? _emergencyStopHotkeyListener;
     private RobloxInputService? _automationInput;
     private ReelInputCoordinator? _reelCoordinator;
     private FishingStateMachine? _runtimeStateMachine;
@@ -1575,17 +1577,25 @@ public partial class MainWindow : Window
 
     private void UnregisterGlobalHotkeys()
     {
-        if (_source is null) return;
-        var handle = _source.Handle;
-        Native.UnregisterHotKey(handle, CaptureHotkeyId);
-        Native.UnregisterHotKey(handle, PreviewHotkeyId);
-        Native.UnregisterHotKey(handle, ReelArmHotkeyId);
-        Native.UnregisterHotKey(handle, EmergencyStopHotkeyId);
-        Native.UnregisterHotKey(handle, ToggleUiHotkeyId);
+        // Release the independent emergency listener before replacing registrations.
+        _emergencyStopHotkeyListener?.Dispose();
+        _emergencyStopHotkeyListener = null;
+
+        if (_source is not null)
+        {
+            var handle = _source.Handle;
+            Native.UnregisterHotKey(handle, CaptureHotkeyId);
+            Native.UnregisterHotKey(handle, PreviewHotkeyId);
+            Native.UnregisterHotKey(handle, ReelArmHotkeyId);
+            Native.UnregisterHotKey(handle, EmergencyStopHotkeyId);
+            Native.UnregisterHotKey(handle, ToggleUiHotkeyId);
+        }
+
         _captureHotkeyRegistered = false;
         _previewHotkeyRegistered = false;
         _reelArmHotkeyRegistered = false;
         _emergencyStopHotkeyRegistered = false;
+        _emergencyStopHotkeyUsesDispatcher = false;
         _toggleUiHotkeyRegistered = false;
     }
 
@@ -1597,21 +1607,69 @@ public partial class MainWindow : Window
         _captureHotkeyRegistered = Native.RegisterHotKey(handle, CaptureHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.CaptureKey));
         _previewHotkeyRegistered = Native.RegisterHotKey(handle, PreviewHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.ObserveKey));
         _reelArmHotkeyRegistered = Native.RegisterHotKey(handle, ReelArmHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.StartKey));
-        _emergencyStopHotkeyRegistered = Native.RegisterHotKey(handle, EmergencyStopHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.StopKey));
+
+        // The emergency stop gets its own Win32 message pump, so a blocked WPF
+        // dispatcher cannot prevent the mouse/keyboard release path from running.
+        var stopKey = _hotkeySettings.StopKey;
+        _emergencyStopHotkeyListener = new EmergencyStopHotkeyListener(
+            GetVirtualKey(stopKey),
+            () => EmergencyStopHotkeyPressed(stopKey));
+        _emergencyStopHotkeyRegistered = _emergencyStopHotkeyListener.Start();
+        if (!_emergencyStopHotkeyRegistered)
+        {
+            _emergencyStopHotkeyListener.Dispose();
+            _emergencyStopHotkeyListener = null;
+
+            // Retain the normal WPF hotkey as a fallback if the dedicated listener
+            // could not reserve the key. This fallback does not survive a UI hang.
+            _emergencyStopHotkeyRegistered = Native.RegisterHotKey(
+                handle, EmergencyStopHotkeyId, ModNoRepeat, GetVirtualKey(stopKey));
+            _emergencyStopHotkeyUsesDispatcher = _emergencyStopHotkeyRegistered;
+        }
+
         _toggleUiHotkeyRegistered = Native.RegisterHotKey(handle, ToggleUiHotkeyId, ModNoRepeat, GetVirtualKey(_hotkeySettings.ToggleUiKey));
 
+        var stopMode = _emergencyStopHotkeyUsesDispatcher
+            ? " (WPF fallback)"
+            : _emergencyStopHotkeyRegistered ? " (independent)" : string.Empty;
         HotkeyStatusText.Text =
             $"Global hotkeys — {_hotkeySettings.CaptureKey}: capture {Registered(_captureHotkeyRegistered)} · " +
             $"{_hotkeySettings.ObserveKey}: observe {Registered(_previewHotkeyRegistered)} · " +
             $"{_hotkeySettings.StartKey}: start {Registered(_reelArmHotkeyRegistered)} · " +
-            $"{_hotkeySettings.StopKey}: stop {Registered(_emergencyStopHotkeyRegistered)} · " +
+            $"{stopKey}: stop {Registered(_emergencyStopHotkeyRegistered)}{stopMode} · " +
             $"{_hotkeySettings.ToggleUiKey}: show/hide {Registered(_toggleUiHotkeyRegistered)}";
         GlobalHotkeyStatusText.Text = HotkeyStatusText.Text;
         if (!_captureHotkeyRegistered || !_previewHotkeyRegistered || !_reelArmHotkeyRegistered
             || !_emergencyStopHotkeyRegistered || !_toggleUiHotkeyRegistered)
             AddActivityLog("WARN", "HOTKEYS", "At least one global hotkey is unavailable because another application is using that key.");
         else
-            AddActivityLog("INFO", "HOTKEYS", "All five global hotkeys are registered.");
+            AddActivityLog("INFO", "HOTKEYS", _emergencyStopHotkeyUsesDispatcher
+                ? "All five global hotkeys are registered; emergency stop is using the WPF fallback."
+                : "All five global hotkeys are registered; emergency stop runs independently of WPF.");
+    }
+
+    private void EmergencyStopHotkeyPressed(string stopKey)
+    {
+        // This callback runs off the WPF thread. First release active inputs
+        // synchronously; UI/coordinator cleanup is queued for when WPF resumes.
+        try { _automationInput?.EmergencyStop(); } catch { }
+        try { _aquariumAutomationInput?.EmergencyStop(); } catch { }
+        try { _connectionRecoveryInput?.EmergencyStop(); } catch { }
+
+        try
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                StopAquariumAutomation($"Emergency stop ({stopKey}): Auto Aquarium inputs released.");
+                StopConnectionRecovery($"Emergency stop ({stopKey}): reconnect watchdog stopped.");
+                StopAutomation($"Emergency stop ({stopKey}): all game inputs released.");
+                if (_isUiHidden) RestoreMainWindow();
+            }));
+        }
+        catch
+        {
+            // Input release already happened; the dispatcher may be shutting down.
+        }
     }
 
     private async void ApplyHotkeys_Click(object sender, RoutedEventArgs e)
