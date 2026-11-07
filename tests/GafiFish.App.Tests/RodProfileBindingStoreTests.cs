@@ -24,6 +24,11 @@ public sealed class RodProfileBindingStoreTests
             {
                 [1] = "Rod Alpha",
                 [0] = "Rod-Beta"
+            },
+            RodNameProfiles = new Dictionary<string, string>
+            {
+                ["ABYSSALTRIDENT"] = "Rod Alpha",
+                ["CELESTIALSTAFF"] = "Rod-Beta"
             }
         };
 
@@ -57,6 +62,19 @@ public sealed class RodProfileBindingStoreTests
         var bindings = new RodProfileSlotBindings
         {
             SlotProfiles = new Dictionary<int, string> { [2] = "!!!" }
+        };
+        Assert.Throws<ArgumentException>(bindings.Validate);
+    }
+
+    [Fact]
+    public void Validate_RejectsRodNameKeysThatAreNotNormalized()
+    {
+        var bindings = new RodProfileSlotBindings
+        {
+            RodNameProfiles = new Dictionary<string, string>
+            {
+                ["Abyssal Trident"] = "Rod Alpha"
+            }
         };
         Assert.Throws<ArgumentException>(bindings.Validate);
     }
