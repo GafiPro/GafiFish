@@ -127,7 +127,7 @@ public sealed class RhythmNoteInputCoordinator
 
             if (state.PreviousY.HasValue && state.PreviousAt.HasValue)
             {
-                var elapsed = (frame.CapturedAt - state.PreviousAt.Value).TotalSeconds;
+                var elapsed = (observation.CapturedAt - state.PreviousAt.Value).TotalSeconds;
                 if (elapsed is > 0 and <= 0.5)
                 {
                     var displacement = marker.CenterY - state.PreviousY.Value;
@@ -165,7 +165,7 @@ public sealed class RhythmNoteInputCoordinator
             }
 
             state.PreviousY = marker.CenterY;
-            state.PreviousAt = frame.CapturedAt;
+            state.PreviousAt = observation.CapturedAt;
         }
 
         _lastStatus = hitsThisFrame > 0
