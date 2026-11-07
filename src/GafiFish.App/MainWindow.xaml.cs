@@ -2066,9 +2066,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_capture.IsRobloxForeground())
+        var foregroundRobloxProcessId = _capture.GetForegroundRobloxProcessId();
+        if (!foregroundRobloxProcessId.HasValue
+            || _lastFrame is null
+            || _lastFrame.ProcessId != foregroundRobloxProcessId.Value)
         {
-            AutomationStatusText.Text = "Focus the Roblox game window, then press F8.";
+            const string reason =
+                "Start refused: Roblox is not the foreground application or the latest frame belongs to another process. No game input was sent.";
+            AutomationStatusText.Text = reason;
+            AddActivityLog("WARN", "INPUT-GUARD", reason);
             return;
         }
 

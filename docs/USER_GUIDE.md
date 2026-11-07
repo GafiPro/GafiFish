@@ -209,3 +209,8 @@ O GafiFish não aceita pedidos nem entrega peixes ao NPC automaticamente. A capt
 ## Appraise, Treasure Appraiser e Enchant
 
 Estas ações usam custos ou itens do jogo e podem produzir resultados aleatórios. O GafiFish não repete automaticamente Appraise/Treasure Appraise nem consome Enchant Relics em cadeia. Confirma sempre o peixe, o custo e o resultado pretendido no próprio jogo; estas ações permanecem manuais nesta versão.
+
+
+## Roblox-only input guard
+
+O GafiFish só arma o macro quando o cliente Roblox está em primeiro plano. No momento de armar, guarda o PID exato dessa instância. Todas as novas teclas, cliques e movimentos do cursor voltam a verificar que a mesma instância continua em primeiro plano. Se mudares para outra aplicação, fechares o Roblox ou trocares para outra instância, os novos inputs são recusados, os controlos já pressionados são libertados e a automação é desarmada. Volta a focar o Roblox e arma o macro novamente com F8. A captura de ecrã também rejeita qualquer janela que não pertença ao processo Roblox.
