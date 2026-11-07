@@ -94,7 +94,8 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Alertas sonoros locais para espécies configuradas, raridade Legendary+ e mutações detetadas por OCR.
 - [x] HUD de telemetria com posição, erro, confiança, estado, FPS de captura e motivo das decisões.
 - [x] Perfis nomeados manualmente por cana, com calibração visual exportável/importável em JSON.
-- [x] Seleção automática do perfil de calibração através do slot de hotbar associado pelo utilizador; a associação é persistente e não tenta adivinhar a cana pela imagem.
+- [x] Seleção automática do perfil pelo slot de hotbar ou pelo nome da cana reconhecido em OCR, após duas leituras estáveis e associação explícita.
+- [x] Presets Balanced, Precision, Heavy fish e Stable do controlador Reel, guardados individualmente em cada perfil de cana.
 - [ ] Afinar o controlador e os perfis com dados medidos em sessões reais.
 - [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.
 - [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
@@ -103,8 +104,10 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
 - [x] Hunt Detection: alerta visual calibrável, apenas de leitura, com debounce e proteção contra frames repetidos.
 - [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada, aceita o pedido e entrega o peixe através de botões visuais calibrados com clique único e confirmação de desaparecimento.
-- [ ] Appraise/Treasure Appraise e Auto Enchant: automação adiada até existirem capturas reais dos diálogos, botões, custos e estados de sucesso; não executar gastos ou tentativas às cegas.
-- [ ] Minijogos específicos por cana: dependem de frames reais e validação isolada. Auto Aquarium continua por validar no Fisch real.
+- [x] Leitura OCR local e apenas de leitura dos painéis Appraiser/Treasure Appraiser e Enchant, com regiões independentes calibráveis.
+- [ ] Automatização de Appraise/Treasure Appraiser ou Auto Enchant não incluída: confirmação e gastos permanecem manuais, sem tentativas repetidas.
+- [x] Reconhecimento OCR do nome da cana com região calibrada, duas leituras estáveis e mapeamento explícito para um perfil.
+- [ ] Minijogos visuais exclusivos de cada cana:
 
 ## Próximo bloqueio técnico
 
@@ -138,7 +141,7 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Ainda por implementar
 
-Appraise/Treasure Appraise e Auto Enchant continuam sem automação; não devem ser implementados por cliques cegos porque podem consumir moeda/itens. Precisam de capturas reais dos diálogos, dos custos e da confirmação de sucesso. Hunt Detection tem alerta visual calibrável e apenas de leitura; falta validar falsos positivos com frames reais. Angler Quest Assist acompanha o alvo por OCR e cooldown, e tem agora aceitação/entrega visual opcional por botões calibrados; o utilizador continua a ter de se deslocar ao NPC e abrir o diálogo. O watchdog de reconexão, Auto Aquarium, OCR, Perfect Cast, Reel e restantes detetores precisam de calibração e validação no Fisch real. Os perfis podem ser associados a slots de hotbar para seleção automática quando o utilizador escolhe o slot da cana; identificar automaticamente o modelo da cana sem essa associação continua fora do âmbito. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
+Appraise/Treasure Appraiser e Auto Enchant têm leitura OCR de painel apenas de leitura; confirmação e qualquer gasto continuam manuais. Não existe automação de tentativas nem cliques de gasto. Os perfis podem ser selecionados por slot ou pelo nome OCR da cana (duas leituras estáveis e associação explícita) e guardam um preset Reel individual. Os minijogos visuais exclusivos de cada cana ainda precisam de frames reais para implementação e validação. Hunt Detection, Angler Quest Assist, reconnect, Auto Aquarium, OCR, Perfect Cast, Reel e restantes detetores continuam a precisar de calibração/validação no Fisch real. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
 
 
 ## Inspiração ExoPanda — próximos módulos
@@ -149,8 +152,11 @@ Appraise/Treasure Appraise e Auto Enchant continuam sem automação; não devem 
 - [x] Aquarium Planner: registar alimentação e reposição independentes para as três comidas, acompanhar cooldowns horários e guardar horários localmente.
 - [x] Auto Aquarium: motor visual calibrável para sete botões; ações independentes de alimentação/reposição/claim, cooldown registado, deteção estável, clique único e falha fechada.
 - [ ] Detetar automaticamente o painel e validar os botões/calibrações em frames reais do Fisch.
-- [ ] Auto Appraisal: calibrar as zonas de diálogo, selecionar um peixe pela hotbar, ler peso/mutação e limitar tentativas/custo antes de repetir.
-- [ ] Custom Rod handlers: implementar cada minijogo específico apenas após recolher e validar frames reais.
+- [x] Leitor OCR read-only para painéis Appraiser/Treasure Appraiser e Enchant, com áreas independentes calibradas.
+- [ ] Appraise/Treasure Appraiser e Enchant automáticos: não incluídos; a interação e os gastos permanecem manuais.
+- [x] OCR do nome da cana, com região calibrada e associação persistente a perfis.
+- [x] Presets de Reel por perfil de cana, sem assumir que substituem minijogos diferentes.
+- [ ] Custom Rod handlers:
 - [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.
 - [x] Motor de rotação dia/noite por indicador HUD calibrado, três frames estáveis, baseline inicial sem consumo e execução em Preparing.
 - [ ] Validar com capturas reais do indicador HUD do Fisch, em dia e noite, antes de usar os slots reais.
@@ -295,7 +301,7 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Rejeição de frames repetidos ou fora de ordem.
 - [x] Calibração incluída nos perfis de cana e testes sintéticos do detetor/coordenador.
 - [ ] Calibrar com uma imagem real da mensagem/indicador de Hunt na versão atual do Fisch e verificar falsos positivos.
-- [ ] Appraise/Treasure Appraise e Auto Enchant continuam por implementar automaticamente até existirem frames reais dos respetivos diálogos, botões e estados de sucesso/custo. Não são usados alvos, preços ou coordenadas inventados.
+Appraise/Treasure Appraiser e Auto Enchant dispõem de OCR read-only para os painéis calibrados; confirmação, interação e gastos continuam manuais.
 - [x] Angler Quest Assist tem tracker OCR e aceitação/entrega visual por botões calibrados; deslocação ao NPC e abertura do diálogo permanecem manuais.
 
 
