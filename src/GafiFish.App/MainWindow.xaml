@@ -641,14 +641,53 @@
                                   Margin="0,0,0,6"
                                   Checked="AnglerQuestAssistCheckBox_Changed"
                                   Unchecked="AnglerQuestAssistCheckBox_Changed" />
-                        <TextBlock Text="Accept the request manually and enter the requested fish above. GafiFish fishes for one exact OCR-confirmed target and stops. You must hand in the fish yourself; the 120-second cooldown begins only after you confirm that hand-in below."
+                        <TextBlock Text="Enter the requested fish above. You can accept and hand in through calibrated visible buttons, or keep using the manual confirmation button. The fishing macro handles the catch; dialogue automation does not move your character."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,7" FontSize="11" />
-                        <Button x:Name="AnglerQuestSubmittedButton" Content="I handed the fish to the Angler · start cooldown"
+                        <Button x:Name="AnglerQuestSubmittedButton" Content="I handed the fish to the Angler · start cooldown (manual)"
                                 Click="ConfirmAnglerQuestSubmitted_Click" IsEnabled="False"
                                 Height="34" Margin="0,0,0,7" Background="#294153" />
                         <TextBlock x:Name="AnglerQuestStatusText"
-                                   Text="Angler Quest assist is off. Accept a quest manually and enter its requested fish to begin."
-                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                   Text="Angler Quest assist is off. Enable it and enter the requested fish above."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,6" />
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="SelectAnglerAcceptRegionButton" Content="Select Accept area"
+                                    Click="SelectAnglerAcceptButtonRegion_Click" Height="30" Margin="0,0,4,0"
+                                    Background="#294153" Foreground="#EAF0F5" />
+                            <Button x:Name="SampleAnglerAcceptColorButton" Grid.Column="1" Content="Sample Accept colour"
+                                    Click="SampleAnglerAcceptButtonColor_Click" Height="30" Margin="4,0,0,0"
+                                    Background="#294153" Foreground="#EAF0F5" />
+                        </Grid>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="SelectAnglerSubmitRegionButton" Content="Select Submit area"
+                                    Click="SelectAnglerSubmitButtonRegion_Click" Height="30" Margin="0,0,4,0"
+                                    Background="#294153" Foreground="#EAF0F5" />
+                            <Button x:Name="SampleAnglerSubmitColorButton" Grid.Column="1" Content="Sample Submit colour"
+                                    Click="SampleAnglerSubmitButtonColor_Click" Height="30" Margin="4,0,0,0"
+                                    Background="#294153" Foreground="#EAF0F5" />
+                        </Grid>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="80" />
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="StartAnglerQuestAutomationButton" Content="Arm Auto Accept / Submit"
+                                    Click="StartAnglerQuestAutomation_Click" Height="32"
+                                    Background="#315846" Foreground="#EAF0F5" />
+                            <Button x:Name="StopAnglerQuestAutomationButton" Grid.Column="1" Content="Stop"
+                                    Click="StopAnglerQuestAutomation_Click" Height="32" Margin="5,0,0,0"
+                                    Background="#643B42" Foreground="#EAF0F5" IsEnabled="False" />
+                        </Grid>
+                        <TextBlock x:Name="AnglerQuestAutomationStatusText"
+                                   Text="Calibrate Accept and Submit buttons on separate frames. Arm one action at a time."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,8" FontSize="11" />
                         <CheckBox x:Name="AutoShakeCheckBox"
                                   Content="Auto-shake (stable prompts; detects end of prompt sequence)"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,8"
