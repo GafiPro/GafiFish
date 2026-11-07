@@ -119,11 +119,38 @@ public sealed class AnglerQuestTrackerTests
     }
 
     [Fact]
+    public void RejectsCatchCapturedBeforeTheCurrentRequestStarted()
+    {
+        var tracker = new AnglerQuestTracker();
+        var requestStartedAt = DateTimeOffset.UtcNow;
+        tracker.StartTarget("Wrath Scylla", requestStartedAt);
+
+        Assert.False(tracker.MarkTargetFishCaught("Wrath Scylla", requestStartedAt.AddMilliseconds(-1)));
+        Assert.True(tracker.IsTracking);
+        Assert.False(tracker.HasCatchToSubmit);
+        Assert.True(tracker.MarkTargetFishCaught("Wrath Scylla", requestStartedAt.AddMilliseconds(1)));
+    }
+
+    [Fact]
+    public void Snapshot_PersistsRequestStartTimeAndRejectsDelayedOcrAfterRestore()
+    {
+        var tracker = new AnglerQuestTracker();
+        var requestStartedAt = DateTimeOffset.UtcNow;
+        tracker.StartTarget("Megalodon", requestStartedAt);
+        var restored = new AnglerQuestTracker();
+        restored.Restore(tracker.CreateSnapshot());
+
+        Assert.Equal(requestStartedAt, restored.TargetStartedAt);
+        Assert.False(restored.MarkTargetFishCaught("Megalodon", requestStartedAt.AddMilliseconds(-1)));
+        Assert.True(restored.IsTracking);
+    }
+
+    [Fact]
     public void Restore_RejectsInconsistentSnapshot()
     {
         var tracker = new AnglerQuestTracker();
         var caughtAt = DateTimeOffset.UtcNow;
-        var invalid = new AnglerQuestSnapshot("Megalodon", caughtAt, caughtAt.AddSeconds(10), caughtAt.AddSeconds(100));
+        var invalid = new AnglerQuestSnapshot("Megalodon", caughtAt.AddMinutes(-1), caughtAt, caughtAt.AddSeconds(10), caughtAt.AddSeconds(100));
         Assert.Throws<ArgumentException>(() => tracker.Restore(invalid));
     }
 }

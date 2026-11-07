@@ -5017,6 +5017,9 @@ public partial class MainWindow : Window
                 && _targetFishEnabled
                 && !string.IsNullOrWhiteSpace(_targetFishName)
                 && FishCatchTargetMatcher.MatchesSpecies(fishCatch.Species, _targetFishName)
+                && (!_anglerQuestAssistEnabled
+                    || !_anglerQuestTracker.TargetStartedAt.HasValue
+                    || frame.CapturedAt >= _anglerQuestTracker.TargetStartedAt.Value)
                 && result.Confidence >= 0.90
                 && _runtimeStateMachine is { CurrentState: FishingState.Reeling };
 

@@ -3,22 +3,27 @@ namespace GafiFish.Core.Automation;
 /// <summary>Persistable Angler request state, including the hand-in cooldown.</summary>
 public sealed record AnglerQuestSnapshot(
     string? TargetSpecies,
+    DateTimeOffset? TargetStartedAt,
     DateTimeOffset? TargetCaughtAt,
     DateTimeOffset? SubmittedAt,
     DateTimeOffset? NextRequestAvailableAt)
 {
-    public static AnglerQuestSnapshot Empty { get; } = new(null, null, null, null);
+    public static AnglerQuestSnapshot Empty { get; } = new(null, null, null, null, null);
 
     public void Validate()
     {
         if (TargetSpecies is null)
         {
-            if (TargetCaughtAt.HasValue || SubmittedAt.HasValue || NextRequestAvailableAt.HasValue)
+            if (TargetStartedAt.HasValue || TargetCaughtAt.HasValue || SubmittedAt.HasValue || NextRequestAvailableAt.HasValue)
                 throw new ArgumentException("An empty Angler quest cannot contain timestamps.");
             return;
         }
         if (string.IsNullOrWhiteSpace(TargetSpecies) || TargetSpecies.Trim().Length > 100)
             throw new ArgumentException("The saved Angler target must contain 1–100 non-whitespace characters.");
+        // TargetStartedAt is optional only for compatibility with state files
+        // written before start timestamps were persisted. Restore maps that
+        // legacy state to DateTimeOffset.MinValue, which still rejects no valid
+        // historical OCR frame from a new request.
         if (!TargetCaughtAt.HasValue)
         {
             if (SubmittedAt.HasValue || NextRequestAvailableAt.HasValue)
@@ -48,11 +53,13 @@ public sealed class AnglerQuestTracker
     public static readonly TimeSpan RequestCooldown = TimeSpan.FromSeconds(120);
 
     private string? _targetSpecies;
+    private DateTimeOffset? _targetStartedAt;
     private DateTimeOffset? _targetCaughtAt;
     private DateTimeOffset? _submittedAt;
     private DateTimeOffset? _nextRequestAvailableAt;
 
     public string? TargetSpecies => _targetSpecies;
+    public DateTimeOffset? TargetStartedAt => _targetStartedAt;
     public bool IsTracking => !string.IsNullOrWhiteSpace(_targetSpecies)
         && !_targetCaughtAt.HasValue
         && !_submittedAt.HasValue;
@@ -71,6 +78,7 @@ public sealed class AnglerQuestTracker
             throw new InvalidOperationException(GetStatus(now));
 
         _targetSpecies = targetSpecies.Trim();
+        _targetStartedAt = now;
         _targetCaughtAt = null;
         _submittedAt = null;
         _nextRequestAvailableAt = null;
@@ -78,7 +86,8 @@ public sealed class AnglerQuestTracker
 
     public bool MarkTargetFishCaught(string species, DateTimeOffset capturedAt)
     {
-        if (!IsTracking || !MatchesSpecies(species, _targetSpecies!))
+        if (!IsTracking || !MatchesSpecies(species, _targetSpecies!)
+            || (_targetStartedAt.HasValue && capturedAt < _targetStartedAt.Value))
             return false;
         _targetCaughtAt = capturedAt;
         return true;
@@ -123,13 +132,14 @@ public sealed class AnglerQuestTracker
     }
 
     public AnglerQuestSnapshot CreateSnapshot() => new(
-        _targetSpecies, _targetCaughtAt, _submittedAt, _nextRequestAvailableAt);
+        _targetSpecies, _targetStartedAt, _targetCaughtAt, _submittedAt, _nextRequestAvailableAt);
 
     public void Restore(AnglerQuestSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         snapshot.Validate();
         _targetSpecies = string.IsNullOrWhiteSpace(snapshot.TargetSpecies) ? null : snapshot.TargetSpecies.Trim();
+        _targetStartedAt = snapshot.TargetStartedAt ?? (snapshot.TargetSpecies is null ? null : DateTimeOffset.MinValue);
         _targetCaughtAt = snapshot.TargetCaughtAt;
         _submittedAt = snapshot.SubmittedAt;
         _nextRequestAvailableAt = snapshot.NextRequestAvailableAt;
@@ -138,6 +148,7 @@ public sealed class AnglerQuestTracker
     public void Reset()
     {
         _targetSpecies = null;
+        _targetStartedAt = null;
         _targetCaughtAt = null;
         _submittedAt = null;
         _nextRequestAvailableAt = null;
