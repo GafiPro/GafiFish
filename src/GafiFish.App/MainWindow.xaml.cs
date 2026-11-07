@@ -193,6 +193,7 @@ public partial class MainWindow : Window
     private AnglerQuestAutomationCoordinator? _anglerQuestAutomationCoordinator;
     private RobloxInputService? _anglerQuestAutomationInput;
     private bool _anglerQuestStartRequested;
+    private string? _anglerQuestRequestedSpecies;
     private readonly AnglerQuestStateStore _anglerQuestStateStore = new();
     private bool _anglerQuestStateAvailable = true;
     private bool _anglerQuestAssistEnabled;
@@ -1063,6 +1064,10 @@ public partial class MainWindow : Window
             }
         }
 
+        _anglerQuestRequestedSpecies = _anglerQuestTracker.HasCatchToSubmit
+            ? _anglerQuestTracker.TargetSpecies
+            : TargetFishTextBox.Text.Trim();
+
         if (_previewCancellation is null)
             TogglePreviewLoop();
 
@@ -1121,7 +1126,7 @@ public partial class MainWindow : Window
         {
             if (action == AnglerQuestButtonKind.AcceptRequest)
             {
-                var target = TargetFishTextBox.Text.Trim();
+                var target = _anglerQuestRequestedSpecies ?? TargetFishTextBox.Text.Trim();
                 _anglerQuestTracker.StartTarget(target, confirmedAt);
                 AnglerQuestStatusText.Text = _anglerQuestTracker.GetStatus(confirmedAt);
                 SaveAnglerQuestState("Angler request acceptance visually confirmed.");
@@ -1160,6 +1165,7 @@ public partial class MainWindow : Window
     private void StopAnglerQuestAutomation(string reason, bool log = true, bool coordinatorAlreadyStopped = false)
     {
         _anglerQuestStartRequested = false;
+        _anglerQuestRequestedSpecies = null;
         var releaseFailed = false;
         try
         {
@@ -4021,7 +4027,8 @@ public partial class MainWindow : Window
 
             if (_anglerQuestAutomationCoordinator is { IsStarted: true } anglerCoordinator)
             {
-                anglerCoordinator.ProcessFrame(frame, _profile, _anglerQuestTracker, TargetFishTextBox.Text);
+                anglerCoordinator.ProcessFrame(
+                    frame, _profile, _anglerQuestTracker, _anglerQuestRequestedSpecies ?? TargetFishTextBox.Text);
                 AnglerQuestAutomationStatusText.Text = anglerCoordinator.LastStatus;
 
                 if (!anglerCoordinator.IsStarted)
