@@ -3246,6 +3246,40 @@ public partial class MainWindow : Window
 
             var castStartedThisFrame = false;
 
+            var isRhythmMode = _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
+            if (isRhythmMode)
+            {
+                if (_rhythmCoordinator is null)
+                    throw new InvalidOperationException("Tranquility Rhythm coordinator is not available.");
+
+                var rhythmObservation = _rhythmCoordinator.ProcessFrame(
+                    frame,
+                    _profile,
+                    allowInput: _runtimeStateMachine.CurrentState == FishingState.Reeling);
+                RhythmNoteStatusText.Text = _rhythmCoordinator.LastStatus;
+                if (rhythmObservation is { IsCalibrated: true, HasNotes: true }
+                    && _runtimeStateMachine.CurrentState is
+                        FishingState.Preparing or FishingState.Casting
+                        or FishingState.WaitingForBite or FishingState.Shaking)
+                {
+                    if (_runtimeStateMachine.CurrentState == FishingState.Casting)
+                    {
+                        _castCoordinator?.Stop();
+                        _castVision.Reset();
+                    }
+
+                    _shakeCoordinator?.Reset();
+                    _missedBiteRetries.Reset();
+                    if (!_runtimeStateMachine.TryTransition(
+                            FishingState.Reeling,
+                            "A calibrated falling note entered the Tranquility rhythm lanes.",
+                            frame.CapturedAt))
+                    {
+                        throw new InvalidOperationException("Could not enter Reeling after detecting a rhythm note.");
+                    }
+                }
+            }
+
             // A detected fish/bar pair takes priority over Shake candidates.
             var reelMarkersVisible =
                 fishMarker is not null
@@ -3255,7 +3289,7 @@ public partial class MainWindow : Window
                 && motion is { IsFresh: true }
                 && motion.Confidence >= 0.70;
 
-            if (reelMarkersVisible
+            if (!isRhythmMode && reelMarkersVisible
                 && (_runtimeStateMachine.CurrentState is
                     FishingState.Preparing or FishingState.Casting
                     or FishingState.WaitingForBite or FishingState.Shaking))
@@ -3486,9 +3520,19 @@ public partial class MainWindow : Window
                 }
             }
 
+            // Rhythm keys are handled by RhythmNoteInputCoordinator. The
+            // ordinary mouse Reel controller must never run for this rod mode.
+            if (isRhythmMode)
+            {
+                if (_runtimeStateMachine.CurrentState == FishingState.Reeling
+                    && _rhythmCoordinator is not null)
+                {
+                    AutomationStatusText.Text = _rhythmCoordinator.LastStatus;
+                }
+            }
             // Casting owns the left mouse button while it is charging. Reel
             // must not run in parallel and accidentally release the cast.
-            if (!(_runtimeStateMachine.CurrentState == FishingState.Casting
+            else if (!(_runtimeStateMachine.CurrentState == FishingState.Casting
                 && _castCoordinator?.IsHolding == true))
             {
                 var chargeMeter = _profile.RodMinigameMode == RodMinigameMode.ChargeMeterBonus
