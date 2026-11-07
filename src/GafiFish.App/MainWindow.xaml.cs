@@ -3177,6 +3177,7 @@ public partial class MainWindow : Window
             : reason;
         AddActivityLog(releaseFailed ? "WARN" : "INFO", "AUTOMATION",
             releaseFailed ? $"{reason} Input release warning." : reason);
+        RefreshRodReelPresetControls();
         RefreshModuleQuickInfo();
         SyncModuleToggles();
     }
@@ -3258,9 +3259,9 @@ public partial class MainWindow : Window
                     allowInput: _runtimeStateMachine.CurrentState == FishingState.Reeling);
                 RhythmNoteStatusText.Text = _rhythmCoordinator.LastStatus;
                 if (rhythmObservation is { IsCalibrated: true, HasNotes: true }
-                    && _runtimeStateMachine.CurrentState is
+                    && (_runtimeStateMachine.CurrentState is
                         FishingState.Preparing or FishingState.Casting
-                        or FishingState.WaitingForBite or FishingState.Shaking)
+                        or FishingState.WaitingForBite or FishingState.Shaking))
                 {
                     if (_runtimeStateMachine.CurrentState == FishingState.Casting)
                     {
