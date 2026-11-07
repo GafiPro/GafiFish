@@ -30,6 +30,9 @@ public sealed record AnglerQuestSnapshot(
                 throw new ArgumentException("A quest cannot be submitted before its target fish is caught.");
             return;
         }
+        if (TargetStartedAt.HasValue && TargetCaughtAt.Value < TargetStartedAt.Value)
+            throw new ArgumentException("Saved catch time cannot be earlier than the request start.");
+
         if (!SubmittedAt.HasValue)
         {
             if (NextRequestAvailableAt.HasValue)

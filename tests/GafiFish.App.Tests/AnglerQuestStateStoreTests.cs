@@ -50,7 +50,7 @@ public sealed class AnglerQuestStateStoreTests
         using var directory = new TemporaryDirectory();
         var path = Path.Combine(directory.Path, "angler.json");
         var caughtAt = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
-        var invalid = new AnglerQuestSnapshot("Megalodon", caughtAt, caughtAt.AddSeconds(5), caughtAt.AddSeconds(100));
+        var invalid = new AnglerQuestSnapshot("Megalodon", caughtAt.AddMinutes(-1), caughtAt, caughtAt.AddSeconds(5), caughtAt.AddSeconds(100));
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(invalid));
         var store = new AnglerQuestStateStore(path);
         await Assert.ThrowsAsync<ArgumentException>(() => store.LoadAsync());
