@@ -149,6 +149,7 @@ Inclui alertas sonoros locais para espécies prioritárias, raridades Legendary+
 
 - Logs de atividade persistentes (últimos 500 eventos visíveis), com rotação automática de ficheiros, pesquisa, filtro por nível, cópia/exportação TXT e registo de avisos/erros.
 - Hotkeys globais F2–F12 configuráveis, validadas para serem únicas e guardadas localmente; tecla dedicada para mostrar/ocultar a janela.
+- A tecla Stop global usa um ciclo de mensagens Win32 independente do WPF: liberta inputs mesmo com a interface bloqueada e agenda a limpeza da interface quando esta responder. Se o registo independente falhar, o painel identifica o fallback WPF.
 - Pasta de dados local acessível diretamente a partir do painel de logs.
 - Cópias de segurança portáteis ZIP dos dados locais, com snapshot SQLite online, manifesto, verificação SHA-256 e pré-visualização dos conteúdos sem extração.
 - Catchbook com pesquisa global do histórico completo, filtros combinados por raridade/identificação/mutação, ordenação por colunas e exportação CSV/JSON dos resultados filtrados.
