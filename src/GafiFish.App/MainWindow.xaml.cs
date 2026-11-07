@@ -1776,7 +1776,9 @@ public partial class MainWindow : Window
                 ? "READY" : "NEEDS SESSION / CALIBRATION")
             : "OFF";
         var dayNightTotemStatus = AutoDayNightTotemCheckBox.IsChecked == true
-            ? (_profile.IsWorldPhaseCalibrated ? "READY · TWO SLOTS" : "NEEDS PHASE CALIBRATION")
+            ? (_dayNightTotemRotation is not null
+                ? "ARMED"
+                : _profile.IsWorldPhaseCalibrated ? "READY · TWO SLOTS" : "NEEDS PHASE CALIBRATION")
             : "OFF";
         ModuleQuickInfoText.Text =
             $"Fishing vision: {(_profile.IsFishingCalibrated ? "READY" : "NEEDS CALIBRATION")}{Environment.NewLine}" +
@@ -2221,6 +2223,11 @@ public partial class MainWindow : Window
                     dayTotemSlot!.Value,
                     nightTotemSlot!.Value)
                 : null;
+            if (_dayNightTotemRotation is not null)
+            {
+                DayNightTotemStatusText.Text =
+                    "Armed. Waiting for three stable frames to establish the initial phase; no item is used yet.";
+            }
             _activeRodSlot = rodSlot;
             _resumeCastingAfter = DateTimeOffset.MinValue;
             _autoTotemEnabled = autoTotemEnabled;
@@ -2289,6 +2296,7 @@ public partial class MainWindow : Window
                 // Best effort: never hide the original arming error.
             }
 
+            _dayNightTotemRotation = null;
             AutomationStatusText.Text = $"Reel assist could not arm: {exception.Message}";
             AddActivityLog("ERROR", "AUTOMATION", $"Could not arm macro: {exception.Message}");
             RefreshModuleQuickInfo();
@@ -2360,6 +2368,12 @@ public partial class MainWindow : Window
         _hotbarItemCoordinator = null;
         _timedItemSchedule = null;
         _dayNightTotemRotation = null;
+        if (AutoDayNightTotemCheckBox.IsChecked == true)
+        {
+            DayNightTotemStatusText.Text = _profile.IsWorldPhaseCalibrated
+                ? "Stopped. Re-arm the macro to establish a fresh day/night baseline."
+                : "Day/night phase calibration is missing.";
+        }
         _activeRodSlot = null;
         _resumeCastingAfter = DateTimeOffset.MinValue;
         _autoTotemEnabled = false;
@@ -3532,7 +3546,8 @@ public partial class MainWindow : Window
                 || importedProfile.IsSellButtonCalibrated
                 || importedProfile.IsInventoryVerificationCalibrated
                 || importedProfile.IsCatchNotificationCalibrated
-                || importedProfile.IsReconnectButtonCalibrated;
+                || importedProfile.IsReconnectButtonCalibrated
+                || importedProfile.IsWorldPhaseCalibrated;
             if (!hasCalibration)
                 throw new InvalidDataException("The selected JSON does not contain a usable GafiFish calibration profile.");
 
