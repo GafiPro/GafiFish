@@ -77,15 +77,31 @@ public sealed class RhythmNoteInputCoordinator
         if (!_started)
             return null;
 
-        if (_lastFrameAt.HasValue && frame.CapturedAt <= _lastFrameAt.Value)
+        return ProcessObservation(_detector.Detect(frame, profile), profile, allowInput);
+    }
+
+    /// <summary>
+    /// Processes an already detected frame so the same observation can be
+    /// displayed in offline replay without running the input coordinator.
+    /// </summary>
+    public RhythmNoteVisionResult? ProcessObservation(
+        RhythmNoteVisionResult observation,
+        VisionProfile profile,
+        bool allowInput)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+        ArgumentNullException.ThrowIfNull(profile);
+        if (!_started)
+            return null;
+
+        if (_lastFrameAt.HasValue && observation.CapturedAt <= _lastFrameAt.Value)
         {
             _lastStatus = "Ignored duplicate or out-of-order rhythm frame; no key was sent.";
             return null;
         }
 
-        _lastFrameAt = frame.CapturedAt;
+        _lastFrameAt = observation.CapturedAt;
 
-        var observation = _detector.Detect(frame, profile);
         if (!observation.IsCalibrated)
         {
             _lastStatus = observation.Status;
