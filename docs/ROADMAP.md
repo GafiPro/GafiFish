@@ -102,7 +102,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [ ] Confirmar o regresso efetivo à sessão em cada tipo de desconexão; o desaparecimento do botão não é prova de reconexão.
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
 - [x] Hunt Detection: alerta visual calibrável, apenas de leitura, com debounce e proteção contra frames repetidos.
-- [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada e gere o cooldown após confirmação manual da entrega.
+- [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada, aceita o pedido e entrega o peixe através de botões visuais calibrados com clique único e confirmação de desaparecimento.
 - [ ] Appraise/Treasure Appraise e Auto Enchant: automação adiada até existirem capturas reais dos diálogos, botões, custos e estados de sucesso; não executar gastos ou tentativas às cegas.
 - [ ] Minijogos específicos por cana: dependem de frames reais e validação isolada. Auto Aquarium continua por validar no Fisch real.
 
@@ -138,7 +138,7 @@ O Shake e o Perfect Cast já têm deteção visual, overlay, controladores e tes
 
 ## Ainda por implementar
 
-Appraise/Treasure Appraise e Auto Enchant continuam sem automação; não devem ser implementados por cliques cegos porque podem consumir moeda/itens. Precisam de capturas reais dos diálogos, dos custos e da confirmação de sucesso. Hunt Detection tem alerta visual calibrável e apenas de leitura; falta validar falsos positivos com frames reais. Angler Quest Assist acompanha o alvo por OCR e o cooldown, mas aceitar e entregar a quest ao NPC continua manual. O watchdog de reconexão, Auto Aquarium, OCR, Perfect Cast, Reel e restantes detetores precisam de calibração e validação no Fisch real. Os perfis podem ser associados a slots de hotbar para seleção automática quando o utilizador escolhe o slot da cana; identificar automaticamente o modelo da cana sem essa associação continua fora do âmbito. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
+Appraise/Treasure Appraise e Auto Enchant continuam sem automação; não devem ser implementados por cliques cegos porque podem consumir moeda/itens. Precisam de capturas reais dos diálogos, dos custos e da confirmação de sucesso. Hunt Detection tem alerta visual calibrável e apenas de leitura; falta validar falsos positivos com frames reais. Angler Quest Assist acompanha o alvo por OCR e cooldown, e tem agora aceitação/entrega visual opcional por botões calibrados; o utilizador continua a ter de se deslocar ao NPC e abrir o diálogo. O watchdog de reconexão, Auto Aquarium, OCR, Perfect Cast, Reel e restantes detetores precisam de calibração e validação no Fisch real. Os perfis podem ser associados a slots de hotbar para seleção automática quando o utilizador escolhe o slot da cana; identificar automaticamente o modelo da cana sem essa associação continua fora do âmbito. Os consumíveis temporizados ainda não confirmam visualmente a ativação e podem gastar um item se o slot estiver errado.
 
 
 ## Inspiração ExoPanda — próximos módulos
@@ -311,7 +311,7 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Validar snapshots inconsistentes e bloquear novos pedidos quando o estado local não pode ser recuperado.
 - [x] Testes para restauro de pedido ativo, entrega pendente e cooldown após reinício.
 - [ ] Validar o OCR dos nomes dos peixes em diálogos reais do Angler e diferentes resoluções.
-- [ ] Aceitação e entrega da quest ao NPC continuam manuais.
+- [x] Aceitação e entrega do NPC com botões calibrados; deslocação até ao NPC e abertura do diálogo permanecem manuais.
 
 ## Proteção de foco e destino de input — 7 de novembro de 2026
 
