@@ -107,7 +107,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Leitura OCR local e apenas de leitura dos painéis Appraiser/Treasure Appraiser e Enchant, com regiões independentes calibráveis.
 - [ ] Automatização de Appraise/Treasure Appraiser ou Auto Enchant não incluída: confirmação e gastos permanecem manuais, sem tentativas repetidas.
 - [x] Reconhecimento OCR do nome da cana com região calibrada, duas leituras estáveis e mapeamento explícito para um perfil.
-- [ ] Minijogos visuais exclusivos de cada cana:
+- [ ] Implementar handlers dos minijogos visuais únicos de cada cana depois de recolher frames reais e validar cada mecânica.
 
 ## Próximo bloqueio técnico
 
