@@ -5851,7 +5851,10 @@ public partial class MainWindow : Window
                         SaveAnglerQuestState("Angler target catch confirmed by OCR.");
                     }
                     AnglerQuestSubmittedButton.IsEnabled = true;
-                    AddActivityLog("INFO", "ANGLER", $"Angler target caught: {_targetFishName}. Hand it in manually to start the cooldown.");
+                    AnglerQuestAutomationStatusText.Text =
+                        "Target fish confirmed. You can re-arm Auto Accept / Submit to hand it in, or use the manual confirmation button.";
+                    AddActivityLog("INFO", "ANGLER",
+                        $"Angler target caught: {_targetFishName}. Re-arm the visual Submit Fish action or confirm the hand-in manually.");
                 }
             }
 
