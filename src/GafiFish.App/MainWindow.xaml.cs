@@ -5270,6 +5270,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
             or CalibrationAction.SelectRodNameRegion
+            or CalibrationAction.SelectRodChargeMeterRegion)
         {
             _selectionStartPixel = pixelPoint;
             _selectionStartOverlay = overlayPoint;
@@ -5299,7 +5300,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
-            or CalibrationAction.SelectRodNameRegion)
+            or CalibrationAction.SelectRodNameRegion
+            or CalibrationAction.SelectRodChargeMeterRegion)
             || _selectionStartOverlay is null
             || !PreviewOverlay.IsMouseCaptured)
         {
@@ -5330,7 +5332,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
-            or CalibrationAction.SelectRodNameRegion)
+            or CalibrationAction.SelectRodNameRegion
+            or CalibrationAction.SelectRodChargeMeterRegion)
             || _selectionStartPixel is null
             || _lastFrame is null)
         {
