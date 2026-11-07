@@ -102,6 +102,79 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_ReleasesChargeAtEightyPercentWhenFishIsInsideTheControlBar()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var outsideBar = new DetectedMarker(
+            100, 40, new OpenCvSharp.Rect(70, 37, 40, 6), 240, 0.95);
+        var held = coordinator.Apply(
+            FishingState.Reeling, fish, outsideBar, Motion(150, now));
+        Assert.Equal(ReelCommand.Hold, held.Command);
+        Assert.True(input.IsLeftButtonDown);
+
+        var barContainingFish = new DetectedMarker(
+            130, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+        var release = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            barContainingFish,
+            Motion(150, now.AddMilliseconds(100)),
+            new RodChargeMeterObservation(now.AddMilliseconds(100), 0.85, 0.95, "Charge 85%."));
+
+        Assert.Equal(ReelCommand.Release, release.Command);
+        Assert.False(input.IsLeftButtonDown);
+        Assert.Contains("charge", release.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Apply_DoesNotUseChargeReleaseWhenFishIsOutsideTheControlBar()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var outsideBar = new DetectedMarker(
+            110, 40, new OpenCvSharp.Rect(90, 37, 40, 6), 240, 0.95);
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            outsideBar,
+            Motion(150, now),
+            new RodChargeMeterObservation(now, 0.90, 0.95, "Charge 90%."));
+
+        Assert.Equal(ReelCommand.Hold, decision.Command);
+        Assert.True(input.IsLeftButtonDown);
+    }
+
+    [Fact]
+    public void Apply_DoesNotUseChargeReleaseForAnUnusableMeterObservation()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var control = Marker(100);
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            control,
+            Motion(150, now),
+            new RodChargeMeterObservation(now, 0.95, 0.2, "Uncertain charge reading."));
+
+        Assert.Equal(ReelCommand.Hold, decision.Command);
+        Assert.True(input.IsLeftButtonDown);
+    }
+
+    [Fact]
     public void Stop_DisarmsAndReleasesAllInputs()
     {
         var input = new FakeRobloxInput();
