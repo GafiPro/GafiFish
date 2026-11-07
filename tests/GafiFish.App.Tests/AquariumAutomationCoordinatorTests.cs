@@ -53,6 +53,68 @@ public sealed class AquariumAutomationCoordinatorTests
     }
 
     [Fact]
+    public void DuplicateFrameCannotSatisfyReadyButtonStabilityThreshold()
+    {
+        var start = new DateTimeOffset(2026, 11, 6, 13, 0, 0, TimeSpan.Zero);
+        var input = new FakeInput();
+        var coordinator = new AquariumAutomationCoordinator(
+            input, new AquariumButtonVisionDetector(), (_, _) => { });
+        var profile = CreateProfile();
+        var schedule = new AquariumScheduleState
+        {
+            GuppiesBest = new AquariumFoodProgress(LastFedAt: start.AddHours(-1))
+        };
+        var options = new AquariumAutomationOptions(true, false, false);
+        var first = CreateFrame(start, true);
+
+        coordinator.Start();
+        coordinator.ProcessFrame(first, profile, schedule, options);
+        coordinator.ProcessFrame(first, profile, schedule, options);
+
+        Assert.Equal(0, input.Clicks);
+        Assert.Contains("duplicate or out-of-order", coordinator.LastStatus, StringComparison.OrdinalIgnoreCase);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(120), true), profile, schedule, options);
+        Assert.Equal(0, input.Clicks);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(240), true), profile, schedule, options);
+        Assert.Equal(1, input.Clicks);
+        coordinator.Stop();
+    }
+
+    [Fact]
+    public void DuplicateFrameCannotConfirmButtonDisappearanceAfterClick()
+    {
+        var start = new DateTimeOffset(2026, 11, 6, 13, 0, 0, TimeSpan.Zero);
+        var input = new FakeInput();
+        var confirmed = new List<(AquariumActionKind Kind, DateTimeOffset At)>();
+        var coordinator = new AquariumAutomationCoordinator(
+            input, new AquariumButtonVisionDetector(),
+            (kind, at) => confirmed.Add((kind, at)));
+        var profile = CreateProfile();
+        var schedule = new AquariumScheduleState
+        {
+            GuppiesBest = new AquariumFoodProgress(LastFedAt: start.AddHours(-1))
+        };
+        var options = new AquariumAutomationOptions(true, false, false);
+
+        coordinator.Start();
+        coordinator.ProcessFrame(CreateFrame(start, true), profile, schedule, options);
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(120), true), profile, schedule, options);
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(240), true), profile, schedule, options);
+        Assert.Equal(1, input.Clicks);
+
+        var absent = CreateFrame(start.AddMilliseconds(360), false);
+        coordinator.ProcessFrame(absent, profile, schedule, options);
+        coordinator.ProcessFrame(absent, profile, schedule, options);
+        Assert.Empty(confirmed);
+
+        coordinator.ProcessFrame(CreateFrame(start.AddMilliseconds(480), false), profile, schedule, options);
+        Assert.Single(confirmed);
+        coordinator.Stop();
+    }
+
+    [Fact]
     public void DoesNotClickBeforeCooldownIsReady()
     {
         var start = new DateTimeOffset(2026, 11, 6, 13, 0, 0, TimeSpan.Zero);

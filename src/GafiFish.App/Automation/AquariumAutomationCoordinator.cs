@@ -29,6 +29,7 @@ public sealed class AquariumAutomationCoordinator
     private int _stableFrames;
     private PendingAction? _pending;
     private int _absentFrames;
+    private DateTimeOffset? _lastProcessedFrameAt;
     private bool _started;
     private string _lastStatus = "Auto Aquarium is stopped.";
 
@@ -70,6 +71,7 @@ public sealed class AquariumAutomationCoordinator
             throw new InvalidOperationException("Auto Aquarium is already started.");
 
         _input.Arm();
+        _lastProcessedFrameAt = null;
         _started = true;
         _lastStatus = "Auto Aquarium armed. Keep the Fisch Aquarium panel visible.";
     }
@@ -85,6 +87,7 @@ public sealed class AquariumAutomationCoordinator
             _started = false;
             _pending = null;
             _absentFrames = 0;
+            _lastProcessedFrameAt = null;
             ResetCandidate();
             _lastStatus = "Auto Aquarium stopped; all inputs released.";
         }
@@ -103,6 +106,17 @@ public sealed class AquariumAutomationCoordinator
 
         if (!_started)
             return;
+
+        // Repeated or out-of-order captures are not independent observations.
+        // Never allow one screenshot to satisfy the stable-button or
+        // post-click disappearance thresholds more than once.
+        if (_lastProcessedFrameAt.HasValue && frame.CapturedAt <= _lastProcessedFrameAt.Value)
+        {
+            _lastStatus = "Ignored duplicate or out-of-order capture frame; no input was sent.";
+            return;
+        }
+
+        _lastProcessedFrameAt = frame.CapturedAt;
 
         try
         {
@@ -222,6 +236,7 @@ public sealed class AquariumAutomationCoordinator
             _started = false;
             _pending = null;
             _absentFrames = 0;
+            _lastProcessedFrameAt = null;
             ResetCandidate();
             _lastStatus = reason;
         }

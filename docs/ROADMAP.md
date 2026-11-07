@@ -86,7 +86,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Reprodução offline de sequências de imagens reais para diagnóstico sem abrir o jogo.
 - [x] Reprodução direta de gravações de vídeo para diagnóstico, em streaming e com limite de 30 atualizações visuais/s.
 - [x] Estatísticas acumuladas de todas as sessões: espécies mais capturadas, raridade alta, mutações, peso médio/máximo, valor estimado reconhecido por OCR e capturas por hora de sessões concluídas.
-- [ ] Relatórios de diagnóstico exportáveis.
+- [x] Relatórios de diagnóstico exportáveis (JSON e pacote ZIP de suporte, sem screenshots nem base de dados).
 - [x] Alertas sonoros locais para espécies configuradas, raridade Legendary+ e mutações detetadas por OCR.
 - [x] HUD de telemetria com posição, erro, confiança, estado, FPS de captura e motivo das decisões.
 - [x] Perfis nomeados manualmente por cana, com calibração visual exportável/importável em JSON.
@@ -254,6 +254,12 @@ A revisão seguinte, `b0cec0b`, endureceu o Sell Anywhere: rejeita fotogramas re
 - [x] Desarmar sem retry quando o botão não desaparece no timeout.
 - [ ] Validar com diferentes ecrãs reais de desconexão e confirmar visualmente a entrada na sessão.
 
+
+## Integridade das capturas de automação — novembro de 2026
+
+- [x] Sell Anywhere ignora fotogramas duplicados e fora de ordem; apenas capturas monotónicas contam para estabilização e confirmação.
+- [x] Auto Aquarium aplica a mesma proteção antes de contar frames estáveis ou confirmar o desaparecimento de um botão.
+- [x] Testes garantem que um único fotograma repetido não consegue provocar um clique nem confirmar uma ação.
 
 ## Rotação de totens dia/noite — novembro de 2026
 
