@@ -1,4 +1,5 @@
 using GafiFish.Core.Aquarium;
+using GafiFish.Core.Automation;
 namespace GafiFish.Vision.Calibration;
 
 /// <summary>
@@ -40,6 +41,11 @@ public sealed record VisionProfile
     public HsvColorRange? ShakePromptColor { get; init; }
     public HsvColorRange? SellButtonColor { get; init; }
     public Dictionary<AquariumActionKind, AquariumButtonCalibration> AquariumButtons { get; init; } = [];
+    public Dictionary<AnglerQuestButtonKind, AnglerQuestButtonCalibration> AnglerQuestButtons { get; init; } = [];
+    public bool IsAnglerAcceptButtonCalibrated =>
+        AnglerQuestButtons.TryGetValue(AnglerQuestButtonKind.AcceptRequest, out var accept) && accept.IsCalibrated;
+    public bool IsAnglerSubmitButtonCalibrated =>
+        AnglerQuestButtons.TryGetValue(AnglerQuestButtonKind.SubmitFish, out var submit) && submit.IsCalibrated;
     public double MinimumBlobArea { get; init; } = 5;
     public double MinimumConfidence { get; init; } = 0.60;
 
@@ -103,6 +109,10 @@ public sealed record VisionProfile
         HuntSignalColor?.Validate();
         ArgumentNullException.ThrowIfNull(AquariumButtons);
         foreach (var button in AquariumButtons.Values)
+            button.Validate();
+
+        ArgumentNullException.ThrowIfNull(AnglerQuestButtons);
+        foreach (var button in AnglerQuestButtons.Values)
             button.Validate();
     }
 
