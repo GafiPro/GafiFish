@@ -158,7 +158,7 @@ public sealed class DayNightTotemRotationCoordinatorTests
     private sealed class RecordingInput : IRobloxInput
     {
         public List<string> Events { get; } = [];
-        public bool IsArmed { get; private set; }
+        public bool IsArmed { get; private set; } = true;
         public void Arm() => IsArmed = true;
         public void SetLeftButton(bool isDown) => Events.Add(isDown ? "mouse:down" : "mouse:up");
         public void SetKey(ushort key, bool isDown) => Events.Add($"key:{key}:{(isDown ? "down" : "up")}");
