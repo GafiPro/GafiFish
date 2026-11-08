@@ -67,6 +67,15 @@ public sealed class ReelInputCoordinator
             && fishMarker.CenterX >= horizontalSpan.Left
             && fishMarker.CenterX <= horizontalSpan.Right;
 
+        if (controlMarker.OrientedBounds.HasValue && !hasHorizontalSpan)
+        {
+            _controlMotionTracker.Reset();
+            _input.SetLeftButton(false);
+            return new ReelControlDecision(
+                ReelCommand.Neutral, 0, 0,
+                "The fish is outside the vertical span of the rotated control bar; mouse input released.");
+        }
+
         // Track the control bar independently from the fish. This makes the
         // controller work with bars that translate across the minigame area,
         // using relative horizontal velocity rather than assuming the bar is static.

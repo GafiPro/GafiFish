@@ -108,6 +108,49 @@ public sealed class FishingVisionDetectorTests
     }
 
     [Fact]
+    public void Detect_RetainsOrientedGeometryForVerticalControlBar()
+    {
+        const int width = 120;
+        const int height = 100;
+        var pixels = new byte[width * height * 4];
+        for (var i = 0; i < pixels.Length; i += 4)
+            pixels[i + 3] = 255;
+
+        var verticalBar = new RotatedRect(
+            new Point2f(70, 50),
+            new Size2f(64, 8),
+            90);
+        var corners = verticalBar.Points()
+            .Select(point => new Point((int)Math.Round(point.X), (int)Math.Round(point.Y)))
+            .ToArray();
+        using (var bgra = new Mat(height, width, MatType.CV_8UC4, Scalar.All(0)))
+        {
+            Cv2.Rectangle(bgra, new Rect(12, 43, 8, 8), new Scalar(0, 0, 255, 255), thickness: -1);
+            Cv2.FillConvexPoly(bgra, corners, new Scalar(255, 0, 0, 255));
+            System.Runtime.InteropServices.Marshal.Copy(bgra.Data, pixels, 0, pixels.Length);
+        }
+
+        var frame = new ScreenCaptureFrame(
+            width, height, width * 4, pixels, DateTimeOffset.UtcNow, "Roblox", 1234);
+        var profile = new VisionProfile
+        {
+            FishingRegion = new NormalizedRegion(0, 0, 1, 1),
+            FishingRegionCalibrated = true,
+            FishMarkerColor = HsvColorSampler.FromBgra(0, 0, 255),
+            ControlMarkerColor = HsvColorSampler.FromBgra(255, 0, 0),
+            MinimumBlobArea = 5
+        };
+
+        var result = new FishingVisionDetector().Detect(frame, profile);
+
+        Assert.NotNull(result.ControlMarker);
+        Assert.NotNull(result.ControlMarker.OrientedBounds);
+        Assert.True(ControlBarGeometry.TryGetHorizontalSpanAtY(
+            result.ControlMarker, 50, out var span));
+        Assert.InRange(span.Width, 6, 12);
+    }
+
+    [Fact]
     public void Detect_DualFishModeFindsTwoMarkersWithSeparateColourSamples()
     {
         var result = new FishingVisionDetector().Detect(CreateDualFishFrame(false, true), CreateDualFishProfile(false));

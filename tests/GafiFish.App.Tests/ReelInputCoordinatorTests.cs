@@ -269,6 +269,8 @@ public sealed class ReelInputCoordinatorTests
             new RodChargeMeterObservation(now, 0.90, 0.95, "Charge 90%."));
 
         Assert.DoesNotContain("one release", decision.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(ReelCommand.Neutral, decision.Command);
+        Assert.False(input.IsLeftButtonDown);
         Assert.True(input.IsArmed);
     }
 
