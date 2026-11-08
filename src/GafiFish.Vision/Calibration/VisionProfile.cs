@@ -28,6 +28,12 @@ public sealed record VisionProfile
     public bool WorldPhaseRegionCalibrated { get; init; }
     public NormalizedRegion HuntSignalRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool HuntSignalRegionCalibrated { get; init; }
+    public NormalizedRegion MiguRodHazardRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool MiguRodHazardRegionCalibrated { get; init; }
+    public HsvColorRange? MiguRodHazardColor { get; init; }
+    public NormalizedRegion DredBonusObjectRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool DredBonusObjectRegionCalibrated { get; init; }
+    public HsvColorRange? DredBonusObjectColor { get; init; }
     public NormalizedRegion RodNameRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool RodNameRegionCalibrated { get; init; }
     public RodReelPreset RodPreset { get; init; } = RodReelPreset.Balanced;
@@ -92,6 +98,8 @@ public sealed record VisionProfile
         && DayPhaseColor.HasValue
         && NightPhaseColor.HasValue;
     public bool IsHuntSignalCalibrated => HuntSignalRegionCalibrated && HuntSignalColor.HasValue;
+    public bool IsMiguRodHazardCalibrated => MiguRodHazardRegionCalibrated && MiguRodHazardColor.HasValue;
+    public bool IsDredBonusObjectCalibrated => DredBonusObjectRegionCalibrated && DredBonusObjectColor.HasValue;
     public bool IsAquariumPanelCalibrated => AquariumPanel?.IsCalibrated == true;
     public bool IsRodChargeMeterCalibrated =>
         RodChargeMeterRegionCalibrated && RodChargeMeterColor.HasValue;
@@ -119,6 +127,8 @@ public sealed record VisionProfile
         SessionIndicatorRegion.Validate();
         WorldPhaseRegion.Validate();
         HuntSignalRegion.Validate();
+        MiguRodHazardRegion.Validate();
+        DredBonusObjectRegion.Validate();
         RodNameRegion.Validate();
         if (!Enum.IsDefined(RodPreset))
             throw new ArgumentOutOfRangeException(nameof(RodPreset));
@@ -163,6 +173,8 @@ public sealed record VisionProfile
         DayPhaseColor?.Validate();
         NightPhaseColor?.Validate();
         HuntSignalColor?.Validate();
+        MiguRodHazardColor?.Validate();
+        DredBonusObjectColor?.Validate();
         RodChargeMeterColor?.Validate();
         ArgumentNullException.ThrowIfNull(RhythmLaneColors);
         if (RhythmLaneColors.Length != 4)

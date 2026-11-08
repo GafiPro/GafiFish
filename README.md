@@ -2,7 +2,7 @@
 
 Aplicação Windows para observação visual, calibração, Reel assistido e registo de sessões de pesca no Roblox Fisch.
 
-**Estado: aplicação Windows com Reel assistido, Auto-cast/Auto-shake, recast por OCR, Sell Anywhere, sessões/Catchbook, Auto Aquarium, watchdog de reconexão, rotação de totens dia/noite, presets Reel por cana, reconhecimento OCR do nome da cana e handlers para Charge Meter Bonus, Dual Fish e Tranquility Rhythm. Os módulos visuais continuam a precisar de calibração e validação prática no Fisch.**
+**Estado: aplicação Windows com Reel assistido, Auto-cast/Auto-shake, recast por OCR, Sell Anywhere, sessões/Catchbook, Auto Aquarium, watchdog de reconexão, rotação de totens dia/noite, presets Reel por cana, reconhecimento OCR do nome da cana e handlers para Charge Meter Bonus, Dual Fish, Tranquility Rhythm e Jinglestar. Inclui deteção calibrável e alertas visuais apenas de leitura para MiguRod e objetos bónus D.R.E.D. Os módulos visuais continuam a precisar de calibração e validação prática no Fisch.**
 
 ## O que já funciona
 
@@ -31,6 +31,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Modo Charge Meter Bonus por perfil de cana: lê uma barra horizontal calibrada e permite escolher o limiar por cana (80%, 90% ou 100%); medidores cíclicos recebem uma só libertação por ciclo e só rearma depois de regressarem a 20% ou menos, quando o peixe está dentro da barra.
 - Modo Dual Fish para perfis com dois alvos: deteção de dois marcadores calibrados, medição 0/2–2/2 dos peixes dentro da barra, controlo pelo centro comum e paragem segura se algum alvo faltar ou a barra não conseguir cobrir a distância entre ambos.
 - Modo Tranquility Rhythm: deteta notas nas quatro pistas calibradas e prevê o cruzamento da linha de receção antes de enviar um toque de tecla D/F/J/K. Usa cores, região, linha e avanço temporal configurados por perfil; os testes sintéticos não substituem a validação no jogo real.
+- Alertas MiguRod e D.R.E.D.: detetores HSV com região/cor calibradas pelo utilizador, overlays e debounce de frames distintos. São alertas apenas de observação; não enviam inputs de evasão ou recolha e ainda precisam de validação em gravações reais.
 - Deteção geométrica e tracking de barras de controlo inclinadas/rotativas ou deslocáveis: calcula a secção horizontal efetiva à altura do peixe e usa a velocidade relativa peixe/barra, rejeitando frames repetidos ou fora de ordem.
 - Interface WPF reorganizada em Dashboard, Fishing, Calibration, Sessions e Settings, com botões arredondados e animações subtis de hover.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR, persistência, objetivos e cadência.

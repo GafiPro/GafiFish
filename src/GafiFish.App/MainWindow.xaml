@@ -649,6 +649,10 @@
                                    Visibility="Collapsed" />
                         <TextBlock x:Name="DredPassiveStatusText"
                                    Text="D.R.E.D. passive cycle is inactive."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,5"
+                                   Visibility="Collapsed" />
+                        <TextBlock x:Name="DredBonusObjectStatusText"
+                                   Text="D.R.E.D. bonus-object detector is not calibrated."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
                                    Visibility="Collapsed" />
                         <StackPanel x:Name="JinglestarTimingPanel" Visibility="Collapsed" Margin="0,0,0,8">
@@ -1194,6 +1198,30 @@
                                   Checked="HuntDetectionEnabledCheckBox_Changed" Unchecked="HuntDetectionEnabledCheckBox_Changed" />
                         <TextBlock x:Name="HuntDetectionStatusText"
                                    Text="Calibrate the visible hunt cue before enabling alerts."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <Separator Margin="0,10,0,8" Background="#33414F" />
+                        <TextBlock Text="MiguRod · cut-warning detection (alert only)" FontWeight="SemiBold" Margin="0,0,0,7" />
+                        <Button Content="Select MiguRod warning region" Click="SelectMiguRodHazardRegion_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample MiguRod warning colour" Click="SampleMiguRodHazardColor_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <CheckBox x:Name="MiguRodAlertsEnabledCheckBox" Content="Enable MiguRod warning alerts (no game inputs)"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,3,0,7"
+                                  Checked="MiguRodAlertsEnabledCheckBox_Changed" Unchecked="MiguRodAlertsEnabledCheckBox_Changed" />
+                        <TextBlock x:Name="MiguRodHazardStatusText"
+                                   Text="Select the visible warning area and sample its colour from a real frame."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <Separator Margin="0,10,0,8" Background="#33414F" />
+                        <TextBlock Text="D.R.E.D. · falling bonus-object detection (alert only)" FontWeight="SemiBold" Margin="0,0,0,7" />
+                        <Button Content="Select D.R.E.D. bonus-object region" Click="SelectDredBonusObjectRegion_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <Button Content="Sample D.R.E.D. bonus-object colour" Click="SampleDredBonusObjectColor_Click"
+                                Height="34" Margin="0,0,0,7" Background="#294153" Foreground="White" BorderThickness="0" />
+                        <CheckBox x:Name="DredBonusAlertsEnabledCheckBox" Content="Enable D.R.E.D. bonus-object alerts (no game inputs)"
+                                  Foreground="#EAF0F5" IsChecked="False" Margin="0,3,0,7"
+                                  Checked="DredBonusAlertsEnabledCheckBox_Changed" Unchecked="DredBonusAlertsEnabledCheckBox_Changed" />
+                        <TextBlock x:Name="DredBonusCalibrationStatusText"
+                                   Text="Select the falling-object area and sample the object colour from a real frame."
                                    Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,8" />
                         <Button Content="Reset calibration" Click="ResetCalibration_Click"
                                 Height="34" Background="#4A3037" Foreground="White" BorderThickness="0" />

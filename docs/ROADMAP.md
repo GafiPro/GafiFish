@@ -363,9 +363,9 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 
 ## Mecânicas especiais de canas — investigação de 8 de novembro de 2026
 
-- [ ] **MiguRod:** evento especial de cana ainda sem handler; depende de capturas reais para identificar o sinal visual e a janela de reação.
+- [x] **MiguRod:** deteção visual configurável do aviso/zona de corte e alertas locais com debounce de frames distintos. Falta calibrar e validar com capturas reais; movimentos de evasão continuam desativados.
 - [x] **Jinglestar:** handler de dez pulsos hold/release implementado, com tempos configuráveis e confirmados por perfil, reinício seguro perante falhas de deteção e cooldown de dois segundos. Continua pendente medir os tempos e validar a sequência numa gravação real do Fisch.
-- [ ] **D.R.E.D.:** manter os dois peixes dentro da barra (Dual Fish já cobre essa parte) e detetar/apanhar os objetos que caem para obter progresso adicional; implementar o contador e a ativação de Overdrive após confirmar o indicador real.
+- [x] **D.R.E.D.:** deteção configurável dos objetos bónus que caem, overlays e alertas locais com debounce de frames distintos. Falta calibrar com capturas reais. A recolha automática e a ativação de Overdrive continuam desativadas até confirmar a interação real; candidatos visuais não são contados como objetos recolhidos.
 - [x] As barras rotativas/deslocáveis são cobertas pelo tracker geométrico e de movimento relativo partilhado; ainda falta validação em vídeo real.
 
 ## Aquarium panel guard — 8 de novembro de 2026
@@ -375,6 +375,15 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 - [x] Bloquear cliques quando o painel não é detetado; se desaparecer durante a confirmação, parar sem registar cooldown ou repetir a ação.
 - [x] Testes sintéticos de âncora visível/ausente, calibração incompleta, threshold inválido e bloqueio/aborto do coordenador.
 - [ ] Validar a âncora com o painel real em várias resoluções e estados da interface.
+
+## Alertas visuais MiguRod e D.R.E.D. — 8 de novembro de 2026
+
+- [x] Detetor partilhado de marcadores HSV com regiões selecionadas pelo utilizador, sem cores ou coordenadas presumidas.
+- [x] Calibração separada para avisos MiguRod e objetos bónus D.R.E.D., com overlays e feedback na pré-visualização.
+- [x] Alertas locais após deteção em frames distintos e rearme após desaparecimento estável do sinal.
+- [x] Testes sintéticos de calibração obrigatória, deteção dentro/fora da região, frames inválidos e debounce.
+- [ ] Validar os dois detetores em gravações reais, ajustar área mínima e confirmar falsos positivos/negativos.
+- [ ] Só depois de confirmar a interação real, avaliar eventual recolha automática dos objetos D.R.E.D. ou ações específicas MiguRod; atualmente não são enviados inputs para estas mecânicas.
 
 ## Tranquility Rhythm — implementação inicial (7 de novembro de 2026)
 

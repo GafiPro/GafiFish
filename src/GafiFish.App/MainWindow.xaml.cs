@@ -69,6 +69,9 @@ public partial class MainWindow : Window
     private readonly WorldPhaseVisionDetector _worldPhaseVision = new();
     private readonly HuntSignalVisionDetector _huntSignalVision = new();
     private readonly HuntDetectionCoordinator _huntDetectionCoordinator = new();
+    private readonly SpecialRodSignalVisionDetector _specialRodSignalVision = new();
+    private readonly VisualSignalDebouncer _miguRodWarningDebouncer = new();
+    private readonly VisualSignalDebouncer _dredBonusDebouncer = new();
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private VisionProfileStore _profileStore = new();
@@ -159,6 +162,8 @@ public partial class MainWindow : Window
         Visibility = Visibility.Collapsed
     };
     private readonly List<Rectangle> _shakePromptOverlays = [];
+    private readonly List<Rectangle> _miguRodHazardOverlays = [];
+    private readonly List<Rectangle> _dredBonusObjectOverlays = [];
 
     private VisionProfile _profile = new();
     private ScreenCaptureFrame? _lastFrame;
@@ -254,6 +259,10 @@ public partial class MainWindow : Window
         SampleNightPhaseColor,
         SelectHuntSignalRegion,
         SampleHuntSignalColor,
+        SelectMiguRodHazardRegion,
+        SampleMiguRodHazardColor,
+        SelectDredBonusObjectRegion,
+        SampleDredBonusObjectColor,
         SelectAquariumButtonRegion,
         SampleAquariumButtonColor,
         SelectAquariumPanelRegion,
@@ -4333,6 +4342,49 @@ public partial class MainWindow : Window
             : "Sell Anywhere: select the button region and sample its color.";
         DrawMarker(_sellButtonOverlay, sellResult.SellButton);
 
+        var miguRodObservation = _specialRodSignalVision.DetectMiguRodHazards(frame, _profile);
+        DrawDetectedMarkers(_miguRodHazardOverlays, miguRodObservation.Markers, Brushes.OrangeRed, maxMarkers: 8);
+        MiguRodHazardStatusText.Text = !miguRodObservation.IsCalibrated
+            ? miguRodObservation.Status
+            : miguRodObservation.Markers.Count > 0
+                ? $"MiguRod warning candidates: {miguRodObservation.Markers.Count}. Alert mode only; verify the cue visually."
+                : MiguRodAlertsEnabledCheckBox.IsChecked == true
+                    ? "MiguRod warning area monitored; no calibrated marker currently visible."
+                    : "MiguRod warning detector calibrated; alerts are disabled.";
+
+        var dredBonusObservation = _profile.RodMinigameMode == RodMinigameMode.DredDualFish
+            ? _specialRodSignalVision.DetectDredBonusObjects(frame, _profile)
+            : null;
+        if (dredBonusObservation is not null)
+        {
+            DrawDetectedMarkers(_dredBonusObjectOverlays, dredBonusObservation.Markers, Brushes.LimeGreen, maxMarkers: 8);
+            DredBonusObjectStatusText.Text = !dredBonusObservation.IsCalibrated
+                ? dredBonusObservation.Status
+                : dredBonusObservation.Markers.Count > 0
+                    ? $"D.R.E.D. bonus-object candidates: {dredBonusObservation.Markers.Count}. Detection does not confirm collection."
+                    : "D.R.E.D. bonus-object area monitored; no calibrated object currently visible.";
+        }
+        else
+        {
+            DrawDetectedMarkers(_dredBonusObjectOverlays, [], Brushes.LimeGreen, maxMarkers: 8);
+        }
+
+        if (allowAutomation && MiguRodAlertsEnabledCheckBox.IsChecked == true
+            && miguRodObservation.IsCalibrated
+            && _miguRodWarningDebouncer.ProcessObservation(frame.CapturedAt, miguRodObservation.Markers.Count > 0))
+        {
+            System.Media.SystemSounds.Exclamation.Play();
+            AddActivityLog("WARN", "MIGUROD", "A calibrated MiguRod warning signal was detected. No movement or evasion input was sent.");
+        }
+
+        if (allowAutomation && DredBonusAlertsEnabledCheckBox.IsChecked == true
+            && dredBonusObservation is { IsCalibrated: true }
+            && _dredBonusDebouncer.ProcessObservation(frame.CapturedAt, dredBonusObservation.Markers.Count > 0))
+        {
+            System.Media.SystemSounds.Asterisk.Play();
+            AddActivityLog("INFO", "DRED", $"A calibrated D.R.E.D. bonus-object signal was detected ({dredBonusObservation.Markers.Count} candidate(s)). Collection was not assumed.");
+        }
+
         if (allowAutomation && HuntDetectionEnabledCheckBox.IsChecked == true)
         {
             if (!_profile.IsHuntSignalCalibrated)
@@ -4641,6 +4693,11 @@ public partial class MainWindow : Window
         DualFishCoverageStatusText.Visibility = isDualFishProfile ? Visibility.Visible : Visibility.Collapsed;
         DredPassiveStatusText.Visibility =
             _profile.RodMinigameMode == RodMinigameMode.DredDualFish ? Visibility.Visible : Visibility.Collapsed;
+        DredBonusObjectStatusText.Visibility =
+            _profile.RodMinigameMode == RodMinigameMode.DredDualFish ? Visibility.Visible : Visibility.Collapsed;
+        DredBonusObjectStatusText.Text = _profile.IsDredBonusObjectCalibrated
+            ? "D.R.E.D. bonus objects calibrated · live detection remains alert-only."
+            : "Calibrate the falling-object region and colour in the Calibration tab.";
         JinglestarTimingPanel.Visibility =
             _profile.RodMinigameMode == RodMinigameMode.JinglestarSequence
                 ? Visibility.Visible : Visibility.Collapsed;
@@ -5731,6 +5788,46 @@ public partial class MainWindow : Window
         RefreshModuleQuickInfo();
     }
 
+    private void SelectMiguRodHazardRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SelectMiguRodHazardRegion,
+            "Drag a tight rectangle around the MiguRod cut-warning indicator or danger marker in a real Fisch frame.");
+
+    private void SampleMiguRodHazardColor_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleMiguRodHazardColor,
+            "Click a clear pixel inside the actual MiguRod warning marker. Do not sample the surrounding background.");
+
+    private void SelectDredBonusObjectRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SelectDredBonusObjectRegion,
+            "Drag a rectangle covering the area where D.R.E.D. bonus objects visibly fall.");
+
+    private void SampleDredBonusObjectColor_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SampleDredBonusObjectColor,
+            "Click a clear pixel on an actual falling D.R.E.D. bonus object.");
+
+    private void MiguRodAlertsEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        _miguRodWarningDebouncer.Reset();
+        MiguRodHazardStatusText.Text = MiguRodAlertsEnabledCheckBox.IsChecked == true
+            ? _profile.IsMiguRodHazardCalibrated
+                ? "MiguRod alerts armed for live observation. No movement or evasion inputs will be sent."
+                : "Alerts enabled, but the warning region and colour still need calibration."
+            : _profile.IsMiguRodHazardCalibrated
+                ? "MiguRod warning detector calibrated; alerts are disabled."
+                : "Select the visible warning area and sample its colour from a real frame.";
+    }
+
+    private void DredBonusAlertsEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        _dredBonusDebouncer.Reset();
+        DredBonusCalibrationStatusText.Text = DredBonusAlertsEnabledCheckBox.IsChecked == true
+            ? _profile.IsDredBonusObjectCalibrated
+                ? "D.R.E.D. alerts armed for live observation. Detection does not claim the object was collected."
+                : "Alerts enabled, but the falling-object region and colour still need calibration."
+            : _profile.IsDredBonusObjectCalibrated
+                ? "D.R.E.D. bonus-object detector calibrated; alerts are disabled."
+                : "Select the falling-object area and sample the object colour from a real frame.";
+    }
+
     private void EquipRodCheckBox_Changed(object sender, RoutedEventArgs e)
     {
         if (!_automationEnabled)
@@ -5846,6 +5943,8 @@ public partial class MainWindow : Window
         }
 
         if (_calibrationAction is CalibrationAction.SampleFishMarker
+            or CalibrationAction.SampleMiguRodHazardColor
+            or CalibrationAction.SampleDredBonusObjectColor
             or CalibrationAction.SampleSecondaryFishMarker
             or CalibrationAction.SampleControlMarker
             or CalibrationAction.SampleCastIndicator
@@ -5879,6 +5978,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
             or CalibrationAction.SelectHuntSignalRegion
+            or CalibrationAction.SelectMiguRodHazardRegion
+            or CalibrationAction.SelectDredBonusObjectRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion
@@ -5910,6 +6011,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
             or CalibrationAction.SelectHuntSignalRegion
+            or CalibrationAction.SelectMiguRodHazardRegion
+            or CalibrationAction.SelectDredBonusObjectRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion
@@ -5942,6 +6045,8 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectReconnectButtonRegion
             or CalibrationAction.SelectWorldPhaseRegion
             or CalibrationAction.SelectHuntSignalRegion
+            or CalibrationAction.SelectMiguRodHazardRegion
+            or CalibrationAction.SelectDredBonusObjectRegion
             or CalibrationAction.CaptureFishMarkerTemplate
             or CalibrationAction.CaptureControlMarkerTemplate
             or CalibrationAction.SelectAquariumButtonRegion
@@ -6065,6 +6170,20 @@ public partial class MainWindow : Window
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
+            CalibrationAction.SelectMiguRodHazardRegion => _profile with
+            {
+                MiguRodHazardRegion = selectedRegion,
+                MiguRodHazardRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectDredBonusObjectRegion => _profile with
+            {
+                DredBonusObjectRegion = selectedRegion,
+                DredBonusObjectRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             CalibrationAction.CaptureFishMarkerTemplate => _profile with
             {
                 FishMarkerTemplatePng = EncodeMarkerTemplate(_lastFrame, selectedRegion),
@@ -6124,6 +6243,8 @@ public partial class MainWindow : Window
             CalibrationAction.SelectSessionIndicatorRegion => "In-game HUD indicator region saved.",
             CalibrationAction.SelectWorldPhaseRegion => "Day/night phase indicator region saved.",
             CalibrationAction.SelectHuntSignalRegion => "Hunt cue region saved.",
+            CalibrationAction.SelectMiguRodHazardRegion => "MiguRod warning region saved.",
+            CalibrationAction.SelectDredBonusObjectRegion => "D.R.E.D. bonus-object region saved.",
             CalibrationAction.CaptureFishMarkerTemplate => "Fish marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.CaptureControlMarkerTemplate => "Control marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
@@ -6175,6 +6296,8 @@ public partial class MainWindow : Window
         var isDayPhaseColor = _calibrationAction == CalibrationAction.SampleDayPhaseColor;
         var isNightPhaseColor = _calibrationAction == CalibrationAction.SampleNightPhaseColor;
         var isHuntSignalColor = _calibrationAction == CalibrationAction.SampleHuntSignalColor;
+        var isMiguRodHazardColor = _calibrationAction == CalibrationAction.SampleMiguRodHazardColor;
+        var isDredBonusObjectColor = _calibrationAction == CalibrationAction.SampleDredBonusObjectColor;
         var isAnglerButtonColor = _calibrationAction is CalibrationAction.SampleAnglerAcceptButtonColor
             or CalibrationAction.SampleAnglerSubmitButtonColor;
         var isRodChargeMeterColor = _calibrationAction == CalibrationAction.SampleRodChargeMeterColor;
@@ -6206,6 +6329,8 @@ public partial class MainWindow : Window
             CalibrationAction.SampleDayPhaseColor => _profile with { DayPhaseColor = color },
             CalibrationAction.SampleNightPhaseColor => _profile with { NightPhaseColor = color },
             CalibrationAction.SampleHuntSignalColor => _profile with { HuntSignalColor = color },
+            CalibrationAction.SampleMiguRodHazardColor => _profile with { MiguRodHazardColor = color },
+            CalibrationAction.SampleDredBonusObjectColor => _profile with { DredBonusObjectColor = color },
             CalibrationAction.SampleAquariumButtonColor => WithAquariumButtonColor(
                 _profile, _aquariumCalibrationActionKind, color, _lastFrame.Width, _lastFrame.Height),
             CalibrationAction.SampleAquariumPanelColor => _profile with
@@ -6255,6 +6380,20 @@ public partial class MainWindow : Window
             HuntDetectionStatusText.Text = _profile.IsHuntSignalCalibrated
                 ? "Hunt cue calibration complete. Enable alerts to monitor live frames."
                 : "Hunt cue colour saved. Select the cue region to complete calibration.";
+        }
+        if (isMiguRodHazardColor)
+        {
+            _miguRodWarningDebouncer.Reset();
+            MiguRodHazardStatusText.Text = _profile.IsMiguRodHazardCalibrated
+                ? "MiguRod warning calibration complete. Enable alerts and inspect a real warning before relying on it."
+                : "Warning colour saved. Select the MiguRod warning region to complete calibration.";
+        }
+        if (isDredBonusObjectColor)
+        {
+            _dredBonusDebouncer.Reset();
+            DredBonusCalibrationStatusText.Text = _profile.IsDredBonusObjectCalibrated
+                ? "D.R.E.D. bonus-object calibration complete. Validate detections against a real falling object."
+                : "Object colour saved. Select the falling-object region to complete calibration.";
         }
         if (isAnglerButtonColor)
             AnglerQuestAutomationStatusText.Text = _profile.IsAnglerAcceptButtonCalibrated
@@ -6309,6 +6448,8 @@ public partial class MainWindow : Window
 
         _profile = new VisionProfile();
         _motionTracker.Reset();
+        _miguRodWarningDebouncer.Reset();
+        _dredBonusDebouncer.Reset();
         _fishMarkerOverlay.Visibility = Visibility.Collapsed;
         _secondaryFishMarkerOverlay.Visibility = Visibility.Collapsed;
         _controlMarkerOverlay.Visibility = Visibility.Collapsed;
@@ -6321,6 +6462,9 @@ public partial class MainWindow : Window
         ConnectionRecoveryStatusText.Text = "Calibrate the reconnect button region and colour before arming the watchdog.";
         WorldPhaseCalibrationStatusText.Text = "Calibrate the phase region and sample the day and night colours.";
         HuntDetectionStatusText.Text = "Hunt cue calibration was reset.";
+        MiguRodHazardStatusText.Text = "MiguRod warning calibration was reset.";
+        DredBonusCalibrationStatusText.Text = "D.R.E.D. bonus-object calibration was reset.";
+        DredBonusObjectStatusText.Text = "D.R.E.D. bonus-object detector is not calibrated.";
         DayNightTotemStatusText.Text = "Day/night totems need phase calibration.";
         OcrStatusText.Text = "Local OCR: select the catch notification region before starting a session.";
         UpdateConnectionRecoveryControls();
@@ -6337,6 +6481,8 @@ public partial class MainWindow : Window
             _motionTracker.Reset();
             _castVision.Reset();
             _huntDetectionCoordinator.Reset();
+            _miguRodWarningDebouncer.Reset();
+            _dredBonusDebouncer.Reset();
 
             UpdateConnectionRecoveryControls();
             CalibrationModeText.Text = successMessage;
