@@ -359,12 +359,12 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 - [x] Rearmar o próximo ciclo apenas após uma nova leitura a 20% ou menos; frames antigos/duplicados não alteram o estado.
 - [x] Ignorar a notificação falsa documentada da Silly Fun Happy Rod para impedir registos e objetivos OCR incorretos.
 - [x] Testes para ciclos repetidos, rearme, peixe fora da barra e texto falso em mais do que uma linha.
-- [ ] Medir o limiar de carga por cana e validar as barras rotativas/deslocáveis com gravações reais; confirmar o OCR com notificações reais e recolher frames dos eventos MiguRod, Jinglestar e D.R.E.D. para desenvolver os handlers dedicados.
+- [ ] Medir o limiar de carga por cana e validar as barras rotativas/deslocáveis com gravações reais; confirmar o OCR com notificações reais; medir o timing do handler Jinglestar já implementado; recolher frames do MiguRod e dos objetos de bónus do D.R.E.D. para desenvolver e calibrar essas deteções específicas.
 
 ## Mecânicas especiais de canas — investigação de 8 de novembro de 2026
 
 - [ ] **MiguRod:** evento especial de cana ainda sem handler; depende de capturas reais para identificar o sinal visual e a janela de reação.
-- [ ] **Jinglestar:** acompanhar o contador e a janela de timing da sequência de dez hold/release; uma falha reinicia a sequência e existe um cooldown curto após a conclusão.
+- [x] **Jinglestar:** handler de dez pulsos hold/release implementado, com tempos configuráveis e confirmados por perfil, reinício seguro perante falhas de deteção e cooldown de dois segundos. Continua pendente medir os tempos e validar a sequência numa gravação real do Fisch.
 - [ ] **D.R.E.D.:** manter os dois peixes dentro da barra (Dual Fish já cobre essa parte) e detetar/apanhar os objetos que caem para obter progresso adicional; implementar o contador e a ativação de Overdrive após confirmar o indicador real.
 - [x] As barras rotativas/deslocáveis são cobertas pelo tracker geométrico e de movimento relativo partilhado; ainda falta validação em vídeo real.
 
