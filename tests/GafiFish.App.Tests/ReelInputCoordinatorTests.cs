@@ -192,6 +192,65 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_DoesNotReleaseChargeWhenFishIsOutsideRotatedBarCrossSection()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fishOutsideRotatedSlice = new DetectedMarker(
+            150, 80, new OpenCvSharp.Rect(147, 77, 6, 6), 25, 0.95);
+        var rotatedBar = new DetectedMarker(
+            130, 40, new OpenCvSharp.Rect(90, 0, 80, 80), 600, 0.95)
+        {
+            OrientedBounds = new OpenCvSharp.RotatedRect(
+                new OpenCvSharp.Point2f(130, 40),
+                new OpenCvSharp.Size2f(100, 8),
+                45)
+        };
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fishOutsideRotatedSlice,
+            rotatedBar,
+            Motion(150, now),
+            new RodChargeMeterObservation(now, 0.90, 0.95, "Charge 90%."));
+
+        Assert.DoesNotContain("one release", decision.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.True(input.IsArmed);
+    }
+
+    [Fact]
+    public void Apply_UsesRotatedBarSliceWhenFishIsInsideIt()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var rotatedBar = new DetectedMarker(
+            130, 40, new OpenCvSharp.Rect(90, 0, 80, 80), 600, 0.95)
+        {
+            OrientedBounds = new OpenCvSharp.RotatedRect(
+                new OpenCvSharp.Point2f(130, 40),
+                new OpenCvSharp.Size2f(100, 8),
+                45)
+        };
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            rotatedBar,
+            Motion(150, now),
+            new RodChargeMeterObservation(now, 0.90, 0.95, "Charge 90%."));
+
+        Assert.Contains("one release", decision.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.False(input.IsLeftButtonDown);
+    }
+
+    [Fact]
     public void Apply_DoesNotUseStaleChargeMeterObservation()
     {
         var input = new FakeRobloxInput();

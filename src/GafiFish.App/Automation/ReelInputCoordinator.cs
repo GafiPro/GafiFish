@@ -56,12 +56,21 @@ public sealed class ReelInputCoordinator
                 "A marker or fresh motion estimate is missing; mouse input released.");
         }
 
-        if (requireDualFishCoverage && fishMarker.Bounds.Width > controlMarker.Bounds.Width)
+        var hasHorizontalSpan = ControlBarGeometry.TryGetHorizontalSpanAtY(
+            controlMarker, fishMarker.CenterY, out var horizontalSpan);
+        var controlPositionX = hasHorizontalSpan ? horizontalSpan.CenterX : controlMarker.CenterX;
+        var controlWidth = hasHorizontalSpan ? horizontalSpan.Width : controlMarker.Bounds.Width;
+        var fishInsideControlBar = hasHorizontalSpan
+            && fishMarker.CenterX >= horizontalSpan.Left
+            && fishMarker.CenterX <= horizontalSpan.Right;
+
+        if (requireDualFishCoverage
+            && (!hasHorizontalSpan || fishMarker.Bounds.Width > controlWidth))
         {
             _input.SetLeftButton(false);
             return new ReelControlDecision(
-                ReelCommand.Neutral, fishMarker.CenterX - controlMarker.CenterX, fishMarker.Bounds.Width,
-                "The two fish markers are too far apart for the control bar to cover; input released.");
+                ReelCommand.Neutral, fishMarker.CenterX - controlPositionX, controlWidth,
+                "The rotated control bar does not cover both fish targets; input released.");
         }
 
         var confidence = Math.Min(
@@ -72,8 +81,6 @@ public sealed class ReelInputCoordinator
         // drains and then starts filling again). Release once per rising cycle,
         // and only re-arm after a fresh reading has returned to 20% or below.
         // This prevents a high meter reading from forcing release on every frame.
-        var fishInsideControlBar = fishMarker.CenterX >= controlMarker.Bounds.Left
-            && fishMarker.CenterX <= controlMarker.Bounds.Right;
         if (chargeMeter is { IsUsable: true }
             && IsChargeObservationFresh(chargeMeter, motion.ObservedAt)
             && (!_lastChargeObservationAt.HasValue
@@ -93,7 +100,7 @@ public sealed class ReelInputCoordinator
                 _input.SetLeftButton(false);
                 return new ReelControlDecision(
                     ReelCommand.Release,
-                    fishMarker.CenterX - controlMarker.CenterX,
+                    fishMarker.CenterX - controlPositionX,
                     chargeMeter.Progress,
                     "Rod charge crossed the 80% release window while the fish was inside the control bar; one release was sent for this cycle.");
             }
@@ -101,7 +108,7 @@ public sealed class ReelInputCoordinator
 
         var decision = _controller.Evaluate(
             motion.PositionX,
-            controlMarker.CenterX,
+            controlPositionX,
             motion.VelocityPixelsPerSecond,
             confidence,
             isFresh: true);

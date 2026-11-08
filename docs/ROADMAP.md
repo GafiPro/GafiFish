@@ -81,6 +81,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Exportação global de todas as capturas, com metadados da sessão, para CSV/JSON.
 - [x] Resumo com até 25 melhores peixes.
 - [x] Ignorar a notificação falsa documentada da Silly Fun Happy Rod (10x Shiny Sparkling Giant Atlantean Nessies) para não registar peixes inexistentes nem concluir objetivos OCR.
+- [x] Preservar geometria orientada do marcador de controlo e calcular a interseção horizontal à altura do peixe quando a barra roda.
 - [ ] Afinação do parser com notificações reais do Fisch e nomes especiais.
 - [x] Cópia direta do resumo para a área de transferência.
 
@@ -351,7 +352,7 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 - [x] Rearmar o próximo ciclo apenas após uma nova leitura a 20% ou menos; frames antigos/duplicados não alteram o estado.
 - [x] Ignorar a notificação falsa documentada da Silly Fun Happy Rod para impedir registos e objetivos OCR incorretos.
 - [x] Testes para ciclos repetidos, rearme, peixe fora da barra e texto falso em mais do que uma linha.
-- [ ] Medir os limiares/timing com capturas reais das canas e verificar os formatos reais das notificações OCR.
+- [ ] Medir os limiares/timing com capturas reais das canas e verificar os formatos reais das notificações OCR; validar a deteção de barras rotativas com frames do Fisch.
 
 ## Aquarium panel guard — 8 de novembro de 2026
 

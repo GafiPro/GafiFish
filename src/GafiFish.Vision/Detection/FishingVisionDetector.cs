@@ -255,6 +255,7 @@ public sealed class FishingVisionDetector
 
         var bestArea = 0d;
         Rect bestBounds = default;
+        RotatedRect? bestOrientedBounds = null;
 
         foreach (var contour in contours)
         {
@@ -266,6 +267,16 @@ public sealed class FishingVisionDetector
 
             bestArea = area;
             bestBounds = Cv2.BoundingRect(contour);
+
+            var rotated = Cv2.MinAreaRect(contour);
+            var angleFromAxis = Math.Abs(rotated.Angle % 90f);
+            var tiltFromAxis = Math.Min(angleFromAxis, 90f - angleFromAxis);
+            bestOrientedBounds = tiltFromAxis > 2.5f
+                ? new RotatedRect(
+                    new Point2f(rotated.Center.X + offsetX, rotated.Center.Y + offsetY),
+                    rotated.Size,
+                    rotated.Angle)
+                : null;
         }
 
         if (bestArea < minimumArea)
@@ -289,6 +300,9 @@ public sealed class FishingVisionDetector
             bounds.Y + bounds.Height / 2d,
             bounds,
             bestArea,
-            confidence);
+            confidence)
+        {
+            OrientedBounds = bestOrientedBounds
+        };
     }
 }

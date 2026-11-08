@@ -31,6 +31,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Modo Charge Meter Bonus por perfil de cana: lê uma barra horizontal calibrada e liberta aos 80% apenas quando o peixe está dentro da barra; medidores cíclicos recebem uma só libertação por ciclo e só rearma depois de regressarem a 20% ou menos.
 - Modo Dual Fish para perfis com dois alvos: deteção de dois marcadores calibrados, medição 0/2–2/2 dos peixes dentro da barra, controlo pelo centro comum e paragem segura se algum alvo faltar ou a barra não conseguir cobrir a distância entre ambos.
 - Modo Tranquility Rhythm: deteta notas nas quatro pistas calibradas e prevê o cruzamento da linha de receção antes de enviar um toque de tecla D/F/J/K. Usa cores, região, linha e avanço temporal configurados por perfil; os testes sintéticos não substituem a validação no jogo real.
+- Deteção geométrica de barras de controlo inclinadas/rotativas: quando a forma detetada é rodada, o controlador calcula a secção horizontal efetiva à altura do peixe em vez de confiar apenas na caixa retangular envolvente.
 - Interface WPF reorganizada em Dashboard, Fishing, Calibration, Sessions e Settings, com botões arredondados e animações subtis de hover.
 - Testes automatizados para geometria, tracking, controladores, deteção visual, venda simulada, OCR, persistência, objetivos e cadência.
 - O estado do Angler Quest (pedido ativo, peixe por entregar e cooldown de 120 segundos) é persistido localmente entre reinícios.
