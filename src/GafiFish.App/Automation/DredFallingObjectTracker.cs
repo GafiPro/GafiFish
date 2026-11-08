@@ -87,7 +87,9 @@ public sealed class DredFallingObjectTracker
             var match = FindClosestTrack(candidate, capturedAt, matchedTracks);
             if (match is null)
             {
-                _tracks.Add(new Track(candidate, capturedAt));
+                var newTrack = new Track(candidate, capturedAt);
+                _tracks.Add(newTrack);
+                matchedTracks.Add(newTrack);
                 continue;
             }
 
