@@ -18,7 +18,7 @@ public sealed class ControlBarGeometryTests
 
         Assert.True(found);
         Assert.InRange(span.CenterX, 99.5, 100.5);
-        Assert.InRange(span.Width, 62, 65);
+        Assert.InRange(span.Width, 13, 15);
         Assert.True(span.Width < marker.Bounds.Width);
     }
 

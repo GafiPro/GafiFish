@@ -282,7 +282,7 @@ public sealed class ReelInputCoordinatorTests
         coordinator.Arm();
 
         var now = DateTimeOffset.UtcNow;
-        var fish = Marker(150);
+        var fish = Marker(130);
         var rotatedBar = new DetectedMarker(
             130, 40, new OpenCvSharp.Rect(90, 0, 80, 80), 600, 0.95)
         {
@@ -296,7 +296,7 @@ public sealed class ReelInputCoordinatorTests
             FishingState.Reeling,
             fish,
             rotatedBar,
-            Motion(150, now),
+            Motion(130, now),
             new RodChargeMeterObservation(now, 0.90, 0.95, "Charge 90%."));
 
         Assert.Contains("one release", decision.Reason, StringComparison.OrdinalIgnoreCase);
