@@ -43,6 +43,18 @@ public sealed class FishCatchTextParserTests
         Assert.Equal(1.25, fish.WeightKg);
     }
 
+    [Theory]
+    [InlineData("You caught 10x Shiny Sparkling Giant Atlantean Nessies!")]
+    [InlineData("YOU CAUGHT 10x Shiny\nSparkling Giant Atlantean Nessies!")]
+    public void TryParse_IgnoresKnownFakeSillyFunHappyRodCatchNotification(string notification)
+    {
+        var success = _parser.TryParse(Result(notification, 0.99), out var fish, out var status);
+
+        Assert.False(success);
+        Assert.Null(fish);
+        Assert.Contains("fake catch", status, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void TryParse_DoesNotRegisterTextWithoutCatchSignal()
     {

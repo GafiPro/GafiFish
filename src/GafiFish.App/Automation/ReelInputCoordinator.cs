@@ -16,6 +16,8 @@ public sealed class ReelInputCoordinator
 {
     private readonly IRobloxInput _input;
     private readonly ReelController _controller;
+    private bool _chargeReleaseConsumed;
+    private DateTimeOffset? _lastChargeObservationAt;
 
     public ReelInputCoordinator(
         IRobloxInput input,
@@ -39,6 +41,7 @@ public sealed class ReelInputCoordinator
     {
         if (state != FishingState.Reeling)
         {
+            ResetChargeMeterCycle();
             _input.SetLeftButton(false);
             return new ReelControlDecision(
                 ReelCommand.Neutral, 0, 0,
@@ -65,20 +68,35 @@ public sealed class ReelInputCoordinator
             motion.Confidence,
             Math.Min(fishMarker.Confidence, controlMarker.Confidence));
 
-        // Charge-meter rods grant a progress bonus when the meter is released
-        // above 80% while the fish is inside the calibrated control bar. If
-        // the charge meter is uncertain, fall back to normal Reel control.
-        if (chargeMeter is { IsUsable: true, Progress: >= 0.80 }
+        // Charge meters can be cyclical (for example, a meter that fills,
+        // drains and then starts filling again). Release once per rising cycle,
+        // and only re-arm after a fresh reading has returned to 20% or below.
+        // This prevents a high meter reading from forcing release on every frame.
+        var fishInsideControlBar = fishMarker.CenterX >= controlMarker.Bounds.Left
+            && fishMarker.CenterX <= controlMarker.Bounds.Right;
+        if (chargeMeter is { IsUsable: true }
             && IsChargeObservationFresh(chargeMeter, motion.ObservedAt)
-            && fishMarker.CenterX >= controlMarker.Bounds.Left
-            && fishMarker.CenterX <= controlMarker.Bounds.Right)
+            && (!_lastChargeObservationAt.HasValue
+                || chargeMeter.CapturedAt > _lastChargeObservationAt.Value))
         {
-            _input.SetLeftButton(false);
-            return new ReelControlDecision(
-                ReelCommand.Release,
-                fishMarker.CenterX - controlMarker.CenterX,
-                chargeMeter.Progress,
-                "Rod charge reached 80% while the fish was inside the control bar; released for the calibrated charge bonus.");
+            _lastChargeObservationAt = chargeMeter.CapturedAt;
+
+            if (_chargeReleaseConsumed)
+            {
+                if (chargeMeter.Progress <= 0.20)
+                    _chargeReleaseConsumed = false;
+            }
+
+            if (!_chargeReleaseConsumed && chargeMeter.Progress >= 0.80 && fishInsideControlBar)
+            {
+                _chargeReleaseConsumed = true;
+                _input.SetLeftButton(false);
+                return new ReelControlDecision(
+                    ReelCommand.Release,
+                    fishMarker.CenterX - controlMarker.CenterX,
+                    chargeMeter.Progress,
+                    "Rod charge crossed the 80% release window while the fish was inside the control bar; one release was sent for this cycle.");
+            }
         }
 
         var decision = _controller.Evaluate(
@@ -124,5 +142,15 @@ public sealed class ReelInputCoordinator
         return age >= TimeSpan.Zero && age <= TimeSpan.FromMilliseconds(180);
     }
 
-    public void Stop() => _input.Disarm();
+    private void ResetChargeMeterCycle()
+    {
+        _chargeReleaseConsumed = false;
+        _lastChargeObservationAt = null;
+    }
+
+    public void Stop()
+    {
+        ResetChargeMeterCycle();
+        _input.Disarm();
+    }
 }

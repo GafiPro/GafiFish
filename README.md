@@ -20,7 +20,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Aquarium Planner com registo manual, temporizadores horários persistentes e alerta sonoro opcional quando cada ação fica pronta.
 - Botões visíveis Start macro / Stop macro, além dos atalhos F8/F9. O modo de recast contínuo exige Auto-cast, sessão OCR ativa e região de notificação calibrada; o timeout de Reel liberta o controlo e reinicia o ciclo, sem eliminar os stops de emergência.
 - Sell Anywhere opcional a cada 10 minutos quando existe uma sessão OCR ativa e as regiões de botão/lista estão calibradas; requer captura OCR de confiança elevada e confirma a alteração em dois fotogramas antes de fechar o inventário. Guarda/restaura a posição do cursor e fecha o inventário mesmo quando já estava aberto, antes de retomar a pesca. Existe uma pausa curta para a interface terminar a transição antes do próximo lançamento.
-- OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma.
+- OCR local com Tesseract, incluindo verificação de integridade do modelo de idioma e rejeição da notificação falsa documentada da Silly Fun Happy Rod (10x Atlantean Nessies).
 - Histórico local SQLite, explorador das 20 sessões mais recentes, detalhes das últimas 15 capturas por sessão e novo Catchbook pesquisável para consultar o arquivo completo, filtrar por raridade/mutação/espécies e exportar resultados CSV.
 - Replay offline de sequências de imagens e gravações de vídeo MP4/M4V/AVI/MOV/MKV/WMV/WEBM, com descodificação frame a frame e detetores visuais; sem inputs ou registos OCR durante o replay.
 - Ritmos de captura Economy/Balanced/Responsive, com cadência adaptativa e controlo do compromisso entre CPU e atualização visual.
@@ -28,7 +28,7 @@ Aplicação Windows para observação visual, calibração, Reel assistido e reg
 - Importação/exportação de perfis de calibração JSON e arquivo completo de capturas em CSV/JSON com metadados da sessão.
 - Reconhecimento OCR do nome da cana por região calibrada: exige duas leituras estáveis e só muda para um perfil previamente associado pelo utilizador.
 - Quatro afinações do controlador Reel (Balanced, Precision, Heavy fish e Stable), guardadas no perfil individual de cada cana.
-- Modo Charge Meter Bonus por perfil de cana: lê uma barra horizontal calibrada e liberta aos 80% apenas quando o peixe está dentro da barra.
+- Modo Charge Meter Bonus por perfil de cana: lê uma barra horizontal calibrada e liberta aos 80% apenas quando o peixe está dentro da barra; medidores cíclicos recebem uma só libertação por ciclo e só rearma depois de regressarem a 20% ou menos.
 - Modo Dual Fish para perfis com dois alvos: deteção de dois marcadores calibrados, medição 0/2–2/2 dos peixes dentro da barra, controlo pelo centro comum e paragem segura se algum alvo faltar ou a barra não conseguir cobrir a distância entre ambos.
 - Modo Tranquility Rhythm: deteta notas nas quatro pistas calibradas e prevê o cruzamento da linha de receção antes de enviar um toque de tecla D/F/J/K. Usa cores, região, linha e avanço temporal configurados por perfil; os testes sintéticos não substituem a validação no jogo real.
 - Interface WPF reorganizada em Dashboard, Fishing, Calibration, Sessions e Settings, com botões arredondados e animações subtis de hover.

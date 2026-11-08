@@ -132,6 +132,66 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_ReleasesOnlyOncePerChargeCycleAndRearmsAfterLowReading()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var barContainingFish = new DetectedMarker(
+            150, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+
+        var firstRelease = coordinator.Apply(
+            FishingState.Reeling, fish, barContainingFish, Motion(150, start),
+            new RodChargeMeterObservation(start, 0.85, 0.95, "Charge 85%."));
+        Assert.Contains("one release", firstRelease.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.False(input.IsLeftButtonDown);
+
+        var stillHigh = coordinator.Apply(
+            FishingState.Reeling, fish, barContainingFish, Motion(150, start.AddMilliseconds(100)),
+            new RodChargeMeterObservation(start.AddMilliseconds(100), 0.92, 0.95, "Charge 92%."));
+        Assert.DoesNotContain("one release", stillHigh.Reason, StringComparison.OrdinalIgnoreCase);
+
+        var drained = coordinator.Apply(
+            FishingState.Reeling, fish, barContainingFish, Motion(150, start.AddMilliseconds(200)),
+            new RodChargeMeterObservation(start.AddMilliseconds(200), 0.15, 0.95, "Charge 15%."));
+        Assert.DoesNotContain("one release", drained.Reason, StringComparison.OrdinalIgnoreCase);
+
+        var nextCycle = coordinator.Apply(
+            FishingState.Reeling, fish, barContainingFish, Motion(150, start.AddMilliseconds(300)),
+            new RodChargeMeterObservation(start.AddMilliseconds(300), 0.88, 0.95, "Charge 88%."));
+        Assert.Contains("one release", nextCycle.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.False(input.IsLeftButtonDown);
+    }
+
+    [Fact]
+    public void Apply_DoesNotConsumeChargeCycleUntilFishIsInsideTheBar()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var narrowBar = new DetectedMarker(
+            100, 40, new OpenCvSharp.Rect(70, 37, 40, 6), 240, 0.95);
+
+        var outside = coordinator.Apply(
+            FishingState.Reeling, fish, narrowBar, Motion(150, start),
+            new RodChargeMeterObservation(start, 0.90, 0.95, "Charge 90%."));
+        Assert.DoesNotContain("one release", outside.Reason, StringComparison.OrdinalIgnoreCase);
+
+        var wideBar = new DetectedMarker(
+            130, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+        var inside = coordinator.Apply(
+            FishingState.Reeling, fish, wideBar, Motion(150, start.AddMilliseconds(100)),
+            new RodChargeMeterObservation(start.AddMilliseconds(100), 0.91, 0.95, "Charge 91%."));
+        Assert.Contains("one release", inside.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Apply_DoesNotUseStaleChargeMeterObservation()
     {
         var input = new FakeRobloxInput();

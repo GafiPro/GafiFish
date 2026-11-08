@@ -80,6 +80,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Exportação CSV/JSON da sessão concluída selecionada, incluindo sessões anteriores.
 - [x] Exportação global de todas as capturas, com metadados da sessão, para CSV/JSON.
 - [x] Resumo com até 25 melhores peixes.
+- [x] Ignorar a notificação falsa documentada da Silly Fun Happy Rod (10x Shiny Sparkling Giant Atlantean Nessies) para não registar peixes inexistentes nem concluir objetivos OCR.
 - [ ] Afinação do parser com notificações reais do Fisch e nomes especiais.
 - [x] Cópia direta do resumo para a área de transferência.
 
@@ -98,6 +99,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Presets Balanced, Precision, Heavy fish e Stable do controlador Reel, guardados individualmente em cada perfil de cana.
 - [x] Minijogo Charge Meter Bonus calibrável: leitura percentual do medidor e libertação aos 80% apenas quando o peixe está dentro da barra.
 - [x] Minijogo Dual Fish: deteção de dois marcadores por cores calibradas, controlo pelo centro entre ambos, indicador de quantos peixes estão efetivamente dentro da barra e pausa segura quando falta um alvo ou os dois não cabem na barra.
+- [x] Medidor de carga cíclico: no máximo uma libertação por ciclo, com rearme apenas depois de uma leitura nova regressar a 20% ou menos.
 - [ ] Afinar o controlador e os perfis com dados medidos em sessões reais.
 - [x] Auto-totem (dois slots independentes) e auto-poção com slots/intervalos configuráveis, executados apenas no estado Preparing e com reposição do slot da cana.
 - [ ] Confirmar visualmente a ativação de cada consumível e validar slots com capturas reais.
@@ -342,6 +344,14 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 - [x] Manter fallback WPF quando o Windows não permite reservar a tecla no thread independente e apresentar esse estado no painel de hotkeys.
 - [ ] Validar manualmente em Windows com a janela WPF deliberadamente sem responder e confirmar a libertação real do input.
 
+
+## Ciclos do Charge Meter e OCR de notificações falsas — 8 de novembro de 2026
+
+- [x] Libertar uma única vez por ciclo de carga quando chega a 80% ou mais e o peixe está dentro da barra.
+- [x] Rearmar o próximo ciclo apenas após uma nova leitura a 20% ou menos; frames antigos/duplicados não alteram o estado.
+- [x] Ignorar a notificação falsa documentada da Silly Fun Happy Rod para impedir registos e objetivos OCR incorretos.
+- [x] Testes para ciclos repetidos, rearme, peixe fora da barra e texto falso em mais do que uma linha.
+- [ ] Medir os limiares/timing com capturas reais das canas e verificar os formatos reais das notificações OCR.
 
 ## Aquarium panel guard — 8 de novembro de 2026
 
