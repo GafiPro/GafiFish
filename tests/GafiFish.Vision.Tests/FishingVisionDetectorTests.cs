@@ -150,10 +150,13 @@ public sealed class FishingVisionDetectorTests
         Assert.InRange(span.Width, 6, 12);
     }
 
-    [Fact]
-    public void Detect_DualFishModeFindsTwoMarkersWithSeparateColourSamples()
+    [Theory]
+    [InlineData(GafiFish.Core.Control.RodMinigameMode.DualFish)]
+    [InlineData(GafiFish.Core.Control.RodMinigameMode.DredDualFish)]
+    public void Detect_DualFishModeFindsTwoMarkersWithSeparateColourSamples(
+        GafiFish.Core.Control.RodMinigameMode mode)
     {
-        var result = new FishingVisionDetector().Detect(CreateDualFishFrame(false, true), CreateDualFishProfile(false));
+        var result = new FishingVisionDetector().Detect(CreateDualFishFrame(false, true), CreateDualFishProfile(false, mode));
         Assert.True(result.IsCalibrated);
         Assert.NotNull(result.FishMarker);
         Assert.NotNull(result.SecondaryFishMarker);
@@ -195,9 +198,11 @@ public sealed class FishingVisionDetectorTests
         Assert.Null(result.SecondaryFishMarker);
     }
 
-    private static VisionProfile CreateDualFishProfile(bool sameColour) => new()
+    private static VisionProfile CreateDualFishProfile(
+        bool sameColour,
+        GafiFish.Core.Control.RodMinigameMode mode = GafiFish.Core.Control.RodMinigameMode.DualFish) => new()
     {
-        RodMinigameMode = GafiFish.Core.Control.RodMinigameMode.DualFish,
+        RodMinigameMode = mode,
         FishingRegion = new NormalizedRegion(0, 0, 1, 1),
         FishingRegionCalibrated = true,
         FishMarkerColor = HsvColorSampler.FromBgra(0, 0, 255),

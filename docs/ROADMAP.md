@@ -114,7 +114,9 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - Appraise/Treasure Appraiser e Auto Enchant estão explicitamente fora do âmbito de automação: não existe OCR de painel, tentativa automática ou clique de gasto; a interação permanece manual.
 - [x] Reconhecimento OCR do nome da cana com região calibrada, duas leituras estáveis e mapeamento explícito para um perfil.
 - [x] Suporte partilhado para barras inclinadas/rotativas e deslocáveis: geometria orientada, secção à altura do peixe e tracking do movimento relativo, com testes sintéticos.
-- [ ] Implementar handlers dedicados para os restantes eventos especiais depois de recolher frames reais: avisos de corte (MiguRod), sequência de dez hold/release temporizados (Jinglestar) e objetos de bónus que caem no minijogo (D.R.E.D.). Os detalhes visuais e as janelas de timing têm de ser medidos no cliente atual.
+- [x] Jinglestar: sequência de dez hold/release, timing configurável e confirmado por perfil, libertação segura e testes sintéticos. Os tempos continuam a exigir medição numa gravação real antes da utilização.
+- [ ] MiguRod: detetar os avisos visuais das zonas de corte e acompanhar as zonas perigosas; exige capturas reais para calibrar cores, contornos e janela de reação. Não envia inputs específicos de evasão sem validação.
+- [ ] D.R.E.D.: Dual Fish partilhado e monitorização informativa do ciclo de cargas/OVERDRIVE implementados; falta detetar os objetos de bónus que caem, após recolher capturas reais para calibração.
 
 ## Próximo bloqueio técnico
 
@@ -165,7 +167,9 @@ Appraise/Treasure Appraiser e Enchant automáticos estão excluídos: a interaç
 - [x] Presets de Reel por perfil de cana, sem assumir que substituem minijogos diferentes.
 - [x] Custom Rod handlers para Standard Reel, Charge Meter Bonus, Dual Fish e Tranquility Rhythm, com calibração por perfil e testes sintéticos.
 - [x] Geometria/tracking de barras de controlo rotativas ou deslocáveis integrado no handler Reel partilhado.
-- [ ] Custom Rod handlers dedicados para avisos de corte, sequências de timing e objetos de bónus, após recolha de frames reais e validação no jogo.
+- [x] Custom Rod handler Jinglestar com dez pulsos hold/release, timing por perfil e testes sintéticos.
+- [x] D.R.E.D. com Dual Fish e estado informativo da cadência de cargas/OVERDRIVE, sem interferir com o input Reel normal.
+- [ ] MiguRod com deteção específica dos avisos de corte e D.R.E.D. com deteção dos objetos de bónus; ambos dependem de amostras visuais reais.
 - [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.
 - [x] Motor de rotação dia/noite por indicador HUD calibrado, três frames estáveis, baseline inicial sem consumo e execução em Preparing.
 - [ ] Validar com capturas reais do indicador HUD do Fisch, em dia e noite, antes de usar os slots reais.

@@ -18,13 +18,15 @@ public sealed class ReelInputCoordinator
     private readonly ReelController _controller;
     private readonly FishMotionTracker _controlMotionTracker = new();
     private readonly double _chargeReleaseThreshold;
+    private readonly DredPassiveTracker? _dredPassiveTracker;
     private bool _chargeReleaseConsumed;
     private DateTimeOffset? _lastChargeObservationAt;
 
     public ReelInputCoordinator(
         IRobloxInput input,
         ReelController? controller = null,
-        double chargeReleaseThreshold = 0.80)
+        double chargeReleaseThreshold = 0.80,
+        bool enableDredPassive = false)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input));
         if (!double.IsFinite(chargeReleaseThreshold)
@@ -33,9 +35,11 @@ public sealed class ReelInputCoordinator
                 "Charge release threshold must be between 80% and 100%.");
         _controller = controller ?? new ReelController();
         _chargeReleaseThreshold = chargeReleaseThreshold;
+        _dredPassiveTracker = enableDredPassive ? new DredPassiveTracker() : null;
     }
 
     public bool IsArmed => _input.IsArmed;
+    public string DredPassiveStatus => _dredPassiveTracker?.LastStatus ?? "D.R.E.D. passive tracker is inactive.";
 
     public void Arm() => _input.Arm();
 
@@ -50,6 +54,7 @@ public sealed class ReelInputCoordinator
         if (state != FishingState.Reeling)
         {
             _controlMotionTracker.Reset();
+            _dredPassiveTracker?.Reset();
             ResetChargeMeterCycle();
             _input.SetLeftButton(false);
             return new ReelControlDecision(
@@ -65,6 +70,9 @@ public sealed class ReelInputCoordinator
                 ReelCommand.Neutral, 0, 0,
                 "A marker or fresh motion estimate is missing; mouse input released.");
         }
+
+        if (_dredPassiveTracker is not null)
+            _ = _dredPassiveTracker.Process(motion.ObservedAt);
 
         var hasHorizontalSpan = ControlBarGeometry.TryGetHorizontalSpanAtY(
             controlMarker, fishMarker.CenterY, out var horizontalSpan);
@@ -193,6 +201,7 @@ public sealed class ReelInputCoordinator
     public void Stop()
     {
         _controlMotionTracker.Reset();
+        _dredPassiveTracker?.Reset();
         ResetChargeMeterCycle();
         _input.Disarm();
     }

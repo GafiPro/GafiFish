@@ -37,6 +37,9 @@ public sealed record VisionProfile
     public HsvColorRange? RodChargeMeterColor { get; init; }
     public bool RodChargeMeterFillFromRight { get; init; }
     public double RodChargeReleaseThreshold { get; init; } = 0.80;
+    public int JinglestarHoldMilliseconds { get; init; } = 100;
+    public int JinglestarReleaseMilliseconds { get; init; } = 100;
+    public bool JinglestarTimingCalibrated { get; init; }
     // Tranquility Rod uses four calibrated note lanes and one horizontal hit line.
     // Empty lane colours keep the mode disabled until the user calibrates real frames.
     public HsvColorRange?[] RhythmLaneColors { get; init; } = [null, null, null, null];
@@ -122,6 +125,10 @@ public sealed record VisionProfile
         if (!Enum.IsDefined(RodMinigameMode))
             throw new ArgumentOutOfRangeException(nameof(RodMinigameMode));
         RodChargeMeterRegion.Validate();
+        if (JinglestarHoldMilliseconds is < 20 or > 500)
+            throw new ArgumentOutOfRangeException(nameof(JinglestarHoldMilliseconds), "Jinglestar hold timing must be between 20 and 500 ms.");
+        if (JinglestarReleaseMilliseconds is < 20 or > 500)
+            throw new ArgumentOutOfRangeException(nameof(JinglestarReleaseMilliseconds), "Jinglestar release timing must be between 20 and 500 ms.");
         if (!double.IsFinite(RodChargeReleaseThreshold)
             || RodChargeReleaseThreshold is < 0.80 or > 1.00)
             throw new ArgumentOutOfRangeException(nameof(RodChargeReleaseThreshold),

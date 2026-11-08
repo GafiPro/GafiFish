@@ -81,6 +81,50 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_DredPassiveIsInformationalAndDoesNotOverrideReelInput()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = new ReelInputCoordinator(input, enableDredPassive: true);
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var bar = Marker(100);
+        var baseline = coordinator.Apply(
+            FishingState.Reeling, fish, bar, Motion(150, start));
+        Assert.Equal(ReelCommand.Hold, baseline.Command);
+        Assert.True(input.IsLeftButtonDown);
+
+        ReelControlDecision? AdvanceToSecond(int second)
+        {
+            ReelControlDecision? latest = null;
+            for (var frame = 1; frame <= second * 10; frame++)
+            {
+                latest = coordinator.Apply(
+                    FishingState.Reeling,
+                    fish,
+                    bar,
+                    Motion(150, start.AddMilliseconds(frame * 100)));
+            }
+
+            return latest;
+        }
+
+        var firstCharge = AdvanceToSecond(4);
+        Assert.Equal(ReelCommand.Hold, firstCharge?.Command);
+        Assert.True(input.IsLeftButtonDown);
+        Assert.Contains("0.6 seconds", coordinator.DredPassiveStatus);
+
+        _ = AdvanceToSecond(8);
+        var overdrive = AdvanceToSecond(12);
+
+        Assert.Equal(ReelCommand.Hold, overdrive?.Command);
+        Assert.True(input.IsLeftButtonDown);
+        Assert.Contains("OVERDRIVE", coordinator.DredPassiveStatus, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("2.5 seconds", coordinator.DredPassiveStatus);
+    }
+
+    [Fact]
     public void Apply_ReleasesMouseWhenMarkersDisappear()
     {
         var input = new FakeRobloxInput();
