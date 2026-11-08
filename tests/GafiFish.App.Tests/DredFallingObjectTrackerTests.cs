@@ -44,7 +44,7 @@ public sealed class DredFallingObjectTrackerTests
         Assert.Empty(tracker.ProcessObservation(start.AddMilliseconds(100), [Marker(100, 104)]));
         Assert.Empty(tracker.ProcessObservation(start.AddMilliseconds(200), [Marker(100, 101)]));
         Assert.Empty(tracker.ProcessObservation(start.AddMilliseconds(300), [Marker(100, 105)]));
-        Assert.Empty(tracker.ProcessObservation(start.AddMilliseconds(400), [Marker(100, 109)]));
+        Assert.Single(tracker.ProcessObservation(start.AddMilliseconds(400), [Marker(100, 109)]));
         Assert.Single(tracker.ProcessObservation(start.AddMilliseconds(500), [Marker(100, 113)]));
     }
 
@@ -70,7 +70,7 @@ public sealed class DredFallingObjectTrackerTests
         Assert.Empty(tracker.ProcessObservation(start, [Marker(100, 100)]));
         Assert.Empty(tracker.ProcessObservation(start.AddMilliseconds(200), [Marker(100, 110)]));
         Assert.Empty(tracker.ProcessObservation(start.AddMilliseconds(300), [Marker(100, 120)]));
-        Assert.Empty(tracker.ProcessObservation(start.AddMilliseconds(400), [Marker(100, 130)]));
+        Assert.Single(tracker.ProcessObservation(start.AddMilliseconds(400), [Marker(100, 130)]));
     }
 
     [Fact]
