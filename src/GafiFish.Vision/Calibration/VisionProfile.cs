@@ -36,6 +36,7 @@ public sealed record VisionProfile
     public bool RodChargeMeterRegionCalibrated { get; init; }
     public HsvColorRange? RodChargeMeterColor { get; init; }
     public bool RodChargeMeterFillFromRight { get; init; }
+    public double RodChargeReleaseThreshold { get; init; } = 0.80;
     // Tranquility Rod uses four calibrated note lanes and one horizontal hit line.
     // Empty lane colours keep the mode disabled until the user calibrates real frames.
     public HsvColorRange?[] RhythmLaneColors { get; init; } = [null, null, null, null];
@@ -121,6 +122,10 @@ public sealed record VisionProfile
         if (!Enum.IsDefined(RodMinigameMode))
             throw new ArgumentOutOfRangeException(nameof(RodMinigameMode));
         RodChargeMeterRegion.Validate();
+        if (!double.IsFinite(RodChargeReleaseThreshold)
+            || RodChargeReleaseThreshold is < 0.80 or > 1.00)
+            throw new ArgumentOutOfRangeException(nameof(RodChargeReleaseThreshold),
+                "Charge release threshold must be between 80% and 100%.");
 
         if (ReferenceWidth < 0 || ReferenceHeight < 0)
         {

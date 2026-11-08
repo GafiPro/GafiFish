@@ -2860,7 +2860,8 @@ public partial class MainWindow : Window
                 PositiveErrorMeansHold = InvertReelDirectionCheckBox.IsChecked != true
             };
             var controller = new ReelController(controllerSettings);
-            var reelCoordinator = new ReelInputCoordinator(input, controller);
+            var reelCoordinator = new ReelInputCoordinator(
+                input, controller, _profile.RodChargeReleaseThreshold);
             var rhythmCoordinator = isTranquilityRhythmMode
                 ? new RhythmNoteInputCoordinator(input)
                 : null;
@@ -4537,6 +4538,8 @@ public partial class MainWindow : Window
             RodReelPresetComboBox.SelectedValue = _profile.RodPreset.ToString();
             RodMinigameModeComboBox.SelectedValue = _profile.RodMinigameMode.ToString();
             RodChargeMeterFillFromRightCheckBox.IsChecked = _profile.RodChargeMeterFillFromRight;
+            RodChargeReleaseThresholdComboBox.SelectedValue = _profile.RodChargeReleaseThreshold
+                .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
             RhythmInputLeadMillisecondsTextBox.Text =
                 _profile.RhythmInputLeadMilliseconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
         }
@@ -4568,6 +4571,12 @@ public partial class MainWindow : Window
         };
         DualFishCoverageStatusText.Visibility =
             _profile.RodMinigameMode == RodMinigameMode.DualFish ? Visibility.Visible : Visibility.Collapsed;
+        var isChargeMeterMode = _profile.RodMinigameMode == RodMinigameMode.ChargeMeterBonus;
+        RodChargeReleaseThresholdLabel.Visibility = isChargeMeterMode ? Visibility.Visible : Visibility.Collapsed;
+        RodChargeReleaseThresholdComboBox.Visibility = isChargeMeterMode ? Visibility.Visible : Visibility.Collapsed;
+        RodChargeReleaseThresholdComboBox.IsEnabled = isChargeMeterMode && !_automationEnabled;
+        RodChargeMeterStatusText.Text =
+            $"Charge meter release threshold: {_profile.RodChargeReleaseThreshold:P0}. Rearm after the meter returns to 20% or below.";
         var isRhythmMode = _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
         RhythmNoteStatusText.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
         RhythmCalibrationStatusText.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
@@ -4627,7 +4636,7 @@ public partial class MainWindow : Window
         RodMinigameModeStatusText.Text = mode switch
         {
             RodMinigameMode.ChargeMeterBonus => _profile.IsRodChargeMeterCalibrated
-                ? "Charge Meter Bonus · calibrated. The macro releases at 80% while the fish is in the control bar."
+                ? $"Charge Meter Bonus · calibrated. The macro releases at {_profile.RodChargeReleaseThreshold:P0} while the fish is in the control bar."
                 : "Charge Meter Bonus · calibrate the meter region and fill colour before starting.",
             RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
                 ? "Dual Fish · tracks both targets and aims for their shared centre. The bar must be wide enough to cover both."
@@ -4659,6 +4668,36 @@ public partial class MainWindow : Window
 
         _profile = _profile with { RodChargeMeterFillFromRight = fromRight };
         await SaveProfileAsync("Rod charge-meter fill direction updated.");
+        RefreshRodReelPresetControls();
+    }
+
+    private async void RodChargeReleaseThresholdComboBox_SelectionChanged(
+        object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingRodReelPreset || !IsLoaded)
+            return;
+
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            RefreshRodReelPresetControls();
+            RodMinigameModeStatusText.Text = "Stop the macro before changing the charge release threshold.";
+            return;
+        }
+
+        var selected = RodChargeReleaseThresholdComboBox.SelectedValue?.ToString();
+        if (!double.TryParse(selected, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var threshold)
+            || !double.IsFinite(threshold) || threshold is < 0.80 or > 1.00)
+        {
+            RefreshRodReelPresetControls();
+            return;
+        }
+
+        if (Math.Abs(_profile.RodChargeReleaseThreshold - threshold) < 0.000001)
+            return;
+
+        _profile = _profile with { RodChargeReleaseThreshold = threshold };
+        await SaveProfileAsync($"Rod charge release threshold set to {threshold:P0}.");
         RefreshRodReelPresetControls();
     }
 
@@ -6109,7 +6148,7 @@ public partial class MainWindow : Window
         if (isRodChargeMeterColor)
         {
             RodMinigameModeStatusText.Text = _profile.IsRodChargeMeterCalibrated
-                ? "Charge Meter Bonus · calibration complete. It will release at 80% when the fish is inside the bar."
+                ? $"Charge Meter Bonus · calibration complete. It will release at {_profile.RodChargeReleaseThreshold:P0} when the fish is inside the bar."
                 : "Charge fill colour saved. Select the full meter track to finish calibration.";
             RodChargeMeterStatusText.Text = "Charge meter calibration updated.";
         }

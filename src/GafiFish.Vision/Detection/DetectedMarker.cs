@@ -7,4 +7,11 @@ public sealed record DetectedMarker(
     double CenterY,
     Rect Bounds,
     double Area,
-    double Confidence);
+    double Confidence)
+{
+    /// <summary>
+    /// Optional oriented bounds for controls that rotate. Bounds remains the
+    /// axis-aligned box for overlays and compatibility with existing callers.
+    /// </summary>
+    public RotatedRect? OrientedBounds { get; init; }
+}

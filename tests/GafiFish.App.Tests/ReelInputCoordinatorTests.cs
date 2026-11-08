@@ -30,6 +30,57 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_AccountsForControlBarMovingAcrossTheScreen()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = new ReelInputCoordinator(
+            input,
+            new ReelController(new ReelControlSettings
+            {
+                ProportionalGain = 0,
+                DerivativeGain = 1,
+                Deadband = 0,
+                LookAheadSeconds = 0,
+                MinimumConfidence = 0.65
+            }));
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        _ = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            Marker(100),
+            Motion(150, start));
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            Marker(120),
+            Motion(150, start.AddMilliseconds(100)));
+
+        Assert.Equal(ReelCommand.Release, decision.Command);
+        Assert.False(input.IsLeftButtonDown);
+    }
+
+    [Fact]
+    public void Apply_ReleasesWhenControlBarObservationTimestampIsRepeated()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        _ = coordinator.Apply(FishingState.Reeling, Marker(150), Marker(100), Motion(150, now));
+        var duplicate = coordinator.Apply(
+            FishingState.Reeling, Marker(150), Marker(100), Motion(150, now));
+
+        Assert.Equal(ReelCommand.Neutral, duplicate.Command);
+        Assert.False(input.IsLeftButtonDown);
+        Assert.Contains("fresh control-bar", duplicate.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Apply_ReleasesMouseWhenMarkersDisappear()
     {
         var input = new FakeRobloxInput();
@@ -129,6 +180,167 @@ public sealed class ReelInputCoordinatorTests
         Assert.Equal(ReelCommand.Release, release.Command);
         Assert.False(input.IsLeftButtonDown);
         Assert.Contains("charge", release.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Apply_UsesTheChargeThresholdConfiguredForTheRodProfile()
+    {
+        var input = new FakeRobloxInput();
+        var controller = new ReelController(new ReelControlSettings
+        {
+            ProportionalGain = 0,
+            DerivativeGain = 0,
+            Deadband = 0,
+            LookAheadSeconds = 0,
+            MinimumConfidence = 0.65
+        });
+        var coordinator = new ReelInputCoordinator(input, controller, chargeReleaseThreshold: 1.0);
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = new DetectedMarker(150, 40, new OpenCvSharp.Rect(147, 37, 6, 6), 36, 0.95);
+        var bar = new DetectedMarker(
+            150, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+
+        var belowThreshold = coordinator.Apply(
+            FishingState.Reeling, fish, bar, Motion(150, start),
+            new RodChargeMeterObservation(start, 0.95, 0.95, "Charge 95%."));
+        Assert.NotEqual(ReelCommand.Release, belowThreshold.Command);
+
+        var atThreshold = coordinator.Apply(
+            FishingState.Reeling, fish, bar, Motion(150, start.AddMilliseconds(100)),
+            new RodChargeMeterObservation(start.AddMilliseconds(100), 1.0, 0.95, "Charge 100%."));
+        Assert.Equal(ReelCommand.Release, atThreshold.Command);
+        Assert.Contains("100%", atThreshold.Reason);
+    }
+
+    [Fact]
+    public void Apply_RejectsInvalidChargeThreshold()
+    {
+        var input = new FakeRobloxInput();
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new ReelInputCoordinator(input, chargeReleaseThreshold: 0.79));
+    }
+
+    [Fact]
+    public void Apply_ReleasesOnlyOncePerChargeCycleAndRearmsAfterLowReading()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var barContainingFish = new DetectedMarker(
+            150, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+
+        var firstRelease = coordinator.Apply(
+            FishingState.Reeling, fish, barContainingFish, Motion(150, start),
+            new RodChargeMeterObservation(start, 0.85, 0.95, "Charge 85%."));
+        Assert.Contains("one release", firstRelease.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.False(input.IsLeftButtonDown);
+
+        var stillHigh = coordinator.Apply(
+            FishingState.Reeling, fish, barContainingFish, Motion(150, start.AddMilliseconds(100)),
+            new RodChargeMeterObservation(start.AddMilliseconds(100), 0.92, 0.95, "Charge 92%."));
+        Assert.DoesNotContain("one release", stillHigh.Reason, StringComparison.OrdinalIgnoreCase);
+
+        var drained = coordinator.Apply(
+            FishingState.Reeling, fish, barContainingFish, Motion(150, start.AddMilliseconds(200)),
+            new RodChargeMeterObservation(start.AddMilliseconds(200), 0.15, 0.95, "Charge 15%."));
+        Assert.DoesNotContain("one release", drained.Reason, StringComparison.OrdinalIgnoreCase);
+
+        var nextCycle = coordinator.Apply(
+            FishingState.Reeling, fish, barContainingFish, Motion(150, start.AddMilliseconds(300)),
+            new RodChargeMeterObservation(start.AddMilliseconds(300), 0.88, 0.95, "Charge 88%."));
+        Assert.Contains("one release", nextCycle.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.False(input.IsLeftButtonDown);
+    }
+
+    [Fact]
+    public void Apply_DoesNotConsumeChargeCycleUntilFishIsInsideTheBar()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        var narrowBar = new DetectedMarker(
+            100, 40, new OpenCvSharp.Rect(70, 37, 40, 6), 240, 0.95);
+
+        var outside = coordinator.Apply(
+            FishingState.Reeling, fish, narrowBar, Motion(150, start),
+            new RodChargeMeterObservation(start, 0.90, 0.95, "Charge 90%."));
+        Assert.DoesNotContain("one release", outside.Reason, StringComparison.OrdinalIgnoreCase);
+
+        var wideBar = new DetectedMarker(
+            130, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+        var inside = coordinator.Apply(
+            FishingState.Reeling, fish, wideBar, Motion(150, start.AddMilliseconds(100)),
+            new RodChargeMeterObservation(start.AddMilliseconds(100), 0.91, 0.95, "Charge 91%."));
+        Assert.Contains("one release", inside.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Apply_DoesNotReleaseChargeWhenFishIsOutsideRotatedBarCrossSection()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fishOutsideRotatedSlice = new DetectedMarker(
+            150, 80, new OpenCvSharp.Rect(147, 77, 6, 6), 25, 0.95);
+        var rotatedBar = new DetectedMarker(
+            130, 40, new OpenCvSharp.Rect(90, 0, 80, 80), 600, 0.95)
+        {
+            OrientedBounds = new OpenCvSharp.RotatedRect(
+                new OpenCvSharp.Point2f(130, 40),
+                new OpenCvSharp.Size2f(100, 8),
+                45)
+        };
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fishOutsideRotatedSlice,
+            rotatedBar,
+            Motion(150, now),
+            new RodChargeMeterObservation(now, 0.90, 0.95, "Charge 90%."));
+
+        Assert.DoesNotContain("one release", decision.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(ReelCommand.Neutral, decision.Command);
+        Assert.False(input.IsLeftButtonDown);
+        Assert.True(input.IsArmed);
+    }
+
+    [Fact]
+    public void Apply_UsesRotatedBarSliceWhenFishIsInsideIt()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        var fish = Marker(130);
+        var rotatedBar = new DetectedMarker(
+            130, 40, new OpenCvSharp.Rect(90, 0, 80, 80), 600, 0.95)
+        {
+            OrientedBounds = new OpenCvSharp.RotatedRect(
+                new OpenCvSharp.Point2f(130, 40),
+                new OpenCvSharp.Size2f(100, 8),
+                45)
+        };
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            rotatedBar,
+            Motion(130, now),
+            new RodChargeMeterObservation(now, 0.90, 0.95, "Charge 90%."));
+
+        Assert.Contains("one release", decision.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.False(input.IsLeftButtonDown);
     }
 
     [Fact]

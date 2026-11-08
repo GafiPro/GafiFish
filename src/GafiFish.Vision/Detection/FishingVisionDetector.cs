@@ -255,6 +255,7 @@ public sealed class FishingVisionDetector
 
         var bestArea = 0d;
         Rect bestBounds = default;
+        RotatedRect? bestOrientedBounds = null;
 
         foreach (var contour in contours)
         {
@@ -266,6 +267,35 @@ public sealed class FishingVisionDetector
 
             bestArea = area;
             bestBounds = Cv2.BoundingRect(contour);
+
+            var rotated = Cv2.MinAreaRect(contour);
+            var corners = rotated.Points();
+            var edges = Enumerable.Range(0, corners.Length)
+                .Select(index =>
+                {
+                    var first = corners[index];
+                    var second = corners[(index + 1) % corners.Length];
+                    var dx = second.X - first.X;
+                    var dy = second.Y - first.Y;
+                    return new
+                    {
+                        Length = Math.Sqrt(dx * dx + dy * dy),
+                        AngleDegrees = Math.Abs(Math.Atan2(dy, dx) * 180d / Math.PI)
+                    };
+                })
+                .OrderByDescending(edge => edge.Length)
+                .ToArray();
+            var longEdge = edges[0];
+            var normalizedAngle = longEdge.AngleDegrees % 180d;
+            var tiltFromHorizontal = Math.Min(normalizedAngle, 180d - normalizedAngle);
+            var isElongated = edges.Length >= 4
+                && edges[0].Length > Math.Max(1d, edges[2].Length) * 1.25d;
+            bestOrientedBounds = isElongated && tiltFromHorizontal > 2.5d
+                ? new RotatedRect(
+                    new Point2f(rotated.Center.X + offsetX, rotated.Center.Y + offsetY),
+                    rotated.Size,
+                    rotated.Angle)
+                : null;
         }
 
         if (bestArea < minimumArea)
@@ -289,6 +319,9 @@ public sealed class FishingVisionDetector
             bounds.Y + bounds.Height / 2d,
             bounds,
             bestArea,
-            confidence);
+            confidence)
+        {
+            OrientedBounds = bestOrientedBounds
+        };
     }
 }

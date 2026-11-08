@@ -12,6 +12,13 @@ namespace GafiFish.Ocr.Parsing;
 /// </summary>
 public sealed partial class FishCatchTextParser
 {
+    // Silly Fun Happy Rod can display a deliberately fake "10x ... Atlantean
+    // Nessies" notification after its minigame. It is not a real catch and must
+    // never enter session history or satisfy a fish-target objective.
+    private static readonly Regex KnownFakeCatchNotificationRegex = new(
+        @"\b(?:you\s+)?caught\s+10\s*[x×]\s+[\s\S]{0,100}?\batlantean\s+nessies?\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     private static readonly Regex CatchSignalRegex = new(
         @"\b(?:you\s+)?caught\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -64,6 +71,12 @@ public sealed partial class FishCatchTextParser
         }
 
         var text = Normalize(result.Text);
+        if (KnownFakeCatchNotificationRegex.IsMatch(text))
+        {
+            status = "Known fake catch notification ignored; no fish was registered.";
+            return false;
+        }
+
         if (text.Length == 0 || !CatchSignalRegex.IsMatch(text))
         {
             status = "No fish-catch notification detected.";

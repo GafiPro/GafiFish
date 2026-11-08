@@ -16,13 +16,23 @@ public sealed class ReelInputCoordinator
 {
     private readonly IRobloxInput _input;
     private readonly ReelController _controller;
+    private readonly FishMotionTracker _controlMotionTracker = new();
+    private readonly double _chargeReleaseThreshold;
+    private bool _chargeReleaseConsumed;
+    private DateTimeOffset? _lastChargeObservationAt;
 
     public ReelInputCoordinator(
         IRobloxInput input,
-        ReelController? controller = null)
+        ReelController? controller = null,
+        double chargeReleaseThreshold = 0.80)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input));
+        if (!double.IsFinite(chargeReleaseThreshold)
+            || chargeReleaseThreshold is < 0.80 or > 1.00)
+            throw new ArgumentOutOfRangeException(nameof(chargeReleaseThreshold),
+                "Charge release threshold must be between 80% and 100%.");
         _controller = controller ?? new ReelController();
+        _chargeReleaseThreshold = chargeReleaseThreshold;
     }
 
     public bool IsArmed => _input.IsArmed;
@@ -39,6 +49,8 @@ public sealed class ReelInputCoordinator
     {
         if (state != FishingState.Reeling)
         {
+            _controlMotionTracker.Reset();
+            ResetChargeMeterCycle();
             _input.SetLeftButton(false);
             return new ReelControlDecision(
                 ReelCommand.Neutral, 0, 0,
@@ -47,44 +59,92 @@ public sealed class ReelInputCoordinator
 
         if (fishMarker is null || controlMarker is null || motion is null || !motion.IsFresh)
         {
+            _controlMotionTracker.Reset();
             _input.SetLeftButton(false);
             return new ReelControlDecision(
                 ReelCommand.Neutral, 0, 0,
                 "A marker or fresh motion estimate is missing; mouse input released.");
         }
 
-        if (requireDualFishCoverage && fishMarker.Bounds.Width > controlMarker.Bounds.Width)
+        var hasHorizontalSpan = ControlBarGeometry.TryGetHorizontalSpanAtY(
+            controlMarker, fishMarker.CenterY, out var horizontalSpan);
+        var controlPositionX = hasHorizontalSpan ? horizontalSpan.CenterX : controlMarker.CenterX;
+        var controlWidth = hasHorizontalSpan ? horizontalSpan.Width : controlMarker.Bounds.Width;
+        var fishInsideControlBar = hasHorizontalSpan
+            && fishMarker.CenterX >= horizontalSpan.Left
+            && fishMarker.CenterX <= horizontalSpan.Right;
+
+        if (controlMarker.OrientedBounds.HasValue && !hasHorizontalSpan)
+        {
+            _controlMotionTracker.Reset();
+            _input.SetLeftButton(false);
+            return new ReelControlDecision(
+                ReelCommand.Neutral, 0, 0,
+                "The fish is outside the vertical span of the rotated control bar; mouse input released.");
+        }
+
+        // Track the control bar independently from the fish. This makes the
+        // controller work with bars that translate across the minigame area,
+        // using relative horizontal velocity rather than assuming the bar is static.
+        var controlMotion = _controlMotionTracker.Update(
+            controlMarker with { CenterX = controlPositionX }, motion.ObservedAt);
+        if (controlMotion is null || !controlMotion.IsFresh)
         {
             _input.SetLeftButton(false);
             return new ReelControlDecision(
-                ReelCommand.Neutral, fishMarker.CenterX - controlMarker.CenterX, fishMarker.Bounds.Width,
-                "The two fish markers are too far apart for the control bar to cover; input released.");
+                ReelCommand.Neutral, 0, 0,
+                "A fresh control-bar movement estimate is missing; mouse input released.");
+        }
+        var relativeVelocity = motion.VelocityPixelsPerSecond
+            - controlMotion.VelocityPixelsPerSecond;
+
+        if (requireDualFishCoverage
+            && (!hasHorizontalSpan || fishMarker.Bounds.Width > controlWidth))
+        {
+            _input.SetLeftButton(false);
+            return new ReelControlDecision(
+                ReelCommand.Neutral, fishMarker.CenterX - controlPositionX, controlWidth,
+                "The fish targets are too far apart for the rotated control bar to cover; input released.");
         }
 
         var confidence = Math.Min(
             motion.Confidence,
-            Math.Min(fishMarker.Confidence, controlMarker.Confidence));
+            Math.Min(controlMotion.Confidence,
+                Math.Min(fishMarker.Confidence, controlMarker.Confidence)));
 
-        // Charge-meter rods grant a progress bonus when the meter is released
-        // above 80% while the fish is inside the calibrated control bar. If
-        // the charge meter is uncertain, fall back to normal Reel control.
-        if (chargeMeter is { IsUsable: true, Progress: >= 0.80 }
+        // Charge meters can be cyclical (for example, a meter that fills,
+        // drains and then starts filling again). Release once per rising cycle,
+        // and only re-arm after a fresh reading has returned to 20% or below.
+        // This prevents a high meter reading from forcing release on every frame.
+        if (chargeMeter is { IsUsable: true }
             && IsChargeObservationFresh(chargeMeter, motion.ObservedAt)
-            && fishMarker.CenterX >= controlMarker.Bounds.Left
-            && fishMarker.CenterX <= controlMarker.Bounds.Right)
+            && (!_lastChargeObservationAt.HasValue
+                || chargeMeter.CapturedAt > _lastChargeObservationAt.Value))
         {
-            _input.SetLeftButton(false);
-            return new ReelControlDecision(
-                ReelCommand.Release,
-                fishMarker.CenterX - controlMarker.CenterX,
-                chargeMeter.Progress,
-                "Rod charge reached 80% while the fish was inside the control bar; released for the calibrated charge bonus.");
+            _lastChargeObservationAt = chargeMeter.CapturedAt;
+
+            if (_chargeReleaseConsumed)
+            {
+                if (chargeMeter.Progress <= 0.20)
+                    _chargeReleaseConsumed = false;
+            }
+
+            if (!_chargeReleaseConsumed && chargeMeter.Progress >= _chargeReleaseThreshold && fishInsideControlBar)
+            {
+                _chargeReleaseConsumed = true;
+                _input.SetLeftButton(false);
+                return new ReelControlDecision(
+                    ReelCommand.Release,
+                    fishMarker.CenterX - controlPositionX,
+                    chargeMeter.Progress,
+                    $"Rod charge crossed the {_chargeReleaseThreshold:P0} release threshold while the fish was inside the control bar; one release was sent for this cycle.");
+            }
         }
 
         var decision = _controller.Evaluate(
             motion.PositionX,
-            controlMarker.CenterX,
-            motion.VelocityPixelsPerSecond,
+            controlPositionX,
+            relativeVelocity,
             confidence,
             isFresh: true);
 
@@ -124,5 +184,16 @@ public sealed class ReelInputCoordinator
         return age >= TimeSpan.Zero && age <= TimeSpan.FromMilliseconds(180);
     }
 
-    public void Stop() => _input.Disarm();
+    private void ResetChargeMeterCycle()
+    {
+        _chargeReleaseConsumed = false;
+        _lastChargeObservationAt = null;
+    }
+
+    public void Stop()
+    {
+        _controlMotionTracker.Reset();
+        ResetChargeMeterCycle();
+        _input.Disarm();
+    }
 }
