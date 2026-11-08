@@ -359,7 +359,7 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 
 ## Mecânicas especiais de canas — investigação de 8 de novembro de 2026
 
-- [ ] **MiguRod:** detetar três avisos de corte simultâneos (quatro na variante de mastery), estimar a janela até ao corte e evitar que a barra coincida com a zona perigosa; a variante mastery também apresenta um evento de tecla separado.
+- [ ] **MiguRod:** evento especial de cana ainda sem handler; depende de capturas reais para identificar o sinal visual e a janela de reação.
 - [ ] **Jinglestar:** acompanhar o contador e a janela de timing da sequência de dez hold/release; uma falha reinicia a sequência e existe um cooldown curto após a conclusão.
 - [ ] **D.R.E.D.:** manter os dois peixes dentro da barra (Dual Fish já cobre essa parte) e detetar/apanhar os objetos que caem para obter progresso adicional; implementar o contador e a ativação de Overdrive após confirmar o indicador real.
 - [x] As barras rotativas/deslocáveis são cobertas pelo tracker geométrico e de movimento relativo partilhado; ainda falta validação em vídeo real.
