@@ -198,7 +198,7 @@ O motor espera por três frames estáveis antes de enviar um clique único. Só 
 
 ### Mecânicas especiais — calibração de alertas
 
-Os detetores MiguRod e D.R.E.D. usam regiões e cores HSV escolhidas pelo utilizador. Captura um frame com F6 quando o aviso/objeto real estiver visível, seleciona uma região apertada e amostra um pixel limpo do marcador. O overlay mostra os candidatos que correspondem à calibração. Os alertas só são emitidos depois de duas capturas novas consecutivas com deteção e só rearmam após vários frames sem o sinal. A reprodução offline mostra os overlays, mas não toca alertas nem envia inputs. Estes módulos são deliberadamente apenas de observação: não assumem que um objeto foi recolhido e não enviam movimentos, cliques ou teclas para mecânicas ainda não validadas.
+Os detetores MiguRod e D.R.E.D. usam regiões e cores HSV escolhidas pelo utilizador. Captura um frame com F6 quando o aviso/objeto real estiver visível, seleciona uma região apertada e amostra um pixel limpo do marcador. O overlay mostra os candidatos que correspondem à calibração. O MiguRod usa debounce de frames distintos; o D.R.E.D. associa candidatos entre frames e exige deslocação descendente antes do debounce do alerta. Os alertas só rearmam após vários frames sem o sinal. A reprodução offline mostra os overlays, mas não toca alertas nem envia inputs. Estes módulos são deliberadamente apenas de observação: não assumem que um objeto foi recolhido e não enviam movimentos, cliques ou teclas para mecânicas ainda não validadas.
 
 
 ## Watchdog de reconexão
