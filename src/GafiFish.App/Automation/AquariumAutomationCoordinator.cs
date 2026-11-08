@@ -18,6 +18,7 @@ public sealed class AquariumAutomationCoordinator
 
     private readonly IRobloxInput _input;
     private readonly AquariumButtonVisionDetector _detector;
+    private readonly AquariumPanelVisionDetector _panelDetector;
     private readonly Action<AquariumActionKind, DateTimeOffset> _onConfirmed;
     private readonly int _requiredStableFrames;
     private readonly int _requiredAbsentFrames;
@@ -40,10 +41,12 @@ public sealed class AquariumAutomationCoordinator
         int requiredStableFrames = 3,
         int requiredAbsentFrames = 2,
         TimeSpan? phaseTimeout = null,
-        double maximumCenterDriftPixels = 8)
+        double maximumCenterDriftPixels = 8,
+        AquariumPanelVisionDetector? panelDetector = null)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input));
         _detector = detector ?? throw new ArgumentNullException(nameof(detector));
+        _panelDetector = panelDetector ?? new AquariumPanelVisionDetector();
         _onConfirmed = onConfirmed ?? throw new ArgumentNullException(nameof(onConfirmed));
 
         if (requiredStableFrames is < 2 or > 10)
@@ -120,6 +123,26 @@ public sealed class AquariumAutomationCoordinator
 
         try
         {
+            if (!profile.IsAquariumPanelCalibrated)
+            {
+                Fail("Aquarium panel anchor is not calibrated. No action was attempted.");
+                return;
+            }
+
+            var panelObservation = _panelDetector.Detect(frame, profile);
+            if (!panelObservation.IsVisible)
+            {
+                ResetCandidate();
+                if (_pending is not null)
+                {
+                    Fail("Aquarium panel disappeared while an action was awaiting confirmation. The cooldown was not recorded and no retry was sent.");
+                    return;
+                }
+
+                _lastStatus = panelObservation.Status;
+                return;
+            }
+
             if (_pending is not null)
             {
                 VerifyPendingAction(frame, profile);

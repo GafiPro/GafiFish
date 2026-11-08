@@ -153,7 +153,8 @@ Ainda falta validar a aplicação com capturas reais e várias resoluções: Ree
 - [x] Quick Info para estado dos módulos.
 - [x] Aquarium Planner: registar alimentação e reposição independentes para as três comidas, acompanhar cooldowns horários e guardar horários localmente.
 - [x] Auto Aquarium: motor visual calibrável para sete botões; ações independentes de alimentação/reposição/claim, cooldown registado, deteção estável, clique único e falha fechada.
-- [ ] Detetar automaticamente o painel e validar os botões/calibrações em frames reais do Fisch.
+- [x] Detetar a presença do painel através de uma âncora de cor/região calibrada pelo utilizador; bloquear ações quando não está visível.
+- [ ] Validar a âncora e os botões/calibrações em frames reais do Fisch.
 Appraise/Treasure Appraiser e Enchant automáticos estão excluídos: a interação e os gastos permanecem manuais.
 - [x] OCR do nome da cana, com região calibrada e associação persistente a perfis.
 - [x] Presets de Reel por perfil de cana, sem assumir que substituem minijogos diferentes.
@@ -341,6 +342,14 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 - [x] Manter fallback WPF quando o Windows não permite reservar a tecla no thread independente e apresentar esse estado no painel de hotkeys.
 - [ ] Validar manualmente em Windows com a janela WPF deliberadamente sem responder e confirmar a libertação real do input.
 
+
+## Aquarium panel guard — 8 de novembro de 2026
+
+- [x] Calibração de uma pequena âncora visual exclusiva do painel, independente das regiões dos botões.
+- [x] Verificação da âncora antes de cada ação do Auto Aquarium.
+- [x] Bloquear cliques quando o painel não é detetado; se desaparecer durante a confirmação, parar sem registar cooldown ou repetir a ação.
+- [x] Testes sintéticos de âncora visível/ausente, calibração incompleta, threshold inválido e bloqueio/aborto do coordenador.
+- [ ] Validar a âncora com o painel real em várias resoluções e estados da interface.
 
 ## Tranquility Rhythm — implementação inicial (7 de novembro de 2026)
 

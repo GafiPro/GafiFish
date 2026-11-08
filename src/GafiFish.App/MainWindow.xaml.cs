@@ -255,6 +255,8 @@ public partial class MainWindow : Window
         SampleHuntSignalColor,
         SelectAquariumButtonRegion,
         SampleAquariumButtonColor,
+        SelectAquariumPanelRegion,
+        SampleAquariumPanelColor,
         SelectAnglerAcceptButtonRegion,
         SampleAnglerAcceptButtonColor,
         SelectAnglerSubmitButtonRegion,
@@ -1264,6 +1266,20 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SelectAquariumPanelRegion_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(
+            CalibrationAction.SelectAquariumPanelRegion,
+            "Drag a small rectangle around a uniform area unique to the open Aquarium panel, away from buttons.");
+    }
+
+    private void SampleAquariumPanelColor_Click(object sender, RoutedEventArgs e)
+    {
+        SetCalibrationAction(
+            CalibrationAction.SampleAquariumPanelColor,
+            "Click a clear pixel inside the selected Aquarium panel anchor area.");
+    }
+
     private void StopAquariumAutomation_Click(object sender, RoutedEventArgs e) =>
         StopAquariumAutomation("Stopped by the user; Auto Aquarium inputs released.");
 
@@ -1408,6 +1424,12 @@ public partial class MainWindow : Window
         if (!options.HasEnabledActions)
         {
             AquariumAutomationStatusText.Text = "Enable at least one action. Restock and claim are optional and off by default.";
+            return;
+        }
+
+        if (!_profile.IsAquariumPanelCalibrated)
+        {
+            AquariumAutomationStatusText.Text = "Calibrate the open Aquarium panel anchor area and its colour before arming. No actions will run without this guard.";
             return;
         }
 
@@ -5902,6 +5924,16 @@ public partial class MainWindow : Window
             },
             CalibrationAction.SelectAquariumButtonRegion => WithAquariumButtonRegion(
                 _profile, _aquariumCalibrationActionKind, selectedRegion, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SelectAquariumPanelRegion => _profile with
+            {
+                AquariumPanel = _profile.AquariumPanel with
+                {
+                    Region = selectedRegion,
+                    RegionCalibrated = true
+                },
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             CalibrationAction.SelectAnglerAcceptButtonRegion => WithAnglerQuestButtonRegion(
                 _profile, AnglerQuestButtonKind.AcceptRequest, selectedRegion, _lastFrame.Width, _lastFrame.Height),
             CalibrationAction.SelectAnglerSubmitButtonRegion => WithAnglerQuestButtonRegion(
@@ -5940,6 +5972,7 @@ public partial class MainWindow : Window
             CalibrationAction.CaptureFishMarkerTemplate => "Fish marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.CaptureControlMarkerTemplate => "Control marker template captured. HSV remains preferred when confidence is sufficient.",
             CalibrationAction.SelectAquariumButtonRegion => $"{AquariumAutomationCoordinator.FormatAction(_aquariumCalibrationActionKind)} button area saved.",
+            CalibrationAction.SelectAquariumPanelRegion => "Aquarium panel anchor area saved.",
             CalibrationAction.SelectAnglerAcceptButtonRegion => "Angler Accept Request button area saved.",
             CalibrationAction.SelectAnglerSubmitButtonRegion => "Angler Submit Fish button area saved.",
             CalibrationAction.SelectRodNameRegion => "Rod-name OCR region saved.",
@@ -6020,6 +6053,12 @@ public partial class MainWindow : Window
             CalibrationAction.SampleHuntSignalColor => _profile with { HuntSignalColor = color },
             CalibrationAction.SampleAquariumButtonColor => WithAquariumButtonColor(
                 _profile, _aquariumCalibrationActionKind, color, _lastFrame.Width, _lastFrame.Height),
+            CalibrationAction.SampleAquariumPanelColor => _profile with
+            {
+                AquariumPanel = _profile.AquariumPanel with { PanelColor = color },
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
             CalibrationAction.SampleAnglerAcceptButtonColor => WithAnglerQuestButtonColor(
                 _profile, AnglerQuestButtonKind.AcceptRequest, color, _lastFrame.Width, _lastFrame.Height),
             CalibrationAction.SampleAnglerSubmitButtonColor => WithAnglerQuestButtonColor(

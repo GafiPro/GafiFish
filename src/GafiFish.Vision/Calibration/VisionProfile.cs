@@ -60,6 +60,7 @@ public sealed record VisionProfile
     public HsvColorRange? ShakePromptColor { get; init; }
     public HsvColorRange? SellButtonColor { get; init; }
     public Dictionary<AquariumActionKind, AquariumButtonCalibration> AquariumButtons { get; init; } = [];
+    public AquariumPanelCalibration AquariumPanel { get; init; } = new();
     public Dictionary<AnglerQuestButtonKind, AnglerQuestButtonCalibration> AnglerQuestButtons { get; init; } = [];
     public bool IsAnglerAcceptButtonCalibrated =>
         AnglerQuestButtons.TryGetValue(AnglerQuestButtonKind.AcceptRequest, out var accept) && accept.IsCalibrated;
@@ -87,6 +88,7 @@ public sealed record VisionProfile
         && DayPhaseColor.HasValue
         && NightPhaseColor.HasValue;
     public bool IsHuntSignalCalibrated => HuntSignalRegionCalibrated && HuntSignalColor.HasValue;
+    public bool IsAquariumPanelCalibrated => AquariumPanel?.IsCalibrated == true;
     public bool IsRodChargeMeterCalibrated =>
         RodChargeMeterRegionCalibrated && RodChargeMeterColor.HasValue;
     public bool IsDualFishCalibrated =>
@@ -163,6 +165,8 @@ public sealed record VisionProfile
         ArgumentNullException.ThrowIfNull(AquariumButtons);
         foreach (var button in AquariumButtons.Values)
             button.Validate();
+        ArgumentNullException.ThrowIfNull(AquariumPanel);
+        AquariumPanel.Validate();
 
         ArgumentNullException.ThrowIfNull(AnglerQuestButtons);
         foreach (var button in AnglerQuestButtons.Values)
