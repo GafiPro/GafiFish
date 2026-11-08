@@ -19,16 +19,26 @@ public sealed class HsvColorSamplerTests
     }
 
     [Fact]
-    public void FromBgra_WhiteSampleAllowsLowSaturationPixels()
+    public void FromBgra_WhiteSampleAllowsLowSaturationPixelsAcrossAllHues()
     {
         var range = HsvColorSampler.FromBgra(255, 255, 255);
 
+        Assert.Equal(0, range.HueMinimum);
+        Assert.Equal(179, range.HueMaximum);
         Assert.Equal(0, range.SaturationMinimum);
         Assert.Equal(70, range.SaturationMaximum);
-        Assert.Equal(0, range.HueMinimum);
-        Assert.Equal(8, range.HueMaximum);
         Assert.Equal(185, range.ValueMinimum);
         Assert.Equal(255, range.ValueMaximum);
+    }
+
+    [Fact]
+    public void FromBgra_RedSampleWrapsHueAcrossZero()
+    {
+        var range = HsvColorSampler.FromBgra(0, 0, 255);
+
+        Assert.Equal(172, range.HueMinimum);
+        Assert.Equal(8, range.HueMaximum);
+        range.Validate();
     }
 
     [Fact]

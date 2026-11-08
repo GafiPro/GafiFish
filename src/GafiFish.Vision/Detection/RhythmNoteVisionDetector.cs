@@ -54,7 +54,7 @@ public sealed class RhythmNoteVisionDetector
             using var laneHsv = new Mat(hsv, laneRect);
             using var mask = new Mat();
             var colour = profile.RhythmLaneColors[lane]!.Value;
-            Cv2.InRange(laneHsv, colour.Lower, colour.Upper, mask);
+            colour.ApplyMask(laneHsv, mask);
 
             using var kernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3));
             Cv2.MorphologyEx(mask, mask, MorphTypes.Open, kernel);

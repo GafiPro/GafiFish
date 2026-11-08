@@ -210,8 +210,8 @@ public sealed class FishingVisionDetector
         using var firstMask = new Mat();
         using var secondMask = new Mat();
         using var mask = new Mat();
-        Cv2.InRange(hsvRegion, firstColor.Lower, firstColor.Upper, firstMask);
-        Cv2.InRange(hsvRegion, secondColor.Lower, secondColor.Upper, secondMask);
+        firstColor.ApplyMask(hsvRegion, firstMask);
+        secondColor.ApplyMask(hsvRegion, secondMask);
         Cv2.BitwiseOr(firstMask, secondMask, mask);
         using var kernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3));
         Cv2.MorphologyEx(mask, mask, MorphTypes.Open, kernel);
@@ -243,7 +243,7 @@ public sealed class FishingVisionDetector
         double minimumArea)
     {
         using var mask = new Mat();
-        Cv2.InRange(hsvRegion, color.Lower, color.Upper, mask);
+        color.ApplyMask(hsvRegion, mask);
 
         using var kernel = Cv2.GetStructuringElement(
             MorphShapes.Ellipse, new Size(3, 3));

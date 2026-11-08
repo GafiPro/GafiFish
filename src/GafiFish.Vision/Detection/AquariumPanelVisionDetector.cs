@@ -42,7 +42,7 @@ public sealed class AquariumPanelVisionDetector
         var region = calibration.Region.ToPixelRect(frame.Width, frame.Height);
         using var roi = new Mat(hsv, region);
         using var mask = new Mat();
-        Cv2.InRange(roi, calibration.PanelColor!.Value.Lower, calibration.PanelColor.Value.Upper, mask);
+        calibration.PanelColor!.Value.ApplyMask(roi, mask);
 
         var totalPixels = Math.Max(1, region.Width * region.Height);
         var matchRatio = Cv2.CountNonZero(mask) / (double)totalPixels;

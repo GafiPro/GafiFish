@@ -42,15 +42,20 @@ public static class HsvColorSampler
             hueDegrees += 360;
         }
 
-        var hue = (int)Math.Round(hueDegrees / 2d);
+        // OpenCV hue is circular: 179 and 0 are adjacent reds. Preserve a
+        // wrapped interval instead of clipping it at either end. For near-neutral
+        // samples, hue is undefined, so accept the full hue range.
+        var hue = (int)Math.Round(hueDegrees / 2d) % 180;
         var saturation = max == 0 ? 0 : (int)Math.Round(delta / max * 255);
         var value = (int)Math.Round(max * 255);
+        var minimumHue = saturation < 12 ? 0 : (hue - hueTolerance + 180) % 180;
+        var maximumHue = saturation < 12 ? 179 : (hue + hueTolerance) % 180;
 
         return new HsvColorRange(
-            Math.Max(0, hue - hueTolerance),
+            minimumHue,
             Math.Max(0, saturation - saturationTolerance),
             Math.Max(0, value - valueTolerance),
-            Math.Min(179, hue + hueTolerance),
+            maximumHue,
             Math.Min(255, saturation + saturationTolerance),
             Math.Min(255, value + valueTolerance));
     }

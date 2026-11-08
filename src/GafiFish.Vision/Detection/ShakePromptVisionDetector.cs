@@ -43,7 +43,7 @@ public sealed class ShakePromptVisionDetector
         var region = profile.ShakeRegion.ToPixelRect(frame.Width, frame.Height);
         using var roi = new Mat(hsv, region);
         using var mask = new Mat();
-        Cv2.InRange(roi, profile.ShakePromptColor!.Value.Lower, profile.ShakePromptColor.Value.Upper, mask);
+        profile.ShakePromptColor!.Value.ApplyMask(roi, mask);
 
         using var kernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3));
         Cv2.MorphologyEx(mask, mask, MorphTypes.Open, kernel);

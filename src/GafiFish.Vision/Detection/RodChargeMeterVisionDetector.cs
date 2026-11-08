@@ -36,10 +36,7 @@ public sealed class RodChargeMeterVisionDetector
         var region = profile.RodChargeMeterRegion.ToPixelRect(frame.Width, frame.Height);
         using var roi = new Mat(hsv, region);
         using var mask = new Mat();
-        Cv2.InRange(roi,
-            profile.RodChargeMeterColor!.Value.Lower,
-            profile.RodChargeMeterColor.Value.Upper,
-            mask);
+        profile.RodChargeMeterColor!.Value.ApplyMask(roi, mask);
 
         var rowProgress = new List<double>();
         var validRows = 0;

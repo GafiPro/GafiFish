@@ -63,7 +63,7 @@ public sealed class SpecialRodSignalVisionDetector
         var region = searchRegion.ToPixelRect(frame.Width, frame.Height);
         using var roi = new Mat(hsv, region);
         using var mask = new Mat();
-        Cv2.InRange(roi, sampledColor.Value.Lower, sampledColor.Value.Upper, mask);
+        sampledColor.Value.ApplyMask(roi, mask);
         using var kernel = Cv2.GetStructuringElement(MorphShapes.Ellipse, new Size(3, 3));
         Cv2.MorphologyEx(mask, mask, MorphTypes.Open, kernel);
         Cv2.FindContours(mask, out Point[][] contours, out _,
