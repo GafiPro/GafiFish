@@ -650,6 +650,17 @@
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,5"
                                   Checked="RodChargeMeterFillDirection_Changed"
                                   Unchecked="RodChargeMeterFillDirection_Changed" />
+                        <TextBlock x:Name="RodChargeReleaseThresholdLabel"
+                                   Text="Release at charge (%)"
+                                   Foreground="#9BAAB8" Margin="0,2,0,4" Visibility="Collapsed" />
+                        <ComboBox x:Name="RodChargeReleaseThresholdComboBox" SelectedValuePath="Tag"
+                                  SelectionChanged="RodChargeReleaseThresholdComboBox_SelectionChanged"
+                                  Height="30" Margin="0,0,0,6" Visibility="Collapsed"
+                                  Background="#263543" Foreground="#EAF0F5">
+                            <ComboBoxItem Content="80% · default" Tag="0.8" />
+                            <ComboBoxItem Content="90%" Tag="0.9" />
+                            <ComboBoxItem Content="100%" Tag="1" />
+                        </ComboBox>
                         <TextBlock x:Name="RodChargeMeterStatusText"
                                    Text="Charge Meter Bonus requires its own calibrated HUD track and fill colour."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />

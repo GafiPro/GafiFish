@@ -183,6 +183,46 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_UsesTheChargeThresholdConfiguredForTheRodProfile()
+    {
+        var input = new FakeRobloxInput();
+        var controller = new ReelController(new ReelControlSettings
+        {
+            ProportionalGain = 0,
+            DerivativeGain = 0,
+            Deadband = 0,
+            LookAheadSeconds = 0,
+            MinimumConfidence = 0.65
+        });
+        var coordinator = new ReelInputCoordinator(input, controller, chargeReleaseThreshold: 1.0);
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = new DetectedMarker(150, 40, new OpenCvSharp.Rect(147, 37, 6, 6), 36, 0.95);
+        var bar = new DetectedMarker(
+            150, 40, new OpenCvSharp.Rect(100, 37, 100, 6), 600, 0.95);
+
+        var belowThreshold = coordinator.Apply(
+            FishingState.Reeling, fish, bar, Motion(150, start),
+            new RodChargeMeterObservation(start, 0.95, 0.95, "Charge 95%."));
+        Assert.NotEqual(ReelCommand.Release, belowThreshold.Command);
+
+        var atThreshold = coordinator.Apply(
+            FishingState.Reeling, fish, bar, Motion(150, start.AddMilliseconds(100)),
+            new RodChargeMeterObservation(start.AddMilliseconds(100), 1.0, 0.95, "Charge 100%."));
+        Assert.Equal(ReelCommand.Release, atThreshold.Command);
+        Assert.Contains("100%", atThreshold.Reason);
+    }
+
+    [Fact]
+    public void Apply_RejectsInvalidChargeThreshold()
+    {
+        var input = new FakeRobloxInput();
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new ReelInputCoordinator(input, chargeReleaseThreshold: 0.79));
+    }
+
+    [Fact]
     public void Apply_ReleasesOnlyOncePerChargeCycleAndRearmsAfterLowReading()
     {
         var input = new FakeRobloxInput();

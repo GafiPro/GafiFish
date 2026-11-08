@@ -17,15 +17,22 @@ public sealed class ReelInputCoordinator
     private readonly IRobloxInput _input;
     private readonly ReelController _controller;
     private readonly FishMotionTracker _controlMotionTracker = new();
+    private readonly double _chargeReleaseThreshold;
     private bool _chargeReleaseConsumed;
     private DateTimeOffset? _lastChargeObservationAt;
 
     public ReelInputCoordinator(
         IRobloxInput input,
-        ReelController? controller = null)
+        ReelController? controller = null,
+        double chargeReleaseThreshold = 0.80)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input));
+        if (!double.IsFinite(chargeReleaseThreshold)
+            || chargeReleaseThreshold is < 0.80 or > 1.00)
+            throw new ArgumentOutOfRangeException(nameof(chargeReleaseThreshold),
+                "Charge release threshold must be between 80% and 100%.");
         _controller = controller ?? new ReelController();
+        _chargeReleaseThreshold = chargeReleaseThreshold;
     }
 
     public bool IsArmed => _input.IsArmed;
@@ -122,7 +129,7 @@ public sealed class ReelInputCoordinator
                     _chargeReleaseConsumed = false;
             }
 
-            if (!_chargeReleaseConsumed && chargeMeter.Progress >= 0.80 && fishInsideControlBar)
+            if (!_chargeReleaseConsumed && chargeMeter.Progress >= _chargeReleaseThreshold && fishInsideControlBar)
             {
                 _chargeReleaseConsumed = true;
                 _input.SetLeftButton(false);
@@ -130,7 +137,7 @@ public sealed class ReelInputCoordinator
                     ReelCommand.Release,
                     fishMarker.CenterX - controlPositionX,
                     chargeMeter.Progress,
-                    "Rod charge crossed the 80% release window while the fish was inside the control bar; one release was sent for this cycle.");
+                    $"Rod charge crossed the {_chargeReleaseThreshold:P0} release threshold while the fish was inside the control bar; one release was sent for this cycle.");
             }
         }
 

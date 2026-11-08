@@ -99,7 +99,7 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Perfis nomeados manualmente por cana, com calibração visual exportável/importável em JSON.
 - [x] Seleção automática do perfil pelo slot de hotbar ou pelo nome da cana reconhecido em OCR, após duas leituras estáveis e associação explícita.
 - [x] Presets Balanced, Precision, Heavy fish e Stable do controlador Reel, guardados individualmente em cada perfil de cana.
-- [x] Minijogo Charge Meter Bonus calibrável: leitura percentual do medidor e libertação aos 80% apenas quando o peixe está dentro da barra.
+- [x] Minijogo Charge Meter Bonus calibrável: leitura percentual do medidor e libertação configurável por perfil (80%/90%/100%) apenas quando o peixe está dentro da barra.
 - [x] Minijogo Dual Fish: deteção de dois marcadores por cores calibradas, controlo pelo centro entre ambos, indicador de quantos peixes estão efetivamente dentro da barra e pausa segura quando falta um alvo ou os dois não cabem na barra.
 - [x] Medidor de carga cíclico: no máximo uma libertação por ciclo, com rearme apenas depois de uma leitura nova regressar a 20% ou menos.
 - [ ] Afinar o controlador e os perfis com dados medidos em sessões reais.
@@ -113,7 +113,8 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada, aceita o pedido e entrega o peixe através de botões visuais calibrados com clique único e confirmação de desaparecimento.
 - Appraise/Treasure Appraiser e Auto Enchant estão explicitamente fora do âmbito de automação: não existe OCR de painel, tentativa automática ou clique de gasto; a interação permanece manual.
 - [x] Reconhecimento OCR do nome da cana com região calibrada, duas leituras estáveis e mapeamento explícito para um perfil.
-- [ ] Implementar handlers dos restantes minijogos visuais únicos depois de recolher frames reais e validar cada mecânica. Standard Reel, Charge Meter Bonus e Dual Fish têm handlers próprios/testes sintéticos; outros exemplos públicos incluem eventos de barra rotativa ou deslocação e desafios de timing, cuja implementação depende de capturas reais e confirmação da interface atual.
+- [x] Suporte partilhado para barras inclinadas/rotativas e deslocáveis: geometria orientada, secção à altura do peixe e tracking do movimento relativo, com testes sintéticos.
+- [ ] Implementar handlers dedicados para os restantes eventos especiais depois de recolher frames reais: avisos de corte (MiguRod), sequência de dez hold/release temporizados (Jinglestar) e objetos de bónus que caem no minijogo (D.R.E.D.). Os detalhes visuais e as janelas de timing têm de ser medidos no cliente atual.
 
 ## Próximo bloqueio técnico
 
@@ -163,7 +164,8 @@ Appraise/Treasure Appraiser e Enchant automáticos estão excluídos: a interaç
 - [x] OCR do nome da cana, com região calibrada e associação persistente a perfis.
 - [x] Presets de Reel por perfil de cana, sem assumir que substituem minijogos diferentes.
 - [x] Custom Rod handlers para Standard Reel, Charge Meter Bonus, Dual Fish e Tranquility Rhythm, com calibração por perfil e testes sintéticos.
-- [ ] Custom Rod handlers adicionais para eventos com barra rotativa/deslocável, zonas de bónus ou timing diferente, após recolha de frames reais e validação no jogo.
+- [x] Geometria/tracking de barras de controlo rotativas ou deslocáveis integrado no handler Reel partilhado.
+- [ ] Custom Rod handlers dedicados para avisos de corte, sequências de timing e objetos de bónus, após recolha de frames reais e validação no jogo.
 - [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.
 - [x] Motor de rotação dia/noite por indicador HUD calibrado, três frames estáveis, baseline inicial sem consumo e execução em Preparing.
 - [ ] Validar com capturas reais do indicador HUD do Fisch, em dia e noite, antes de usar os slots reais.
@@ -353,7 +355,14 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 - [x] Rearmar o próximo ciclo apenas após uma nova leitura a 20% ou menos; frames antigos/duplicados não alteram o estado.
 - [x] Ignorar a notificação falsa documentada da Silly Fun Happy Rod para impedir registos e objetivos OCR incorretos.
 - [x] Testes para ciclos repetidos, rearme, peixe fora da barra e texto falso em mais do que uma linha.
-- [ ] Medir os limiares/timing com capturas reais das canas e verificar os formatos reais das notificações OCR; validar deteção de barras rotativas e movimento em gravações reais do Fisch.
+- [ ] Medir o limiar de carga por cana e validar as barras rotativas/deslocáveis com gravações reais; confirmar o OCR com notificações reais e recolher frames dos eventos MiguRod, Jinglestar e D.R.E.D. para desenvolver os handlers dedicados.
+
+## Mecânicas especiais de canas — investigação de 8 de novembro de 2026
+
+- [ ] **MiguRod:** detetar três avisos de corte simultâneos (quatro na variante de mastery), estimar a janela até ao corte e evitar que a barra coincida com a zona perigosa; a variante mastery também apresenta um evento de tecla separado.
+- [ ] **Jinglestar:** acompanhar o contador e a janela de timing da sequência de dez hold/release; uma falha reinicia a sequência e existe um cooldown curto após a conclusão.
+- [ ] **D.R.E.D.:** manter os dois peixes dentro da barra (Dual Fish já cobre essa parte) e detetar/apanhar os objetos que caem para obter progresso adicional; implementar o contador e a ativação de Overdrive após confirmar o indicador real.
+- [x] As barras rotativas/deslocáveis são cobertas pelo tracker geométrico e de movimento relativo partilhado; ainda falta validação em vídeo real.
 
 ## Aquarium panel guard — 8 de novembro de 2026
 
