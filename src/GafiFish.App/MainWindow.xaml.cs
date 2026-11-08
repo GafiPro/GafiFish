@@ -4693,8 +4693,11 @@ public partial class MainWindow : Window
         DualFishCoverageStatusText.Visibility = isDualFishProfile ? Visibility.Visible : Visibility.Collapsed;
         DredPassiveStatusText.Visibility =
             _profile.RodMinigameMode == RodMinigameMode.DredDualFish ? Visibility.Visible : Visibility.Collapsed;
-        DredBonusObjectStatusText.Visibility =
-            _profile.RodMinigameMode == RodMinigameMode.DredDualFish ? Visibility.Visible : Visibility.Collapsed;
+        var isDredMode = _profile.RodMinigameMode == RodMinigameMode.DredDualFish;
+        DredBonusObjectStatusText.Visibility = isDredMode ? Visibility.Visible : Visibility.Collapsed;
+        DredBonusAlertsEnabledCheckBox.IsEnabled = isDredMode;
+        if (!isDredMode && DredBonusAlertsEnabledCheckBox.IsChecked == true)
+            DredBonusAlertsEnabledCheckBox.IsChecked = false;
         DredBonusObjectStatusText.Text = _profile.IsDredBonusObjectCalibrated
             ? "D.R.E.D. bonus objects calibrated · live detection remains alert-only."
             : "Calibrate the falling-object region and colour in the Calibration tab.";

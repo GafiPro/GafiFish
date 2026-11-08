@@ -115,8 +115,8 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Reconhecimento OCR do nome da cana com região calibrada, duas leituras estáveis e mapeamento explícito para um perfil.
 - [x] Suporte partilhado para barras inclinadas/rotativas e deslocáveis: geometria orientada, secção à altura do peixe e tracking do movimento relativo, com testes sintéticos.
 - [x] Jinglestar: sequência de dez hold/release, timing configurável e confirmado por perfil, libertação segura e testes sintéticos. Os tempos continuam a exigir medição numa gravação real antes da utilização.
-- [ ] MiguRod: detetar os avisos visuais das zonas de corte e acompanhar as zonas perigosas; exige capturas reais para calibrar cores, contornos e janela de reação. Não envia inputs específicos de evasão sem validação.
-- [ ] D.R.E.D.: Dual Fish partilhado e monitorização informativa do ciclo de cargas/OVERDRIVE implementados; falta detetar os objetos de bónus que caem, após recolher capturas reais para calibração.
+- [x] MiguRod: detetor visual calibrável para avisos de corte, overlays e alertas apenas de leitura. Falta calibrar/validar com capturas reais; não envia inputs de evasão.
+- [x] D.R.E.D.: Dual Fish, monitorização passiva de cargas/OVERDRIVE e deteção visual calibrável de objetos bónus implementados. Falta calibrar/validar em capturas reais; não assume recolha nem envia inputs para os objetos.
 
 ## Próximo bloqueio técnico
 
@@ -169,7 +169,7 @@ Appraise/Treasure Appraiser e Enchant automáticos estão excluídos: a interaç
 - [x] Geometria/tracking de barras de controlo rotativas ou deslocáveis integrado no handler Reel partilhado.
 - [x] Custom Rod handler Jinglestar com dez pulsos hold/release, timing por perfil e testes sintéticos.
 - [x] D.R.E.D. com Dual Fish e estado informativo da cadência de cargas/OVERDRIVE, sem interferir com o input Reel normal.
-- [ ] MiguRod com deteção específica dos avisos de corte e D.R.E.D. com deteção dos objetos de bónus; ambos dependem de amostras visuais reais.
+- [x] Deteção específica MiguRod e deteção visual de objetos bónus D.R.E.D. implementadas com regiões/cores configuráveis e alertas; a calibração e validação com amostras reais continuam pendentes.
 - [x] Dois slots de totem com temporizadores independentes, separados das poções e executados apenas entre ciclos de pesca.
 - [x] Motor de rotação dia/noite por indicador HUD calibrado, três frames estáveis, baseline inicial sem consumo e execução em Preparing.
 - [ ] Validar com capturas reais do indicador HUD do Fisch, em dia e noite, antes de usar os slots reais.
@@ -359,7 +359,7 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 - [x] Rearmar o próximo ciclo apenas após uma nova leitura a 20% ou menos; frames antigos/duplicados não alteram o estado.
 - [x] Ignorar a notificação falsa documentada da Silly Fun Happy Rod para impedir registos e objetivos OCR incorretos.
 - [x] Testes para ciclos repetidos, rearme, peixe fora da barra e texto falso em mais do que uma linha.
-- [ ] Medir o limiar de carga por cana e validar as barras rotativas/deslocáveis com gravações reais; confirmar o OCR com notificações reais; medir o timing do handler Jinglestar já implementado; recolher frames do MiguRod e dos objetos de bónus do D.R.E.D. para desenvolver e calibrar essas deteções específicas.
+- [ ] Medir o limiar de carga por cana e validar barras rotativas/deslocáveis com gravações reais; confirmar o OCR com notificações reais; medir o timing do handler Jinglestar já implementado; recolher frames reais MiguRod/D.R.E.D. para calibrar os detetores visuais já implementados e avaliar falsos positivos/negativos.
 
 ## Mecânicas especiais de canas — investigação de 8 de novembro de 2026
 
