@@ -16,6 +16,7 @@ public sealed class ReelInputCoordinator
 {
     private readonly IRobloxInput _input;
     private readonly ReelController _controller;
+    private readonly FishMotionTracker _controlMotionTracker = new();
     private bool _chargeReleaseConsumed;
     private DateTimeOffset? _lastChargeObservationAt;
 
@@ -41,6 +42,7 @@ public sealed class ReelInputCoordinator
     {
         if (state != FishingState.Reeling)
         {
+            _controlMotionTracker.Reset();
             ResetChargeMeterCycle();
             _input.SetLeftButton(false);
             return new ReelControlDecision(
@@ -50,6 +52,7 @@ public sealed class ReelInputCoordinator
 
         if (fishMarker is null || controlMarker is null || motion is null || !motion.IsFresh)
         {
+            _controlMotionTracker.Reset();
             _input.SetLeftButton(false);
             return new ReelControlDecision(
                 ReelCommand.Neutral, 0, 0,
@@ -64,6 +67,21 @@ public sealed class ReelInputCoordinator
             && fishMarker.CenterX >= horizontalSpan.Left
             && fishMarker.CenterX <= horizontalSpan.Right;
 
+        // Track the control bar independently from the fish. This makes the
+        // controller work with bars that translate across the minigame area,
+        // using relative horizontal velocity rather than assuming the bar is static.
+        var controlMotion = _controlMotionTracker.Update(
+            controlMarker with { CenterX = controlPositionX }, motion.ObservedAt);
+        if (controlMotion is null || !controlMotion.IsFresh)
+        {
+            _input.SetLeftButton(false);
+            return new ReelControlDecision(
+                ReelCommand.Neutral, 0, 0,
+                "A fresh control-bar movement estimate is missing; mouse input released.");
+        }
+        var relativeVelocity = motion.VelocityPixelsPerSecond
+            - controlMotion.VelocityPixelsPerSecond;
+
         if (requireDualFishCoverage
             && (!hasHorizontalSpan || fishMarker.Bounds.Width > controlWidth))
         {
@@ -75,7 +93,8 @@ public sealed class ReelInputCoordinator
 
         var confidence = Math.Min(
             motion.Confidence,
-            Math.Min(fishMarker.Confidence, controlMarker.Confidence));
+            Math.Min(controlMotion.Confidence,
+                Math.Min(fishMarker.Confidence, controlMarker.Confidence)));
 
         // Charge meters can be cyclical (for example, a meter that fills,
         // drains and then starts filling again). Release once per rising cycle,
@@ -109,7 +128,7 @@ public sealed class ReelInputCoordinator
         var decision = _controller.Evaluate(
             motion.PositionX,
             controlPositionX,
-            motion.VelocityPixelsPerSecond,
+            relativeVelocity,
             confidence,
             isFresh: true);
 
@@ -157,6 +176,7 @@ public sealed class ReelInputCoordinator
 
     public void Stop()
     {
+        _controlMotionTracker.Reset();
         ResetChargeMeterCycle();
         _input.Disarm();
     }

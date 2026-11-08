@@ -30,6 +30,57 @@ public sealed class ReelInputCoordinatorTests
     }
 
     [Fact]
+    public void Apply_AccountsForControlBarMovingAcrossTheScreen()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = new ReelInputCoordinator(
+            input,
+            new ReelController(new ReelControlSettings
+            {
+                ProportionalGain = 0,
+                DerivativeGain = 1,
+                Deadband = 0,
+                LookAheadSeconds = 0,
+                MinimumConfidence = 0.65
+            }));
+        coordinator.Arm();
+
+        var start = DateTimeOffset.UtcNow;
+        var fish = Marker(150);
+        _ = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            Marker(100),
+            Motion(150, start));
+
+        var decision = coordinator.Apply(
+            FishingState.Reeling,
+            fish,
+            Marker(120),
+            Motion(150, start.AddMilliseconds(100)));
+
+        Assert.Equal(ReelCommand.Release, decision.Command);
+        Assert.False(input.IsLeftButtonDown);
+    }
+
+    [Fact]
+    public void Apply_ReleasesWhenControlBarObservationTimestampIsRepeated()
+    {
+        var input = new FakeRobloxInput();
+        var coordinator = CreateCoordinator(input, deadband: 0);
+        coordinator.Arm();
+
+        var now = DateTimeOffset.UtcNow;
+        _ = coordinator.Apply(FishingState.Reeling, Marker(150), Marker(100), Motion(150, now));
+        var duplicate = coordinator.Apply(
+            FishingState.Reeling, Marker(150), Marker(100), Motion(150, now));
+
+        Assert.Equal(ReelCommand.Neutral, duplicate.Command);
+        Assert.False(input.IsLeftButtonDown);
+        Assert.Contains("fresh control-bar", duplicate.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Apply_ReleasesMouseWhenMarkersDisappear()
     {
         var input = new FakeRobloxInput();
