@@ -35,8 +35,11 @@ public sealed class FishingVisionDetector
                     : "Calibrate the four Tranquility note lanes and hit line before starting.");
         }
 
-        if (profile.RodMinigameMode == GafiFish.Core.Control.RodMinigameMode.DualFish
-            && !profile.IsDualFishCalibrated)
+        var isDualFishMode = profile.RodMinigameMode is
+            GafiFish.Core.Control.RodMinigameMode.DualFish
+            or GafiFish.Core.Control.RodMinigameMode.DredDualFish;
+
+        if (isDualFishMode && !profile.IsDualFishCalibrated)
         {
             return new FishingVisionResult(
                 frame.CapturedAt, frame.Width, frame.Height,
@@ -67,7 +70,7 @@ public sealed class FishingVisionDetector
 
         DetectedMarker? fish;
         DetectedMarker? secondaryFish = null;
-        if (profile.RodMinigameMode == GafiFish.Core.Control.RodMinigameMode.DualFish)
+        if (isDualFishMode)
         {
             var targets = FindLargestMarkers(
                 hsvRoi, region.X, region.Y,
@@ -108,7 +111,7 @@ public sealed class FishingVisionDetector
                 profile.ReferenceWidth, profile.ReferenceHeight) ?? control;
         }
 
-        var dualFishMode = profile.RodMinigameMode == GafiFish.Core.Control.RodMinigameMode.DualFish;
+        var dualFishMode = isDualFishMode;
         var enoughFish = dualFishMode
             ? fish is not null && secondaryFish is not null
             : fish is not null;

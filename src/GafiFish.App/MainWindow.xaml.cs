@@ -174,6 +174,7 @@ public partial class MainWindow : Window
     private RobloxInputService? _automationInput;
     private ReelInputCoordinator? _reelCoordinator;
     private RhythmNoteInputCoordinator? _rhythmCoordinator;
+    private JinglestarSequenceCoordinator? _jinglestarCoordinator;
     private FishingStateMachine? _runtimeStateMachine;
     private PeriodicSellSchedule? _sellSchedule;
     private SellAnywhereCoordinator? _sellCoordinator;
@@ -2709,13 +2710,31 @@ public partial class MainWindow : Window
 
         var isTranquilityRhythmMode =
             _profile.RodMinigameMode == RodMinigameMode.TranquilityRhythm;
-        if (isTranquilityRhythmMode
+        var isDualFishMode = _profile.RodMinigameMode is
+            RodMinigameMode.DualFish or RodMinigameMode.DredDualFish;
+        var isDredDualFishMode = _profile.RodMinigameMode == RodMinigameMode.DredDualFish;
+        var isJinglestarMode = _profile.RodMinigameMode == RodMinigameMode.JinglestarSequence;
+        var calibrationMissing = isTranquilityRhythmMode
             ? !_profile.IsTranquilityRhythmCalibrated
-            : !_profile.IsFishingCalibrated)
+            : isDualFishMode
+                ? !_profile.IsDualFishCalibrated
+                : !_profile.IsFishingCalibrated;
+        if (calibrationMissing)
         {
             AutomationStatusText.Text = isTranquilityRhythmMode
-                ? "Tranquility Rhythm needs a calibrated four-lane search region, four note colours and hit line."
-                : "Calibrate the fishing region and both marker colours before arming.";
+                ? "Tranquility Rhythm needs four calibrated note lanes and a hit line."
+                : isDualFishMode
+                    ? "Dual Fish requires both fish-marker colours and the control-marker colour."
+                    : "Calibrate the fishing region and both marker colours before arming.";
+            return;
+        }
+
+        if (isJinglestarMode && !_profile.JinglestarTimingCalibrated)
+        {
+            AutomationStatusText.Text =
+                "Jinglestar needs confirmed hold/release timings in this rod profile before starting.";
+            JinglestarStatusText.Text =
+                "Set and confirm both timing values using a real Fisch capture first.";
             return;
         }
 
@@ -2861,9 +2880,18 @@ public partial class MainWindow : Window
             };
             var controller = new ReelController(controllerSettings);
             var reelCoordinator = new ReelInputCoordinator(
-                input, controller, _profile.RodChargeReleaseThreshold);
+                input,
+                controller,
+                _profile.RodChargeReleaseThreshold,
+                enableDredPassive: isDredDualFishMode);
             var rhythmCoordinator = isTranquilityRhythmMode
                 ? new RhythmNoteInputCoordinator(input)
+                : null;
+            var jinglestarCoordinator = isJinglestarMode
+                ? new JinglestarSequenceCoordinator(
+                    input,
+                    _profile.JinglestarHoldMilliseconds,
+                    _profile.JinglestarReleaseMilliseconds)
                 : null;
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
                 throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
@@ -2968,6 +2996,7 @@ public partial class MainWindow : Window
             _runtimeStateMachine = stateMachine;
             _reelCoordinator = reelCoordinator;
             _rhythmCoordinator = rhythmCoordinator;
+            _jinglestarCoordinator = jinglestarCoordinator;
             _sellCoordinator = sellCoordinator;
             _sellSchedule = sellSchedule;
             _castCoordinator = castCoordinator;
@@ -3109,6 +3138,15 @@ public partial class MainWindow : Window
 
         try
         {
+            _jinglestarCoordinator?.Stop();
+        }
+        catch
+        {
+            releaseFailed = true;
+        }
+
+        try
+        {
             _castCoordinator?.Stop();
             _shakeCoordinator?.Reset();
             _rhythmCoordinator?.Stop();
@@ -3153,6 +3191,7 @@ public partial class MainWindow : Window
         _automationInput = null;
         _reelCoordinator = null;
         _rhythmCoordinator = null;
+        _jinglestarCoordinator = null;
         _runtimeStateMachine = null;
         _sellCoordinator = null;
         _sellSchedule = null;
@@ -3549,6 +3588,13 @@ public partial class MainWindow : Window
                 }
             }
 
+            var jinglestarOwnsInput = _jinglestarCoordinator?.ProcessFrame(
+                frame.CapturedAt,
+                _runtimeStateMachine.CurrentState,
+                allowSequence: reelMarkersVisible) == true;
+            if (_jinglestarCoordinator is not null)
+                JinglestarStatusText.Text = _jinglestarCoordinator.LastStatus;
+
             // Rhythm keys are handled by RhythmNoteInputCoordinator. The
             // ordinary mouse Reel controller must never run for this rod mode.
             if (isRhythmMode)
@@ -3570,13 +3616,23 @@ public partial class MainWindow : Window
                 if (chargeMeter is not null)
                     RodChargeMeterStatusText.Text = chargeMeter.Status;
 
-                var decision = _reelCoordinator.Apply(
-                    _runtimeStateMachine.CurrentState,
-                    fishMarker,
-                    controlMarker,
-                    motion,
-                    chargeMeter,
-                    requireDualFishCoverage: _profile.RodMinigameMode == RodMinigameMode.DualFish);
+                var decision = jinglestarOwnsInput
+                    ? new ReelControlDecision(
+                        ReelCommand.Neutral,
+                        motion?.PositionX ?? 0,
+                        _jinglestarCoordinator!.CompletedPulses,
+                        _jinglestarCoordinator.LastStatus)
+                    : _reelCoordinator.Apply(
+                        _runtimeStateMachine.CurrentState,
+                        fishMarker,
+                        controlMarker,
+                        motion,
+                        chargeMeter,
+                        requireDualFishCoverage: _profile.RodMinigameMode is
+                            RodMinigameMode.DualFish or RodMinigameMode.DredDualFish);
+
+                if (_profile.RodMinigameMode == RodMinigameMode.DredDualFish)
+                    DredPassiveStatusText.Text = _reelCoordinator.DredPassiveStatus;
 
                 if (_runtimeStateMachine.CurrentState == FishingState.Reeling)
                 {
@@ -4193,7 +4249,8 @@ public partial class MainWindow : Window
         DrawMarker(_controlMarkerOverlay, visionResult.ControlMarker);
 
         var trackingMarker = visionResult.FishMarker;
-        var isDualFishMode = _profile.RodMinigameMode == RodMinigameMode.DualFish;
+        var isDualFishMode = _profile.RodMinigameMode is
+            RodMinigameMode.DualFish or RodMinigameMode.DredDualFish;
         DualFishCoverageStatusText.Visibility = isDualFishMode ? Visibility.Visible : Visibility.Collapsed;
         if (isDualFishMode)
         {
@@ -4540,6 +4597,10 @@ public partial class MainWindow : Window
             RodChargeMeterFillFromRightCheckBox.IsChecked = _profile.RodChargeMeterFillFromRight;
             RodChargeReleaseThresholdComboBox.SelectedValue = _profile.RodChargeReleaseThreshold
                 .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            JinglestarHoldMillisecondsTextBox.Text =
+                _profile.JinglestarHoldMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            JinglestarReleaseMillisecondsTextBox.Text =
+                _profile.JinglestarReleaseMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
             RhythmInputLeadMillisecondsTextBox.Text =
                 _profile.RhythmInputLeadMilliseconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
         }
@@ -4564,13 +4625,25 @@ public partial class MainWindow : Window
             RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
                 ? "Dual Fish · both target colours are calibrated."
                 : "Dual Fish · calibration required.",
+            RodMinigameMode.DredDualFish => _profile.IsDualFishCalibrated
+                ? "D.R.E.D. · Dual Fish calibrated; automatic passive cycle enabled."
+                : "D.R.E.D. · calibrate both fish and the control bar.",
+            RodMinigameMode.JinglestarSequence => _profile.JinglestarTimingCalibrated
+                ? $"Jinglestar · 10 pulses · hold {_profile.JinglestarHoldMilliseconds} ms / release {_profile.JinglestarReleaseMilliseconds} ms."
+                : "Jinglestar · confirm hold/release timings before starting.",
             RodMinigameMode.TranquilityRhythm => _profile.IsTranquilityRhythmCalibrated
                 ? "Tranquility Rhythm · four note lanes and hit line calibrated."
                 : "Tranquility Rhythm · calibrate D/F/J/K note colours and the hit line.",
             _ => "Standard Reel · shared marker-based controller."
         };
-        DualFishCoverageStatusText.Visibility =
-            _profile.RodMinigameMode == RodMinigameMode.DualFish ? Visibility.Visible : Visibility.Collapsed;
+        var isDualFishProfile = _profile.RodMinigameMode is
+            RodMinigameMode.DualFish or RodMinigameMode.DredDualFish;
+        DualFishCoverageStatusText.Visibility = isDualFishProfile ? Visibility.Visible : Visibility.Collapsed;
+        DredPassiveStatusText.Visibility =
+            _profile.RodMinigameMode == RodMinigameMode.DredDualFish ? Visibility.Visible : Visibility.Collapsed;
+        JinglestarTimingPanel.Visibility =
+            _profile.RodMinigameMode == RodMinigameMode.JinglestarSequence
+                ? Visibility.Visible : Visibility.Collapsed;
         var isChargeMeterMode = _profile.RodMinigameMode == RodMinigameMode.ChargeMeterBonus;
         RodChargeReleaseThresholdLabel.Visibility = isChargeMeterMode ? Visibility.Visible : Visibility.Collapsed;
         RodChargeReleaseThresholdComboBox.Visibility = isChargeMeterMode ? Visibility.Visible : Visibility.Collapsed;
@@ -4583,6 +4656,11 @@ public partial class MainWindow : Window
         RhythmInputLeadLabel.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
         RhythmInputLeadMillisecondsTextBox.Visibility = isRhythmMode ? Visibility.Visible : Visibility.Collapsed;
         RhythmInputLeadMillisecondsTextBox.IsEnabled = isRhythmMode && !_automationEnabled;
+        JinglestarTimingPanel.IsEnabled =
+            _profile.RodMinigameMode == RodMinigameMode.JinglestarSequence && !_automationEnabled;
+        JinglestarStatusText.Text = _profile.JinglestarTimingCalibrated
+            ? $"Saved per-rod timing: {_profile.JinglestarHoldMilliseconds} ms hold / {_profile.JinglestarReleaseMilliseconds} ms release. One sequence per catch."
+            : "Timing not confirmed. Choose values from 20 to 500 ms and confirm after a real capture.";
         RhythmCalibrationStatusText.Text = _profile.IsTranquilityRhythmCalibrated
             ? "Four rhythm lanes and hit line calibrated."
             : "Calibration required: search region, D/F/J/K note colours and hit line.";
@@ -4641,6 +4719,12 @@ public partial class MainWindow : Window
             RodMinigameMode.DualFish => _profile.IsDualFishCalibrated
                 ? "Dual Fish · tracks both targets and aims for their shared centre. The bar must be wide enough to cover both."
                 : "Dual Fish · sample both fish-marker colours in Calibration before starting.",
+            RodMinigameMode.DredDualFish => _profile.IsDualFishCalibrated
+                ? "D.R.E.D. · tracks both targets and pauses Reel input during the automatic passive lock windows."
+                : "D.R.E.D. · sample both fish-marker colours and the control bar before starting.",
+            RodMinigameMode.JinglestarSequence => _profile.JinglestarTimingCalibrated
+                ? "Jinglestar · one 10-pulse sequence per fish, then normal Reel control resumes."
+                : "Jinglestar · enter and confirm per-rod hold/release timings before starting.",
             RodMinigameMode.TranquilityRhythm => _profile.IsTranquilityRhythmCalibrated
                 ? "Tranquility Rhythm · calibrated D/F/J/K lanes. Key taps are predicted from falling-note movement."
                 : "Tranquility Rhythm · calibrate the four note lanes and receptor line before starting.",
@@ -4731,6 +4815,38 @@ public partial class MainWindow : Window
     private void SampleRhythmLaneK_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(CalibrationAction.SampleRhythmLaneKColor,
             "Click a clear pixel on a falling note in the K lane.");
+
+    private async void ConfirmJinglestarTiming_Click(object sender, RoutedEventArgs e)
+    {
+        if (_automationEnabled || _startRequested || _isLoadingBoundRodProfile)
+        {
+            JinglestarStatusText.Text = "Stop the macro before changing Jinglestar timing.";
+            return;
+        }
+
+        if (!int.TryParse(JinglestarHoldMillisecondsTextBox.Text.Trim(), out var hold)
+            || hold is < JinglestarSequenceCoordinator.MinimumIntervalMilliseconds
+                or > JinglestarSequenceCoordinator.MaximumIntervalMilliseconds
+            || !int.TryParse(JinglestarReleaseMillisecondsTextBox.Text.Trim(), out var release)
+            || release is < JinglestarSequenceCoordinator.MinimumIntervalMilliseconds
+                or > JinglestarSequenceCoordinator.MaximumIntervalMilliseconds)
+        {
+            JinglestarStatusText.Text =
+                $"Both timings must be whole numbers from {JinglestarSequenceCoordinator.MinimumIntervalMilliseconds} to {JinglestarSequenceCoordinator.MaximumIntervalMilliseconds} ms.";
+            return;
+        }
+
+        _profile = _profile with
+        {
+            JinglestarHoldMilliseconds = hold,
+            JinglestarReleaseMilliseconds = release,
+            JinglestarTimingCalibrated = true
+        };
+        await SaveProfileAsync($"Jinglestar timings confirmed for this rod profile: {hold} ms hold / {release} ms release.");
+        RefreshRodReelPresetControls();
+        JinglestarStatusText.Text =
+            $"Timings saved for this rod profile ({hold} ms hold / {release} ms release). Validate with a short real catch before normal use.";
+    }
 
     private async void RhythmInputLeadMilliseconds_LostFocus(object sender, RoutedEventArgs e)
     {

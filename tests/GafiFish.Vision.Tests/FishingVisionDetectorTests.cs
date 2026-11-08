@@ -150,8 +150,11 @@ public sealed class FishingVisionDetectorTests
         Assert.InRange(span.Width, 6, 12);
     }
 
-    [Fact]
-    public void Detect_DualFishModeFindsTwoMarkersWithSeparateColourSamples()
+    [Theory]
+    [InlineData(GafiFish.Core.Control.RodMinigameMode.DualFish)]
+    [InlineData(GafiFish.Core.Control.RodMinigameMode.DredDualFish)]
+    public void Detect_DualFishModeFindsTwoMarkersWithSeparateColourSamples(
+        GafiFish.Core.Control.RodMinigameMode mode)
     {
         var result = new FishingVisionDetector().Detect(CreateDualFishFrame(false, true), CreateDualFishProfile(false));
         Assert.True(result.IsCalibrated);
@@ -188,7 +191,7 @@ public sealed class FishingVisionDetectorTests
     {
         var result = new FishingVisionDetector().Detect(CreateDualFishFrame(false, true), new VisionProfile
         {
-            RodMinigameMode = GafiFish.Core.Control.RodMinigameMode.DualFish
+            RodMinigameMode = mode
         });
         Assert.False(result.IsCalibrated);
         Assert.Null(result.FishMarker);

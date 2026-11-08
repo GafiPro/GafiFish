@@ -636,15 +636,51 @@
                             <ComboBoxItem Content="Standard Reel" Tag="StandardReel" />
                             <ComboBoxItem Content="Charge Meter Bonus" Tag="ChargeMeterBonus" />
                             <ComboBoxItem Content="Dual Fish (two targets)" Tag="DualFish" />
+                            <ComboBoxItem Content="D.R.E.D. Dual Fish + passive" Tag="DredDualFish" />
                             <ComboBoxItem Content="Tranquility Rhythm (four lanes)" Tag="TranquilityRhythm" />
+                            <ComboBoxItem Content="Jinglestar (10 hold/release)" Tag="JinglestarSequence" />
                         </ComboBox>
                         <TextBlock x:Name="RodMinigameModeStatusText"
                                    Text="Standard Reel · shared fish/bar controller."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6" />
                         <TextBlock x:Name="DualFishCoverageStatusText"
                                    Text="Dual Fish coverage: waiting for detections."
+                                   Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,5"
+                                   Visibility="Collapsed" />
+                        <TextBlock x:Name="DredPassiveStatusText"
+                                   Text="D.R.E.D. passive cycle is inactive."
                                    Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
                                    Visibility="Collapsed" />
+                        <StackPanel x:Name="JinglestarTimingPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                            <TextBlock Text="Jinglestar pulse timing (milliseconds)"
+                                       Foreground="#9BAAB8" Margin="0,0,0,4" />
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Hold" Foreground="#8FA8B8" FontSize="11" />
+                                    <TextBox x:Name="JinglestarHoldMillisecondsTextBox" Text="100"
+                                             Height="30" Padding="8,4"
+                                             Background="#263543" Foreground="#EAF0F5" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Release" Foreground="#8FA8B8" FontSize="11" />
+                                    <TextBox x:Name="JinglestarReleaseMillisecondsTextBox" Text="100"
+                                             Height="30" Padding="8,4"
+                                             Background="#263543" Foreground="#EAF0F5" />
+                                </StackPanel>
+                            </Grid>
+                            <Button Content="Confirm timings for this rod profile"
+                                    Click="ConfirmJinglestarTiming_Click"
+                                    Height="32" Margin="0,0,0,5"
+                                    Background="#294153" Foreground="White" BorderThickness="0" />
+                            <TextBlock x:Name="JinglestarStatusText"
+                                       Text="Choose and confirm timings using a real game capture before enabling."
+                                       Foreground="#8FA8B8" FontSize="11" TextWrapping="Wrap" />
+                        </StackPanel>
                         <CheckBox x:Name="RodChargeMeterFillFromRightCheckBox"
                                   Content="Charge meter fills from right to left"
                                   Foreground="#EAF0F5" IsChecked="False" Margin="0,0,0,5"

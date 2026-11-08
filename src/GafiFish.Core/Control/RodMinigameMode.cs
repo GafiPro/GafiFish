@@ -10,5 +10,7 @@ public enum RodMinigameMode
     StandardReel,
     ChargeMeterBonus,
     DualFish,
-    TranquilityRhythm
+    TranquilityRhythm,
+    DredDualFish,
+    JinglestarSequence
 }
