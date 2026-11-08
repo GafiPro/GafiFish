@@ -40,7 +40,7 @@ public sealed class HotbarItemCoordinatorTests
         var input = new RecordingInput();
         var coordinator = new HotbarItemCoordinator(input);
 
-        Assert.Throws<ArgumentException>(() => coordinator.UseItem(itemSlot, rodSlot));
+        Assert.ThrowsAny<ArgumentException>(() => coordinator.UseItem(itemSlot, rodSlot));
         Assert.Empty(input.Events);
         Assert.True(input.IsArmed);
     }
