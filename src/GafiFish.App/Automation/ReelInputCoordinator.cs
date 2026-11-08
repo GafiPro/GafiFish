@@ -97,7 +97,7 @@ public sealed class ReelInputCoordinator
             _input.SetLeftButton(false);
             return new ReelControlDecision(
                 ReelCommand.Neutral, fishMarker.CenterX - controlPositionX, controlWidth,
-                "The rotated control bar does not cover both fish targets; input released.");
+                "The fish targets are too far apart for the rotated control bar to cover; input released.");
         }
 
         var confidence = Math.Min(
