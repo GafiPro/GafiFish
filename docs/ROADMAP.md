@@ -365,7 +365,7 @@ Ações aleatórias que consumam moeda ou itens do jogo mantêm-se manuais e nã
 
 - [x] **MiguRod:** deteção visual configurável do aviso/zona de corte e alertas locais com debounce de frames distintos. Falta calibrar e validar com capturas reais; movimentos de evasão continuam desativados.
 - [x] **Jinglestar:** handler de dez pulsos hold/release implementado, com tempos configuráveis e confirmados por perfil, reinício seguro perante falhas de deteção e cooldown de dois segundos. Continua pendente medir os tempos e validar a sequência numa gravação real do Fisch.
-- [x] **D.R.E.D.:** deteção configurável dos objetos bónus que caem, overlays e alertas locais com debounce de frames distintos. Falta calibrar com capturas reais. A recolha automática e a ativação de Overdrive continuam desativadas até confirmar a interação real; candidatos visuais não são contados como objetos recolhidos.
+- [x] **D.R.E.D.:** deteção HSV configurável, associação de candidatos entre frames e alerta apenas após trajetória descendente estável, com debounce e overlays. Falta calibrar/validar com capturas reais. A recolha automática e a ativação de Overdrive continuam desativadas; movimento descendente não é contado como objeto recolhido.
 - [x] As barras rotativas/deslocáveis são cobertas pelo tracker geométrico e de movimento relativo partilhado; ainda falta validação em vídeo real.
 
 ## Aquarium panel guard — 8 de novembro de 2026
