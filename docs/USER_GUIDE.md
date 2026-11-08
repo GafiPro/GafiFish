@@ -182,7 +182,7 @@ Na página **Aquarium**, ativa **Play a sound when an aquarium action becomes re
 
 ## Auto Aquarium (calibração visual)
 
-A automação do Aquarium é independente da pesca e tem de ser armada separadamente na página **Aquarium**. Primeiro abre o painel do Aquarium em Fisch e captura um frame com F6. Para cada ação que pretendes automatizar, escolhe-a na lista, seleciona uma região apertada à volta do respetivo botão ativo e amostra uma cor no interior desse botão. Repete para todas as ações que ativares.
+A automação do Aquarium é independente da pesca e tem de ser armada separadamente na página **Aquarium**. Primeiro abre o painel do Aquarium em Fisch e captura um frame com F6. Seleciona uma pequena área uniforme exclusiva do painel (longe dos botões) e amostra a sua cor usando **Select panel anchor area** e **Sample open panel colour**. Depois, para cada ação, escolhe-a na lista, seleciona uma região apertada à volta do respetivo botão ativo e amostra uma cor no interior desse botão. Repete para todas as ações que ativares. O GafiFish verifica a âncora antes de cada ação; se o painel não estiver visível, não clica. Se desaparecer enquanto uma ação aguarda confirmação, o módulo pára sem registar o cooldown nem repetir o clique.
 
 As opções **Auto feed**, **Auto restock** e **Auto claim** são independentes e começam desligadas. A reposição pode gastar moeda do jogo e, por isso, exige ativação explícita. As ações só ficam elegíveis quando o respetivo horário inicial já foi registado e o cooldown horário terminou. Mantém o painel do Aquarium aberto e o Roblox em primeiro plano: o GafiFish não tenta navegar até ao Aquarium.
 

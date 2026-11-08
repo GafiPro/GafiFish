@@ -429,7 +429,7 @@
                                                Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,5,0,10" />
                                     <TextBlock Text="Track each food action manually or let the optional visual automation click calibrated buttons when their hourly cooldown is ready."
                                                Foreground="#DCE6ED" TextWrapping="Wrap" />
-                                    <TextBlock Text="Auto Aquarium requires the panel to stay open. It never guesses button positions: calibrate each enabled action from a live frame first."
+                                    <TextBlock Text="Auto Aquarium checks a calibrated panel anchor before every action. Calibrate that anchor and each enabled button from live frames; clicks are blocked if the panel is not visible."
                                                Foreground="#EACB80" FontSize="11" TextWrapping="Wrap" Margin="0,9,0,0" />
                                 </StackPanel>
                             </Border>
@@ -520,6 +520,14 @@
                                     <TextBlock Text="Auto Aquarium · visual calibration" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,6" />
                                     <TextBlock Text="For each action: open the Aquarium in Fisch, capture with F6, choose the action below, select the ready button area, then sample a clear pixel from its enabled button colour."
                                                Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,9" />
+                                    <WrapPanel>
+                                        <Button Content="Select panel anchor area" Click="SelectAquariumPanelRegion_Click"
+                                                Height="32" Margin="0,0,8,8" />
+                                        <Button Content="Sample open panel colour" Click="SampleAquariumPanelColor_Click"
+                                                Height="32" Margin="0,0,0,8" />
+                                    </WrapPanel>
+                                    <TextBlock Text="Choose a small, uniform area unique to the open Aquarium panel, away from the action buttons."
+                                               Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8" />
                                     <ComboBox x:Name="AquariumVisualActionComboBox" SelectedIndex="0" Height="34"
                                               Background="#263543" Foreground="#EAF0F5" Margin="0,0,0,8">
                                         <ComboBoxItem Content="Feed · Guppies' Best" Tag="FeedGuppiesBest" />
@@ -558,7 +566,7 @@
                                                 Click="StopAquariumAutomation_Click" IsEnabled="False" />
                                     </Grid>
                                     <TextBlock x:Name="AquariumAutomationStatusText"
-                                               Text="Stopped · calibrate each action you enable, then arm while the Aquarium panel is open."
+                                               Text="Stopped · calibrate the panel anchor and each enabled action before arming."
                                                Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,9,0,0" />
                                     <TextBlock Text="A button must be stable for 3 frames. GafiFish clicks it once, then waits for its ready-state colour to disappear in 2 frames before recording the cooldown. If the change is ambiguous, it stops without retrying."
                                                Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
