@@ -34,6 +34,12 @@ public sealed class VisionProfileStoreTests
             WorldPhaseRegionCalibrated = true,
             DayPhaseColor = new HsvColorRange(0, 180, 180, 5, 255, 255),
             NightPhaseColor = new HsvColorRange(110, 180, 180, 130, 255, 255),
+            MiguRodHazardRegion = new NormalizedRegion(0.12, 0.30, 0.18, 0.14),
+            MiguRodHazardRegionCalibrated = true,
+            MiguRodHazardColor = new HsvColorRange(5, 170, 120, 15, 255, 255),
+            DredBonusObjectRegion = new NormalizedRegion(0.35, 0.25, 0.42, 0.55),
+            DredBonusObjectRegionCalibrated = true,
+            DredBonusObjectColor = new HsvColorRange(80, 150, 100, 100, 255, 255),
             FishMarkerTemplatePng = CreatePngTemplate(),
             ControlMarkerTemplatePng = CreatePngTemplate()
         };
@@ -67,6 +73,12 @@ public sealed class VisionProfileStoreTests
             Assert.Equal(profile.FishMarkerTemplatePng, loaded.FishMarkerTemplatePng);
             Assert.Equal(profile.ControlMarkerTemplatePng, loaded.ControlMarkerTemplatePng);
             Assert.True(loaded.IsWorldPhaseCalibrated);
+            Assert.Equal(profile.MiguRodHazardRegion, loaded.MiguRodHazardRegion);
+            Assert.Equal(profile.MiguRodHazardColor, loaded.MiguRodHazardColor);
+            Assert.True(loaded.IsMiguRodHazardCalibrated);
+            Assert.Equal(profile.DredBonusObjectRegion, loaded.DredBonusObjectRegion);
+            Assert.Equal(profile.DredBonusObjectColor, loaded.DredBonusObjectColor);
+            Assert.True(loaded.IsDredBonusObjectCalibrated);
             Assert.True(loaded.IsFishingCalibrated);
         }
         finally

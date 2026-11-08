@@ -18,13 +18,21 @@ public sealed record SpecialRodSignalObservation(
 /// </summary>
 public sealed class SpecialRodSignalVisionDetector
 {
-    public SpecialRodSignalObservation DetectMiguRodHazards(ScreenCaptureFrame frame, VisionProfile profile) =>
-        Detect(frame, profile, profile.MiguRodHazardRegion,
+    public SpecialRodSignalObservation DetectMiguRodHazards(ScreenCaptureFrame frame, VisionProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        ArgumentNullException.ThrowIfNull(profile);
+        return Detect(frame, profile, profile.MiguRodHazardRegion,
             profile.IsMiguRodHazardCalibrated, profile.MiguRodHazardColor, "MiguRod cut-warning");
+    }
 
-    public SpecialRodSignalObservation DetectDredBonusObjects(ScreenCaptureFrame frame, VisionProfile profile) =>
-        Detect(frame, profile, profile.DredBonusObjectRegion,
+    public SpecialRodSignalObservation DetectDredBonusObjects(ScreenCaptureFrame frame, VisionProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        ArgumentNullException.ThrowIfNull(profile);
+        return Detect(frame, profile, profile.DredBonusObjectRegion,
             profile.IsDredBonusObjectCalibrated, profile.DredBonusObjectColor, "D.R.E.D. falling bonus-object");
+    }
 
     private static SpecialRodSignalObservation Detect(
         ScreenCaptureFrame frame,
