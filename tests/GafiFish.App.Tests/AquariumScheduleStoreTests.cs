@@ -27,8 +27,8 @@ public sealed class AquariumScheduleStoreTests
         try
         {
             var store = new AquariumScheduleStore(path);
-            await store.SaveAsync(original);
-            var loaded = await store.LoadAsync();
+            await store.SaveAsync(original, TestContext.Current.CancellationToken);
+            var loaded = await store.LoadAsync(TestContext.Current.CancellationToken);
 
             Assert.Equal(original, loaded);
         }
@@ -47,7 +47,7 @@ public sealed class AquariumScheduleStoreTests
         var path = Path.Combine(Path.GetTempPath(), $"gafifish-aquarium-{Guid.NewGuid():N}.json");
         try
         {
-            await File.WriteAllTextAsync(path, "{ invalid json");
+            await File.WriteAllTextAsync(path, "{ invalid json", TestContext.Current.CancellationToken);
             var loaded = await new AquariumScheduleStore(path).LoadAsync();
 
             Assert.Equal(new AquariumScheduleState(), loaded);

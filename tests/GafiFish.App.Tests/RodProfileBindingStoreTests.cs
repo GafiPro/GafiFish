@@ -85,7 +85,7 @@ public sealed class RodProfileBindingStoreTests
     public async Task LoadAsync_UsesEmptyBindingsWhenJsonIsCorrupt()
     {
         var path = Path.Combine(Path.GetTempPath(), $"gafifish-rod-bindings-{Guid.NewGuid():N}.json");
-        await File.WriteAllTextAsync(path, "{ invalid json");
+        await File.WriteAllTextAsync(path, "{ invalid json", TestContext.Current.CancellationToken);
         try
         {
             var bindings = await new RodProfileBindingStore(path).LoadAsync(TestContext.Current.CancellationToken);

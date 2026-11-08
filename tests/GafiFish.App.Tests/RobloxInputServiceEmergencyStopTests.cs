@@ -20,8 +20,8 @@ public sealed class RobloxInputServiceEmergencyStopTests
 
         Assert.False(input.IsArmed);
         Assert.False(input.IsLeftButtonDown);
-        Assert.True(sink.Events.Contains(("left", (ushort)0, false)));
-        Assert.True(sink.Events.Contains(("key", (ushort)0x41, false)));
+        Assert.Contains(("left", (ushort)0, false), sink.Events);
+        Assert.Contains(("key", (ushort)0x41, false), sink.Events);
         Assert.Throws<InvalidOperationException>(() => input.SetLeftButton(true));
         Assert.Throws<InvalidOperationException>(() => input.SetKey(0x41, true));
 

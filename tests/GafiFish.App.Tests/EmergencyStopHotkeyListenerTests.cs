@@ -27,7 +27,7 @@ public sealed class EmergencyStopHotkeyListenerTests
         Assert.True(listener.Start());
         Assert.True(listener.IsRegistered);
         Assert.True(platform.PostHotkey(0x47F9));
-        Assert.True(callbackCompleted.Wait(TimeSpan.FromSeconds(2)));
+        Assert.True(callbackCompleted.Wait(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
         Assert.NotEqual(callerThreadId, callbackThreadId);
 
         listener.Dispose();

@@ -277,8 +277,10 @@ public sealed class FishingVisionDetectorTests
     private static void BlitTemplate(byte[] target, int targetWidth, byte[] templatePng, int left, int top)
     {
         using var template = Cv2.ImDecode(templatePng, ImreadModes.Grayscale);
-        for (var y = 0; y < template.Height; y++)
-        for (var x = 0; x < template.Width; x++)
+        var templateHeight = template.Height;
+        var templateWidth = template.Width;
+        for (var y = 0; y < templateHeight; y++)
+        for (var x = 0; x < templateWidth; x++)
         {
             var value = template.At<byte>(y, x);
             var index = ((top + y) * targetWidth + left + x) * 4;

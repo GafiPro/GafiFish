@@ -13,7 +13,7 @@ public sealed class AnglerQuestStateStoreTests
     {
         using var directory = new TemporaryDirectory();
         var store = new AnglerQuestStateStore(Path.Combine(directory.Path, "angler.json"));
-        Assert.Equal(AnglerQuestSnapshot.Empty, await store.LoadAsync());
+        Assert.Equal(AnglerQuestSnapshot.Empty, await store.LoadAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class AnglerQuestStateStoreTests
     {
         using var directory = new TemporaryDirectory();
         var path = Path.Combine(directory.Path, "angler.json");
-        await File.WriteAllTextAsync(path, "{ this is not json }");
+        await File.WriteAllTextAsync(path, "{ this is not json }", TestContext.Current.CancellationToken);
         var store = new AnglerQuestStateStore(path);
         await Assert.ThrowsAsync<JsonException>(() => store.LoadAsync());
     }
@@ -51,7 +51,7 @@ public sealed class AnglerQuestStateStoreTests
         var path = Path.Combine(directory.Path, "angler.json");
         var caughtAt = new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
         var invalid = new AnglerQuestSnapshot("Megalodon", caughtAt.AddMinutes(-1), caughtAt, caughtAt.AddSeconds(5), caughtAt.AddSeconds(100));
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(invalid));
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(invalid), TestContext.Current.CancellationToken);
         var store = new AnglerQuestStateStore(path);
         await Assert.ThrowsAsync<ArgumentException>(() => store.LoadAsync());
     }

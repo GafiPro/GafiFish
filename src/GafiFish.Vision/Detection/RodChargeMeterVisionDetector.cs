@@ -40,15 +40,17 @@ public sealed class RodChargeMeterVisionDetector
 
         var rowProgress = new List<double>();
         var validRows = 0;
-        for (var y = 0; y < mask.Rows; y++)
+        var rows = mask.Rows;
+        var columns = mask.Cols;
+        for (var y = 0; y < rows; y++)
         {
-            var start = profile.RodChargeMeterFillFromRight ? mask.Cols - 1 : 0;
+            var start = profile.RodChargeMeterFillFromRight ? columns - 1 : 0;
             var step = profile.RodChargeMeterFillFromRight ? -1 : 1;
             var run = 0;
             var gap = 0;
             var started = false;
 
-            for (var offset = 0; offset < mask.Cols; offset++)
+            for (var offset = 0; offset < columns; offset++)
             {
                 var x = start + (offset * step);
                 var pixel = mask.At<byte>(y, x) != 0;
@@ -68,7 +70,7 @@ public sealed class RodChargeMeterVisionDetector
 
             if (run >= 2)
             {
-                rowProgress.Add(Math.Clamp(run / (double)mask.Cols, 0, 1));
+                rowProgress.Add(Math.Clamp(run / (double)columns, 0, 1));
                 validRows++;
             }
         }
@@ -80,7 +82,7 @@ public sealed class RodChargeMeterVisionDetector
 
         rowProgress.Sort();
         var progress = rowProgress[rowProgress.Count / 2];
-        var rowCoverage = validRows / (double)Math.Max(1, mask.Rows);
+        var rowCoverage = validRows / (double)Math.Max(1, rows);
 
         // A real fill should occupy several adjacent scan lines and have a
         // reasonably consistent edge. Isolated coloured pixels or reflections
@@ -98,6 +100,6 @@ public sealed class RodChargeMeterVisionDetector
             frame.CapturedAt,
             progress,
             confidence,
-            $"Charge meter {progress:P0} · confidence {confidence:P0} · {validRows}/{mask.Rows} scan lines.");
+            $"Charge meter {progress:P0} · confidence {confidence:P0} · {validRows}/{rows} scan lines.");
     }
 }
