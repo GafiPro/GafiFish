@@ -72,6 +72,7 @@ public partial class MainWindow : Window
     private readonly SpecialRodSignalVisionDetector _specialRodSignalVision = new();
     private readonly VisualSignalDebouncer _miguRodWarningDebouncer = new();
     private readonly VisualSignalDebouncer _dredBonusDebouncer = new();
+    private readonly DredFallingObjectTracker _dredFallingObjectTracker = new();
     private readonly PerfectCastController _perfectCast = new();
     private readonly FishMotionTracker _motionTracker = new();
     private VisionProfileStore _profileStore = new();
@@ -4355,18 +4356,26 @@ public partial class MainWindow : Window
         var dredBonusObservation = _profile.RodMinigameMode == RodMinigameMode.DredDualFish
             ? _specialRodSignalVision.DetectDredBonusObjects(frame, _profile)
             : null;
-        if (dredBonusObservation is not null)
+        IReadOnlyList<DetectedMarker> dredFallingMarkers = Array.Empty<DetectedMarker>();
+        if (dredBonusObservation is { IsCalibrated: true })
         {
+            dredFallingMarkers = _dredFallingObjectTracker.ProcessObservation(
+                frame.CapturedAt, dredBonusObservation.Markers);
             DrawDetectedMarkers(_dredBonusObjectOverlays, dredBonusObservation.Markers, Brushes.LimeGreen, maxMarkers: 8);
-            DredBonusObjectStatusText.Text = !dredBonusObservation.IsCalibrated
-                ? dredBonusObservation.Status
+            DredBonusObjectStatusText.Text = dredFallingMarkers.Count > 0
+                ? $"D.R.E.D.: {dredBonusObservation.Markers.Count} candidate(s), {dredFallingMarkers.Count} with confirmed downward movement. Collection is not confirmed."
                 : dredBonusObservation.Markers.Count > 0
-                    ? $"D.R.E.D. bonus-object candidates: {dredBonusObservation.Markers.Count}. Detection does not confirm collection."
+                    ? $"D.R.E.D.: {dredBonusObservation.Markers.Count} candidate(s); tracking for downward movement."
                     : "D.R.E.D. bonus-object area monitored; no calibrated object currently visible.";
         }
         else
         {
+            _dredFallingObjectTracker.Reset();
             DrawDetectedMarkers(_dredBonusObjectOverlays, [], Brushes.LimeGreen, maxMarkers: 8);
+            if (dredBonusObservation is not null)
+                DredBonusObjectStatusText.Text = dredBonusObservation.Status;
+            else
+                _dredBonusDebouncer.Reset();
         }
 
         if (allowAutomation && MiguRodAlertsEnabledCheckBox.IsChecked == true
@@ -4379,10 +4388,10 @@ public partial class MainWindow : Window
 
         if (allowAutomation && DredBonusAlertsEnabledCheckBox.IsChecked == true
             && dredBonusObservation is { IsCalibrated: true }
-            && _dredBonusDebouncer.ProcessObservation(frame.CapturedAt, dredBonusObservation.Markers.Count > 0))
+            && _dredBonusDebouncer.ProcessObservation(frame.CapturedAt, dredFallingMarkers.Count > 0))
         {
             System.Media.SystemSounds.Asterisk.Play();
-            AddActivityLog("INFO", "DRED", $"A calibrated D.R.E.D. bonus-object signal was detected ({dredBonusObservation.Markers.Count} candidate(s)). Collection was not assumed.");
+            AddActivityLog("INFO", "DRED", $"A D.R.E.D. bonus-object candidate moved downward across distinct frames ({dredFallingMarkers.Count} track(s)). Collection was not assumed.");
         }
 
         if (allowAutomation && HuntDetectionEnabledCheckBox.IsChecked == true)
@@ -4696,8 +4705,13 @@ public partial class MainWindow : Window
         var isDredMode = _profile.RodMinigameMode == RodMinigameMode.DredDualFish;
         DredBonusObjectStatusText.Visibility = isDredMode ? Visibility.Visible : Visibility.Collapsed;
         DredBonusAlertsEnabledCheckBox.IsEnabled = isDredMode;
-        if (!isDredMode && DredBonusAlertsEnabledCheckBox.IsChecked == true)
-            DredBonusAlertsEnabledCheckBox.IsChecked = false;
+        if (!isDredMode)
+        {
+            _dredFallingObjectTracker.Reset();
+            _dredBonusDebouncer.Reset();
+            if (DredBonusAlertsEnabledCheckBox.IsChecked == true)
+                DredBonusAlertsEnabledCheckBox.IsChecked = false;
+        }
         DredBonusObjectStatusText.Text = _profile.IsDredBonusObjectCalibrated
             ? "D.R.E.D. bonus objects calibrated · live detection remains alert-only."
             : "Calibrate the falling-object region and colour in the Calibration tab.";
@@ -5821,6 +5835,7 @@ public partial class MainWindow : Window
 
     private void DredBonusAlertsEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
     {
+        _dredFallingObjectTracker.Reset();
         _dredBonusDebouncer.Reset();
         DredBonusCalibrationStatusText.Text = DredBonusAlertsEnabledCheckBox.IsChecked == true
             ? _profile.IsDredBonusObjectCalibrated
@@ -6393,6 +6408,7 @@ public partial class MainWindow : Window
         }
         if (isDredBonusObjectColor)
         {
+            _dredFallingObjectTracker.Reset();
             _dredBonusDebouncer.Reset();
             DredBonusCalibrationStatusText.Text = _profile.IsDredBonusObjectCalibrated
                 ? "D.R.E.D. bonus-object calibration complete. Validate detections against a real falling object."
@@ -6453,6 +6469,7 @@ public partial class MainWindow : Window
         _motionTracker.Reset();
         _miguRodWarningDebouncer.Reset();
         _dredBonusDebouncer.Reset();
+        _dredFallingObjectTracker.Reset();
         _fishMarkerOverlay.Visibility = Visibility.Collapsed;
         _secondaryFishMarkerOverlay.Visibility = Visibility.Collapsed;
         _controlMarkerOverlay.Visibility = Visibility.Collapsed;
@@ -6486,6 +6503,7 @@ public partial class MainWindow : Window
             _huntDetectionCoordinator.Reset();
             _miguRodWarningDebouncer.Reset();
             _dredBonusDebouncer.Reset();
+            _dredFallingObjectTracker.Reset();
 
             UpdateConnectionRecoveryControls();
             CalibrationModeText.Text = successMessage;
