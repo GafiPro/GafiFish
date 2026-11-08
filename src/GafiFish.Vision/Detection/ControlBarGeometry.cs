@@ -42,26 +42,10 @@ public static class ControlBarGeometry
         if (!float.IsFinite(width) || !float.IsFinite(height) || width <= 0 || height <= 0)
             return false;
 
-        var radians = oriented.Angle * Math.PI / 180d;
-        var cos = Math.Cos(radians);
-        var sin = Math.Sin(radians);
-        var halfWidth = width / 2d;
-        var halfHeight = height / 2d;
-        var centerX = oriented.Center.X;
-        var centerY = oriented.Center.Y;
-
-        Point2f Transform(double localX, double localY) =>
-            new(
-                (float)(centerX + localX * cos - localY * sin),
-                (float)(centerY + localX * sin + localY * cos));
-
-        var corners = new[]
-        {
-            Transform(-halfWidth, -halfHeight),
-            Transform( halfWidth, -halfHeight),
-            Transform( halfWidth,  halfHeight),
-            Transform(-halfWidth,  halfHeight)
-        };
+        // OpenCV may normalize a RotatedRect by swapping Width/Height and
+        // adjusting Angle. Use its own vertices so the representation remains
+        // correct regardless of that normalization convention.
+        var corners = oriented.Points();
 
         var intersections = new List<double>(4);
         for (var index = 0; index < corners.Length; index++)
