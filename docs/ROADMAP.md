@@ -113,8 +113,11 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada, aceita o pedido e entrega o peixe através de botões visuais calibrados com clique único e confirmação de desaparecimento.
 ## Auto Appraise e Auto Enchant — implementação inicial
 - [x] Auto Appraise opt-in, desligado por defeito, com teto de gasto configurável (C$ 100.000 por defeito, por execução).
-- [x] Selecionar o fish slot configurado, abrir o diálogo do Appraiser, escolher a opção de appraisal e ler a confirmação Yes com o preço C$ antes de cada tentativa paga.
-- [x] Custo ilegível ou superior ao saldo restante bloqueia o clique em Yes; o clique gratuito na opção de diálogo não consome orçamento.
+- [x] Selecionar o slot do peixe/relíquia e ler o preço C$ na opção inicial ("Can you appraise this fish?" / "appraise it again") antes de a selecionar.
+- [x] Exigir duas leituras estáveis da opção e do preço; bloquear a seleção quando o custo excede o orçamento.
+- [x] No ecrã seguinte, exigir apenas o Yes estável em dois frames; revalidar a opção/preço ou Yes na captura imediatamente anterior ao clique.
+- [x] Reservar o custo antes de enviar o clique Yes, para nunca repetir um gasto perante uma falha de input ambígua.
+- [x] Custo ilegível ou superior ao saldo restante bloqueia a seleção da opção inicial; a confirmação Yes nunca é enviada sem orçamento reservado.
 - [x] Contar o custo no momento em que o clique é enviado; uma resposta ambígua nunca devolve orçamento nem provoca repetição cega.
 - [x] Exigir resultado OCR diferente e estável em dois frames antes de permitir nova tentativa.
 - [x] Parar ao reconhecer o texto-alvo ou ao atingir o orçamento; calibração separada do botão, preço e resultado.

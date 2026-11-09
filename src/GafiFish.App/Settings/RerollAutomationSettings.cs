@@ -18,7 +18,7 @@ public sealed record RerollAutomationSettings
 
         if (AppraiseFishSlot is < 1 or > 10)
             throw new ArgumentOutOfRangeException(nameof(AppraiseFishSlot),
-                "Appraise fish hotbar slot must be from 1 to 0 (10).");
+                "Appraise item slot must be 1-9 or 0 (slot 10).");
 
         if (EnchantRelicLimit is < 1 or > 100)
             throw new ArgumentOutOfRangeException(nameof(EnchantRelicLimit),
@@ -26,10 +26,10 @@ public sealed record RerollAutomationSettings
 
         if (EnchantRelicSlot is < 1 or > 10)
             throw new ArgumentOutOfRangeException(nameof(EnchantRelicSlot),
-                "Enchant relic hotbar slot must be from 1 to 0 (10).");
+                "Enchant relic slot must be 1-9 or 0 (slot 10).");
 
         if (InteractionKey is null || InteractionKey.Trim().Length != 1
-            || !char.IsLetterOrDigit(InteractionKey.Trim()[0]))
+            || !char.IsAsciiLetterOrDigit(InteractionKey.Trim()[0]))
             throw new ArgumentOutOfRangeException(nameof(InteractionKey),
                 "Interaction key must be one letter or number.");
         if (AppraiseTargetText is null || AppraiseTargetText.Trim().Length > 80)

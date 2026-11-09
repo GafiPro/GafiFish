@@ -38,7 +38,7 @@ public partial class MainWindow
         AutoEnchantEnabledCheckBox.IsChecked = false;
         AutoAppraiseStatusText.Text = _profile.IsAppraiseCalibrated
             ? "Calibration loaded. Set a target, explicitly enable Auto Appraise and press Start."
-            : "Calibrate the Appraise button, exact C$ price and result text first.";
+            : "Calibrate the initial Appraise option, its C$ price, the Yes confirmation and the result text.";
         AutoEnchantStatusText.Text = _profile.IsEnchantCalibrated
             ? "Calibration loaded. Equip the intended rod and select a relic before starting."
             : "Calibrate the altar interaction point and enchant result text first.";
@@ -113,15 +113,15 @@ public partial class MainWindow
 
     private void SelectAppraiseButtonRegion_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(CalibrationAction.SelectAppraiseButtonRegion,
-            "Drag a tight rectangle around the Appraise button text. Do not include nearby dialogue text.");
+            "Drag a tight rectangle around the option text 'Can you appraise this fish?' (or 'appraise it again').");
 
     private void SelectAppraiseCostRegion_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(CalibrationAction.SelectAppraiseCostRegion,
-            "Drag a tight rectangle around the current C$ price shown for one Appraise attempt.");
+            "Drag a tight rectangle around the C$ amount shown on the same initial Appraise option line.");
 
     private void SelectAppraiseConfirmRegion_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(CalibrationAction.SelectAppraiseConfirmRegion,
-            "Drag a tight rectangle around the Yes button in the Appraiser's price confirmation prompt.");
+            "Drag a tight rectangle around the Yes option in the follow-up confirmation dialogue. The price is read from the previous option line.");
 
     private void SelectAppraiseResultRegion_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(CalibrationAction.SelectAppraiseResultRegion,
@@ -145,7 +145,7 @@ public partial class MainWindow
 
         if (!_profile.IsAppraiseCalibrated)
         {
-            AutoAppraiseStatusText.Text = "Calibration incomplete: select the button, price and result regions.";
+            AutoAppraiseStatusText.Text = "Calibration incomplete: select the Appraise option, its C$ price, Yes and result regions.";
             return;
         }
 

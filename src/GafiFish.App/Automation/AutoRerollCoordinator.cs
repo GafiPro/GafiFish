@@ -64,6 +64,7 @@ public sealed class AutoRerollCoordinator
     private string? _lastPromptText;
     private string? _lastConfirmText;
     private decimal? _lastObservedCost;
+    private decimal? _pendingAppraiseCost;
     private int _candidateFrames;
     private int _stablePromptFrames;
     private int _stableConfirmFrames;
@@ -174,6 +175,7 @@ public sealed class AutoRerollCoordinator
             _lastPromptText = null;
             _lastConfirmText = null;
             _lastObservedCost = null;
+            _pendingAppraiseCost = null;
             _candidateFrames = 0;
             _stablePromptFrames = 0;
             _stableConfirmFrames = 0;
@@ -304,38 +306,57 @@ public sealed class AutoRerollCoordinator
         }
 
         var prompt = _recognize(frame, _promptRegion);
+        var price = _recognize(frame, _priceRegion!.Value);
         if (!prompt.HasText || prompt.Confidence < 0.60
-            || !prompt.Text.Contains("appraise", StringComparison.OrdinalIgnoreCase))
+            || !IsAppraisePromptText(prompt.Text)
+            || price.Confidence < 0.60 || !price.HasText
+            || !TryParseAppraiseCost(price.Text, out var currentCost))
         {
             _lastPromptText = null;
+            _lastObservedCost = null;
             _stablePromptFrames = 0;
-            _lastStatus = "Waiting for the visible Appraise dialogue option.";
+            _lastStatus = "Waiting for the exact Appraise option and its readable C$ price. No attempt sent.";
             return;
         }
 
         var normalizedPrompt = Normalize(prompt.Text);
-        if (string.Equals(_lastPromptText, normalizedPrompt, StringComparison.Ordinal))
+        if (string.Equals(_lastPromptText, normalizedPrompt, StringComparison.Ordinal)
+            && _lastObservedCost == currentCost)
+        {
             _stablePromptFrames++;
+        }
         else
         {
             _lastPromptText = normalizedPrompt;
+            _lastObservedCost = currentCost;
             _stablePromptFrames = 1;
         }
 
         if (_stablePromptFrames < 2)
         {
-            _lastStatus = "Appraise dialogue option stabilising · " + _stablePromptFrames + "/2 frames.";
+            _lastStatus = "Appraise option and C$ price stabilising · " + _stablePromptFrames + "/2 frames.";
             return;
         }
 
-        ClickRegionWithFreshCapture(_promptRegion, "appraise");
+        if (_currencySpent + currentCost > _appraiseBudget)
+        {
+            Finish("Budget protected: this appraisal costs C$ "
+                + currentCost.ToString("N0", CultureInfo.InvariantCulture)
+                + ", but only C$ " + (_appraiseBudget - _currencySpent).ToString("N0", CultureInfo.InvariantCulture)
+                + " remains. The Appraise option was not selected.");
+            return;
+        }
+
+        ClickAppraisePromptWithFreshCapture(currentCost);
+        _pendingAppraiseCost = currentCost;
         _waitingForPromptSince = null;
         _phase = RunPhase.AwaitingConfirmation;
         _pendingSince = frame.CapturedAt;
         _lastConfirmText = null;
-        _lastObservedCost = null;
         _stableConfirmFrames = 0;
-        _lastStatus = "Appraise option selected. Waiting for the displayed C$ cost and Yes confirmation.";
+        _lastStatus = "Appraise option selected · quoted price C$ "
+            + currentCost.ToString("N0", CultureInfo.InvariantCulture)
+            + ". Waiting for the Yes confirmation.";
     }
 
     private void ProcessAppraiseConfirmation(ScreenCaptureFrame frame)
@@ -346,53 +367,41 @@ public sealed class AutoRerollCoordinator
             return;
         }
 
-        var price = _recognize(frame, _priceRegion!.Value);
         var confirm = _recognize(frame, _confirmRegion!.Value);
-
-        if (price.Confidence < 0.60 || !price.HasText
-            || !TryParseAppraiseCost(price.Text, out var currentCost)
-            || confirm.Confidence < 0.60 || !confirm.HasText
-            || !YesRegex.IsMatch(confirm.Text))
+        if (confirm.Confidence < 0.60 || !confirm.HasText
+            || !YesRegex.IsMatch(confirm.Text)
+            || !_pendingAppraiseCost.HasValue)
         {
             _lastConfirmText = null;
-            _lastObservedCost = null;
             _stableConfirmFrames = 0;
-            _lastStatus = "Waiting for a clearly readable C$ price and Yes button. No paid click sent.";
+            _lastStatus = "Waiting for a clearly readable Yes confirmation. The quoted C$ amount remains reserved; no paid click sent.";
             return;
         }
 
         var normalizedConfirm = Normalize(confirm.Text);
-        if (string.Equals(_lastConfirmText, normalizedConfirm, StringComparison.Ordinal)
-            && _lastObservedCost == currentCost)
-        {
+        if (string.Equals(_lastConfirmText, normalizedConfirm, StringComparison.Ordinal))
             _stableConfirmFrames++;
-        }
         else
         {
             _lastConfirmText = normalizedConfirm;
-            _lastObservedCost = currentCost;
             _stableConfirmFrames = 1;
         }
 
         if (_stableConfirmFrames < 2)
         {
-            _lastStatus = "Appraise price and Yes button stabilising · " + _stableConfirmFrames + "/2 frames.";
+            _lastStatus = "Yes confirmation stabilising · " + _stableConfirmFrames + "/2 frames.";
             return;
         }
 
+        var currentCost = _pendingAppraiseCost.Value;
         if (_currencySpent + currentCost > _appraiseBudget)
         {
-            Finish("Budget protected: next appraisal costs C$ "
-                + currentCost.ToString("N0", CultureInfo.InvariantCulture)
-                + ", but only C$ " + (_appraiseBudget - _currencySpent).ToString("N0", CultureInfo.InvariantCulture)
-                + " remains. No Yes click was sent; total spent C$ "
-                + _currencySpent.ToString("N0", CultureInfo.InvariantCulture) + ".");
+            Finish("Budget protected: the quoted appraisal cost exceeds the remaining C$ budget. No Yes click sent.");
             return;
         }
 
         ClickAppraiseYesWithFreshCapture(currentCost);
-        _currencySpent += currentCost;
-        _attempts++;
+        _pendingAppraiseCost = null;
         _phase = RunPhase.AwaitingResult;
         _pendingSince = frame.CapturedAt;
         _candidateText = null;
@@ -621,51 +630,58 @@ public sealed class AutoRerollCoordinator
         !string.IsNullOrWhiteSpace(text)
         && text.Contains(_targetText, StringComparison.OrdinalIgnoreCase);
 
-    private void ClickRegionWithFreshCapture(NormalizedRegion region, string requiredText)
+    private void ClickAppraisePromptWithFreshCapture(decimal expectedCost)
     {
-        // Recheck the target on a fresh screenshot before coordinate input.
-        var verificationFrame = _captureFreshFrame();
-        if (!IsFresh(verificationFrame))
-            throw new InvalidOperationException("Fresh verification capture became stale before the click.");
+        // The paid price is shown next to the initial Appraise dialogue option.
+        // Re-read both the option and exact quote immediately before selecting it.
+        var frame = _captureFreshFrame();
+        if (!IsFresh(frame))
+            throw new InvalidOperationException("Fresh Appraise option capture became stale.");
 
-        var observation = _recognize(verificationFrame, region);
-        if (!observation.HasText || observation.Confidence < 0.60
-            || !observation.Text.Contains(requiredText, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("The visible Appraise dialogue target changed before the click.");
+        var prompt = _recognize(frame, _promptRegion);
+        var price = _recognize(frame, _priceRegion!.Value);
+        if (!prompt.HasText || prompt.Confidence < 0.60
+            || !IsAppraisePromptText(prompt.Text)
+            || !price.HasText || price.Confidence < 0.60
+            || !TryParseAppraiseCost(price.Text, out var verifiedCost)
+            || verifiedCost != expectedCost
+            || _currencySpent + verifiedCost > _appraiseBudget)
+            throw new InvalidOperationException(
+                "The Appraise option or quoted C$ price changed before selection; no action was sent.");
 
-        var clickFrame = _captureFreshFrame();
-        if (!IsFresh(clickFrame))
-            throw new InvalidOperationException("Fresh click capture became stale before the click.");
-
-        var bounds = region.ToPixelRect(clickFrame.Width, clickFrame.Height);
-        var x = bounds.X + (bounds.Width / 2);
-        var y = bounds.Y + (bounds.Height / 2);
-        _input.ClickClient(x, y, clickFrame);
+        var bounds = _promptRegion.ToPixelRect(frame.Width, frame.Height);
+        _input.ClickClient(bounds.X + (bounds.Width / 2), bounds.Y + (bounds.Height / 2), frame);
     }
 
     private void ClickAppraiseYesWithFreshCapture(decimal expectedCost)
     {
-        var verificationFrame = _captureFreshFrame();
-        if (!IsFresh(verificationFrame))
+        // The follow-up dialogue may only show Yes/No. The C$ quote was read and
+        // revalidated on the prior option screen; do not expect it to be repeated.
+        var frame = _captureFreshFrame();
+        if (!IsFresh(frame))
             throw new InvalidOperationException("Fresh Appraise confirmation capture became stale.");
 
-        var price = _recognize(verificationFrame, _priceRegion!.Value);
-        var confirm = _recognize(verificationFrame, _confirmRegion!.Value);
-        if (price.Confidence < 0.60 || !price.HasText
-            || !TryParseAppraiseCost(price.Text, out var verifiedCost)
-            || verifiedCost != expectedCost
-            || confirm.Confidence < 0.60 || !confirm.HasText
+        var confirm = _recognize(frame, _confirmRegion!.Value);
+        if (!confirm.HasText || confirm.Confidence < 0.60
             || !YesRegex.IsMatch(confirm.Text)
-            || _currencySpent + verifiedCost > _appraiseBudget)
+            || _currencySpent + expectedCost > _appraiseBudget)
             throw new InvalidOperationException(
-                "The Yes confirmation or exact C$ price changed before payment; no paid click was sent.");
+                "The Yes confirmation changed or the C$ budget is exhausted; no paid click was sent.");
 
-        var clickFrame = _captureFreshFrame();
-        if (!IsFresh(clickFrame))
-            throw new InvalidOperationException("Fresh Appraise click capture became stale.");
+        var bounds = _confirmRegion.Value.ToPixelRect(frame.Width, frame.Height);
 
-        var bounds = _confirmRegion.Value.ToPixelRect(clickFrame.Width, clickFrame.Height);
-        _input.ClickClient(bounds.X + (bounds.Width / 2), bounds.Y + (bounds.Height / 2), clickFrame);
+        // Reserve the quoted cost before sending input. If Windows reports an
+        // ambiguous input failure, this run stops and cannot retry this budget.
+        _currencySpent += expectedCost;
+        _attempts++;
+        _input.ClickClient(bounds.X + (bounds.Width / 2), bounds.Y + (bounds.Height / 2), frame);
+    }
+
+    private static bool IsAppraisePromptText(string text)
+    {
+        var normalized = Normalize(text);
+        return normalized.Contains("APPRAISE THIS FISH", StringComparison.Ordinal)
+            || normalized.Contains("APPRAISE IT AGAIN", StringComparison.Ordinal);
     }
 
     private void PressInteractionWithFreshPrompt()
@@ -679,9 +695,8 @@ public sealed class AutoRerollCoordinator
             || !prompt.Text.Contains("enchant", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The Enchant prompt changed before interaction; no relic use was sent.");
 
-        var clickWindowFrame = _captureFreshFrame();
-        if (!IsFresh(clickWindowFrame))
-            throw new InvalidOperationException("Fresh altar interaction capture became stale.");
+        if (!IsFresh(verificationFrame))
+            throw new InvalidOperationException("Altar prompt OCR took too long; no relic was consumed.");
 
         PulseKey(_interactionKey);
     }
