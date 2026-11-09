@@ -4,6 +4,7 @@ using System.Threading;
 using System.Windows;
 using GafiFish.App.Automation;
 using GafiFish.App.Settings;
+using GafiFish.Windows.Capture;
 using GafiFish.Windows.Input;
 
 namespace GafiFish.App;
