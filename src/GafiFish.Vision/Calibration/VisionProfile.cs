@@ -16,6 +16,16 @@ public sealed record VisionProfile
     public NormalizedRegion ShakeRegion { get; init; } = NormalizedRegion.FullFrame;
     public NormalizedRegion SellButtonRegion { get; init; } = NormalizedRegion.FullFrame;
     public NormalizedRegion InventoryItemsRegion { get; init; } = NormalizedRegion.FullFrame;
+    public NormalizedRegion AppraiseButtonRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool AppraiseButtonRegionCalibrated { get; init; }
+    public NormalizedRegion AppraiseCostRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool AppraiseCostRegionCalibrated { get; init; }
+    public NormalizedRegion AppraiseResultRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool AppraiseResultRegionCalibrated { get; init; }
+    public NormalizedRegion EnchantInteractionRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool EnchantInteractionRegionCalibrated { get; init; }
+    public NormalizedRegion EnchantResultRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool EnchantResultRegionCalibrated { get; init; }
     public NormalizedRegion CatchNotificationRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool CatchNotificationRegionCalibrated { get; init; }
     public NormalizedRegion ReconnectButtonRegion { get; init; } = NormalizedRegion.FullFrame;
@@ -91,6 +101,10 @@ public sealed record VisionProfile
         && ShakeRegionCalibrated;
     public bool IsSellButtonCalibrated => SellButtonColor.HasValue && SellButtonRegionCalibrated;
     public bool IsInventoryVerificationCalibrated => InventoryItemsRegionCalibrated;
+    public bool IsAppraiseCalibrated =>
+        AppraiseButtonRegionCalibrated && AppraiseCostRegionCalibrated && AppraiseResultRegionCalibrated;
+    public bool IsEnchantCalibrated =>
+        EnchantInteractionRegionCalibrated && EnchantResultRegionCalibrated;
     public bool IsCatchNotificationCalibrated => CatchNotificationRegionCalibrated;
     public bool IsReconnectButtonCalibrated => ReconnectButtonRegionCalibrated && ReconnectButtonColor.HasValue;
     public bool IsSessionIndicatorCalibrated => SessionIndicatorRegionCalibrated && SessionIndicatorColor.HasValue;
@@ -122,6 +136,11 @@ public sealed record VisionProfile
         ShakeRegion.Validate();
         SellButtonRegion.Validate();
         InventoryItemsRegion.Validate();
+        AppraiseButtonRegion.Validate();
+        AppraiseCostRegion.Validate();
+        AppraiseResultRegion.Validate();
+        EnchantInteractionRegion.Validate();
+        EnchantResultRegion.Validate();
         CatchNotificationRegion.Validate();
         ReconnectButtonRegion.Validate();
         SessionIndicatorRegion.Validate();

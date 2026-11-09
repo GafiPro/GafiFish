@@ -1503,6 +1503,83 @@
 <Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
                         CornerRadius="16" Padding="18" Margin="0,0,0,14">
                     <StackPanel>
+                        <TextBlock Text="Appraise &amp; Enchant automation" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,5" />
+                        <TextBlock Text="Both modules start disabled. Calibrate the visible game areas, enter a target, explicitly enable the module and press Start. F9, focus loss and stopping observation release all inputs."
+                                   Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+                        <TextBlock Text="Auto Appraise" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <CheckBox x:Name="AutoAppraiseEnabledCheckBox" Content="Allow Auto Appraise"
+                                  IsChecked="False" Margin="0,0,0,8"
+                                  Checked="AutoAppraiseEnabled_Changed" Unchecked="AutoAppraiseEnabled_Changed" />
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Maximum total Appraise spend per run (C$)" Foreground="#DCE6ED" VerticalAlignment="Center" />
+                            <TextBox x:Name="AppraiseBudgetTextBox" Grid.Column="1" Text="100000"
+                                     Height="32" Padding="7,4" Background="#263543" Foreground="#EAF0F5" />
+                        </Grid>
+                        <TextBlock Text="Stop when the result contains this text (for example, Shiny or a mutation name). The price is read before every click; unclear prices block the attempt."
+                                   Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,5" />
+                        <TextBox x:Name="AppraiseTargetTextBox" Text="" Height="32" Padding="7,4"
+                                 Margin="0,0,0,8" Background="#263543" Foreground="#EAF0F5"
+                                 ToolTip="Text to recognise in the changed Appraise result" />
+                        <WrapPanel Margin="0,0,0,8">
+                            <Button Content="Select Appraise button" Click="SelectAppraiseButtonRegion_Click"
+                                    Height="31" Margin="0,0,6,6" Background="#294153" />
+                            <Button Content="Select C$ price" Click="SelectAppraiseCostRegion_Click"
+                                    Height="31" Margin="0,0,6,6" Background="#294153" />
+                            <Button Content="Select result text" Click="SelectAppraiseResultRegion_Click"
+                                    Height="31" Margin="0,0,6,6" Background="#294153" />
+                        </WrapPanel>
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Button x:Name="StartAutoAppraiseButton" Grid.Column="0" Content="Start Auto Appraise"
+                                    Click="StartAutoAppraise_Click" Height="36" Background="#285B50" />
+                            <Button x:Name="StopAutoAppraiseButton" Grid.Column="2" Content="Stop Appraise"
+                                    Click="StopAutoAppraise_Click" Height="36" Background="#6B343D" IsEnabled="False" />
+                        </Grid>
+                        <TextBlock x:Name="AutoAppraiseStatusText" Text="Auto Appraise is stopped · default budget C$ 100,000."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+                        <Separator Margin="0,4,0,10" Background="#33414F" />
+                        <TextBlock Text="Auto Enchant" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <CheckBox x:Name="AutoEnchantEnabledCheckBox" Content="Allow Auto Enchant"
+                                  IsChecked="False" Margin="0,0,0,8"
+                                  Checked="AutoEnchantEnabled_Changed" Unchecked="AutoEnchantEnabled_Changed" />
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Maximum relic uses per run" Foreground="#DCE6ED" VerticalAlignment="Center" />
+                            <TextBox x:Name="EnchantRelicLimitTextBox" Grid.Column="1" Text="10"
+                                     Height="32" Padding="7,4" Background="#263543" Foreground="#EAF0F5" />
+                        </Grid>
+                        <TextBlock Text="Stop when this enchantment name appears in the result. Equip the intended rod and select the intended relic yourself before starting. Each confirmed result permits at most one next click."
+                                   Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,5" />
+                        <TextBox x:Name="EnchantTargetTextBox" Text="" Height="32" Padding="7,4"
+                                 Margin="0,0,0,8" Background="#263543" Foreground="#EAF0F5"
+                                 ToolTip="Enchant name to recognise, for example Hasty" />
+                        <WrapPanel Margin="0,0,0,8">
+                            <Button Content="Select altar click area" Click="SelectEnchantInteractionRegion_Click"
+                                    Height="31" Margin="0,0,6,6" Background="#294153" />
+                            <Button Content="Select enchant result" Click="SelectEnchantResultRegion_Click"
+                                    Height="31" Margin="0,0,6,6" Background="#294153" />
+                        </WrapPanel>
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Button x:Name="StartAutoEnchantButton" Grid.Column="0" Content="Start Auto Enchant"
+                                    Click="StartAutoEnchant_Click" Height="36" Background="#285B50" />
+                            <Button x:Name="StopAutoEnchantButton" Grid.Column="2" Content="Stop Enchant"
+                                    Click="StopAutoEnchant_Click" Height="36" Background="#6B343D" IsEnabled="False" />
+                        </Grid>
+                        <TextBlock x:Name="AutoEnchantStatusText" Text="Auto Enchant is stopped · default limit 10 relics."
+                                   Foreground="#EACB80" TextWrapping="Wrap" Margin="0,0,0,10" />
+                        <Button Content="Save Appraise / Enchant settings" Click="SaveRerollSettings_Click"
+                                Height="36" Background="#294153" />
+                        <TextBlock x:Name="RerollSettingsStatusText" Text="Limits and target text are saved locally; automation switches reset to off on launch."
+                                   Foreground="#8298A8" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0" />
+                    </StackPanel>
+                </Border>
+<Border Background="#151F29" BorderBrush="#283B49" BorderThickness="1"
+                        CornerRadius="16" Padding="18" Margin="0,0,0,14">
+                    <StackPanel>
                         <TextBlock Text="Global hotkeys" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,5" />
                         <TextBlock Text="Choose unique function keys. The assignments are saved locally and work even while Roblox is focused."
                                    Foreground="#9BAAB8" TextWrapping="Wrap" Margin="0,0,0,12" />

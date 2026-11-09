@@ -111,7 +111,18 @@ Nota: Sell Anywhere vende itens não favoritos. O utilizador tem de marcar como 
 - [ ] Melhorias do Perfect Cast com dados medidos em sessões reais.
 - [x] Hunt Detection: alerta visual calibrável, apenas de leitura, com debounce e proteção contra frames repetidos.
 - [x] Angler Quest Assist: acompanha um peixe pedido por OCR, pára após a captura confirmada, aceita o pedido e entrega o peixe através de botões visuais calibrados com clique único e confirmação de desaparecimento.
-- Appraise/Treasure Appraiser e Auto Enchant estão explicitamente fora do âmbito de automação: não existe OCR de painel, tentativa automática ou clique de gasto; a interação permanece manual.
+## Auto Appraise e Auto Enchant — implementação inicial
+- [x] Auto Appraise opt-in, desligado por defeito, com teto de gasto configurável (C$ 100.000 por defeito, por execução).
+- [x] Ler o custo C$ mostrado antes de cada tentativa; custo ilegível ou superior ao saldo restante bloqueia o clique.
+- [x] Contar o custo no momento em que o clique é enviado; uma resposta ambígua nunca devolve orçamento nem provoca repetição cega.
+- [x] Exigir resultado OCR diferente e estável em dois frames antes de permitir nova tentativa.
+- [x] Parar ao reconhecer o texto-alvo ou ao atingir o orçamento; calibração separada do botão, preço e resultado.
+- [x] Auto Enchant opt-in, desligado por defeito, com limite configurável de utilizações (10 relíquias por defeito, por execução).
+- [x] Contar cada utilização enviada e exigir um resultado OCR novo e estável antes de permitir o uso seguinte.
+- [x] Parar ao reconhecer o encantamento-alvo ou ao atingir o limite; calibração do ponto de interação e resultado.
+- [ ] Validar custo OCR, botões e resultados com capturas reais do Appraiser e Keeper's Altar em diferentes resoluções.
+- [ ] Confirmar que o feedback visual pós-clique da versão atual do Fisch é suficientemente distinto para impedir falsos positivos.
+
 - [x] Reconhecimento OCR do nome da cana com região calibrada, duas leituras estáveis e mapeamento explícito para um perfil.
 - [x] Suporte partilhado para barras inclinadas/rotativas e deslocáveis: geometria orientada, secção à altura do peixe e tracking do movimento relativo, com testes sintéticos.
 - [x] Jinglestar: sequência de dez hold/release, timing configurável e confirmado por perfil, libertação segura e testes sintéticos. Os tempos continuam a exigir medição numa gravação real antes da utilização.

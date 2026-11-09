@@ -174,3 +174,14 @@ O `RhythmNoteVisionDetector` deteta, numa região selecionada pelo utilizador, a
 O `RhythmNoteInputCoordinator` só envia uma tecla normal do Windows depois de obter duas observações monotónicas da mesma nota, estimar a velocidade vertical e prever a passagem pela janela de timing calibrada. As teclas são D, F, J e K, por pista. O envio só é permitido quando a máquina de estados está em `Reeling`; observações duplicadas/fora de ordem não geram input. Os toques têm libertação imediata e qualquer falha de input desarma o coordenador.
 
 O avanço temporal (0–250 ms) é configurável por perfil porque a latência de captura e o FPS variam entre computadores. Os testes usam frames sintéticos; a validação da geometria, velocidade e timing com gravações reais do Fisch continua pendente.
+
+
+## 16. Auto Appraise e Auto Enchant
+
+Os dois módulos são independentes do ciclo de pesca e começam desligados. Exigem ativação explícita, uma captura ao vivo de Roblox em primeiro plano e calibração manual das regiões.
+
+**Auto Appraise** lê o texto do botão, a região do preço e a região de resultado. Só envia um clique quando o botão está estável em dois frames e o custo C$ é lido sem ambiguidade. O valor é debitado do orçamento local no instante em que o clique é enviado; se o resultado não mudar e ficar estável em dois frames, o coordenador pára sem repetir. O limite predefinido é C$ 100.000 por execução e pode ser alterado nas Settings.
+
+**Auto Enchant** usa o centro da região calibrada do altar. O utilizador equipa manualmente a cana e seleciona a relíquia antes de armar o módulo. Cada clique conta imediatamente como uma utilização; só depois de o OCR confirmar um novo resultado estável é permitido avançar. O limite predefinido é 10 utilizações por execução.
+
+Ambos param quando o texto-alvo aparece, quando o limite é atingido, quando o OCR não confirma uma alteração dentro do timeout, quando o Roblox perde o foco, quando a observação pára ou quando F9 é acionado. Não fazem retry cego. A validação com gravações reais ainda é necessária: os testes automatizados e a calibração manual não substituem confirmação na interface atual do Fisch.

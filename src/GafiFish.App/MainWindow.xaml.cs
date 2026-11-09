@@ -279,7 +279,12 @@ public partial class MainWindow : Window
         SampleRhythmLaneDColor,
         SampleRhythmLaneFColor,
         SampleRhythmLaneJColor,
-        SampleRhythmLaneKColor
+        SampleRhythmLaneKColor,
+        SelectAppraiseButtonRegion,
+        SelectAppraiseCostRegion,
+        SelectAppraiseResultRegion,
+        SelectEnchantInteractionRegion,
+        SelectEnchantResultRegion
     }
 
     public MainWindow()
@@ -360,6 +365,7 @@ public partial class MainWindow : Window
         MinimumAlertWeightTextBox.Text = catchAlertSettings.MinimumWeightKg?.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
         MinimumAlertValueTextBox.Text = catchAlertSettings.MinimumEstimatedValue?.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
         CatchAlertSettingsStatusText.Text = "Saved alert preferences loaded from this computer.";
+        await LoadRerollAutomationSettingsAsync();
         ApplyHotkeySettingsToControls();
         RegisterGlobalHotkeys();
         try
@@ -2055,6 +2061,8 @@ public partial class MainWindow : Window
         try { Volatile.Read(ref _aquariumAutomationInput)?.EmergencyStop(); } catch { }
         try { Volatile.Read(ref _connectionRecoveryInput)?.EmergencyStop(); } catch { }
         try { Volatile.Read(ref _anglerQuestAutomationInput)?.EmergencyStop(); } catch { }
+        try { Volatile.Read(ref _autoAppraiseInput)?.EmergencyStop(); } catch { }
+        try { Volatile.Read(ref _autoEnchantInput)?.EmergencyStop(); } catch { }
 
         try
         {
@@ -2068,6 +2076,8 @@ public partial class MainWindow : Window
                 StopAquariumAutomation($"Emergency stop ({stopKey}): Auto Aquarium inputs released.");
                 StopConnectionRecovery($"Emergency stop ({stopKey}): reconnect watchdog stopped.");
                 StopAnglerQuestAutomation($"Emergency stop ({stopKey}): Angler automation stopped.");
+                StopAutoAppraise($"Emergency stop ({stopKey}): Auto Appraise stopped.");
+                StopAutoEnchant($"Emergency stop ({stopKey}): Auto Enchant stopped.");
                 StopAutomation($"Emergency stop ({stopKey}): all game inputs released.");
                 if (_isUiHidden) RestoreMainWindow();
             }));
@@ -2462,9 +2472,11 @@ public partial class MainWindow : Window
             || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested
             || _connectionRecoveryCoordinator?.IsStarted == true
-            || _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true)
+            || _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true
+            || _autoAppraiseStartRequested || _autoAppraiseCoordinator?.IsStarted == true
+            || _autoEnchantStartRequested || _autoEnchantCoordinator?.IsStarted == true)
         {
-            AutomationStatusText.Text = "Stop Auto Aquarium and the connection watchdog before starting the fishing macro.";
+            AutomationStatusText.Text = "Stop other automation modules before starting the fishing macro.";
             return;
         }
 
@@ -2503,6 +2515,10 @@ public partial class MainWindow : Window
             StopAquariumAutomation("Stopped by the user; Auto Aquarium inputs released.");
         if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
             StopAnglerQuestAutomation("Stopped by the user; Angler inputs released.");
+        if (_autoAppraiseStartRequested || _autoAppraiseCoordinator is not null)
+            StopAutoAppraise("Stopped by the user; Auto Appraise inputs released.");
+        if (_autoEnchantStartRequested || _autoEnchantCoordinator is not null)
+            StopAutoEnchant("Stopped by the user; Auto Enchant inputs released.");
         if (_isUiHidden) RestoreMainWindow();
         SyncModuleToggles();
     }
@@ -2684,9 +2700,11 @@ public partial class MainWindow : Window
         if (_aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
             || _connectionRecoveryStartRequested
             || _connectionRecoveryCoordinator?.IsStarted == true
-            || _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true)
+            || _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true
+            || _autoAppraiseStartRequested || _autoAppraiseCoordinator?.IsStarted == true
+            || _autoEnchantStartRequested || _autoEnchantCoordinator?.IsStarted == true)
         {
-            AutomationStatusText.Text = "Stop Auto Aquarium and the connection watchdog before starting the fishing macro.";
+            AutomationStatusText.Text = "Stop other automation modules before starting the fishing macro.";
             return;
         }
 
@@ -3726,6 +3744,10 @@ public partial class MainWindow : Window
             StopAquariumAutomation("Observation stopped; Auto Aquarium inputs released.");
         if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
             StopAnglerQuestAutomation("Observation stopped; Angler inputs released.");
+        if (_autoAppraiseStartRequested || _autoAppraiseCoordinator is not null)
+            StopAutoAppraise("Observation stopped; Auto Appraise inputs released.");
+        if (_autoEnchantStartRequested || _autoEnchantCoordinator is not null)
+            StopAutoEnchant("Observation stopped; Auto Enchant inputs released.");
         _previewCancellation?.Cancel();
         PreviewButton.Content = "Start observation";
         StatusText.Text = "Observation stopped.";
@@ -3760,6 +3782,10 @@ public partial class MainWindow : Window
                                 StopConnectionRecovery("Pending reconnect start cancelled by emergency stop.");
                             if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
                                 StopAnglerQuestAutomation("Emergency stop; pending or active Angler automation stopped.");
+                            if (_autoAppraiseStartRequested || _autoAppraiseCoordinator is not null)
+                                StopAutoAppraise("Emergency stop; Auto Appraise stopped and inputs released.");
+                            if (_autoEnchantStartRequested || _autoEnchantCoordinator is not null)
+                                StopAutoEnchant("Emergency stop; Auto Enchant stopped and inputs released.");
                             if (_startRequested)
                             {
                                 _startRequested = false;
@@ -3780,6 +3806,12 @@ public partial class MainWindow : Window
 
                         if (Volatile.Read(ref _emergencyStopLatch) == 0 && _anglerQuestStartRequested)
                             StartAnglerQuestAutomationNow(frame);
+
+                        if (Volatile.Read(ref _emergencyStopLatch) == 0 && _autoAppraiseStartRequested)
+                            StartAutoAppraiseNow(frame);
+
+                        if (Volatile.Read(ref _emergencyStopLatch) == 0 && _autoEnchantStartRequested)
+                            StartAutoEnchantNow(frame);
 
                         if (Volatile.Read(ref _emergencyStopLatch) == 0
                             && _startRequested && !_automationEnabled)
@@ -3808,6 +3840,10 @@ public partial class MainWindow : Window
                             StopConnectionRecovery($"Screen capture failed; reconnect watchdog stopped: {exception.Message}");
                         if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
                             StopAnglerQuestAutomation($"Screen capture failed; Angler automation stopped: {exception.Message}");
+                        if (_autoAppraiseStartRequested || _autoAppraiseCoordinator is not null)
+                            StopAutoAppraise($"Screen capture failed; Auto Appraise stopped: {exception.Message}");
+                        if (_autoEnchantStartRequested || _autoEnchantCoordinator is not null)
+                            StopAutoEnchant($"Screen capture failed; Auto Enchant stopped: {exception.Message}");
                     }
                 }
                 else
@@ -3820,6 +3856,10 @@ public partial class MainWindow : Window
                         StopConnectionRecovery("Roblox lost foreground focus; reconnect watchdog stopped and inputs released.");
                     if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true)
                         StopAnglerQuestAutomation("Roblox lost foreground focus; Angler inputs released.");
+                    if (_autoAppraiseStartRequested || _autoAppraiseCoordinator?.IsStarted == true)
+                        StopAutoAppraise("Roblox lost foreground focus; Auto Appraise inputs released.");
+                    if (_autoEnchantStartRequested || _autoEnchantCoordinator?.IsStarted == true)
+                        StopAutoEnchant("Roblox lost foreground focus; Auto Enchant inputs released.");
                 }
 
                 var processingMilliseconds = Stopwatch.GetElapsedTime(loopStartedAt).TotalMilliseconds;
@@ -4457,6 +4497,8 @@ public partial class MainWindow : Window
                     StopAnglerQuestAutomation(
                         anglerCoordinator.LastStatus, log: true, coordinatorAlreadyStopped: true);
             }
+
+            ProcessAutoRerollFrame(frame);
         }
         else
         {
@@ -5899,6 +5941,10 @@ public partial class MainWindow : Window
             StopConnectionRecovery("Calibration changed; connection watchdog was disarmed.");
         if (_anglerQuestStartRequested || _anglerQuestAutomationCoordinator is not null)
             StopAnglerQuestAutomation("Calibration changed; Angler automation was disarmed.");
+        if (_autoAppraiseStartRequested || _autoAppraiseCoordinator is not null)
+            StopAutoAppraise("Calibration changed; Auto Appraise was disarmed.");
+        if (_autoEnchantStartRequested || _autoEnchantCoordinator is not null)
+            StopAutoEnchant("Calibration changed; Auto Enchant was disarmed.");
 
         if (_lastFrame is null)
         {
@@ -6003,6 +6049,11 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
+            or CalibrationAction.SelectAppraiseButtonRegion
+            or CalibrationAction.SelectAppraiseCostRegion
+            or CalibrationAction.SelectAppraiseResultRegion
+            or CalibrationAction.SelectEnchantInteractionRegion
+            or CalibrationAction.SelectEnchantResultRegion
             or CalibrationAction.SelectRodNameRegion
             or CalibrationAction.SelectRodChargeMeterRegion)
         {
@@ -6036,6 +6087,11 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
+            or CalibrationAction.SelectAppraiseButtonRegion
+            or CalibrationAction.SelectAppraiseCostRegion
+            or CalibrationAction.SelectAppraiseResultRegion
+            or CalibrationAction.SelectEnchantInteractionRegion
+            or CalibrationAction.SelectEnchantResultRegion
             or CalibrationAction.SelectRodNameRegion
             or CalibrationAction.SelectRodChargeMeterRegion)
             || _selectionStartOverlay is null
@@ -6070,6 +6126,11 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAquariumButtonRegion
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
+            or CalibrationAction.SelectAppraiseButtonRegion
+            or CalibrationAction.SelectAppraiseCostRegion
+            or CalibrationAction.SelectAppraiseResultRegion
+            or CalibrationAction.SelectEnchantInteractionRegion
+            or CalibrationAction.SelectEnchantResultRegion
             or CalibrationAction.SelectRodNameRegion
             or CalibrationAction.SelectRodChargeMeterRegion)
             || _selectionStartPixel is null
@@ -6143,6 +6204,41 @@ public partial class MainWindow : Window
             {
                 SellButtonRegion = selectedRegion,
                 SellButtonRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectAppraiseButtonRegion => _profile with
+            {
+                AppraiseButtonRegion = selectedRegion,
+                AppraiseButtonRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectAppraiseCostRegion => _profile with
+            {
+                AppraiseCostRegion = selectedRegion,
+                AppraiseCostRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectAppraiseResultRegion => _profile with
+            {
+                AppraiseResultRegion = selectedRegion,
+                AppraiseResultRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectEnchantInteractionRegion => _profile with
+            {
+                EnchantInteractionRegion = selectedRegion,
+                EnchantInteractionRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectEnchantResultRegion => _profile with
+            {
+                EnchantResultRegion = selectedRegion,
+                EnchantResultRegionCalibrated = true,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },
