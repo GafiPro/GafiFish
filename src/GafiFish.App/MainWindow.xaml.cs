@@ -232,10 +232,13 @@ public partial class MainWindow : Window
     private CalibrationAction _calibrationAction;
     private Point? _selectionStartPixel;
     private Point? _selectionStartOverlay;
+    private Point? _autoCalibrationFishPoint;
 
     private enum CalibrationAction
     {
         None,
+        AutoSampleFishMarker,
+        AutoSampleControlMarker,
         SelectRegion,
         SampleFishMarker,
         SampleSecondaryFishMarker,
@@ -5845,6 +5848,14 @@ public partial class MainWindow : Window
             "Click a clear pixel inside the same indicator while the world is in its NIGHT phase.");
     }
 
+    private void AutoCalibrateFishing_Click(object sender, RoutedEventArgs e)
+    {
+        _autoCalibrationFishPoint = null;
+        SetCalibrationAction(
+            CalibrationAction.AutoSampleFishMarker,
+            "Auto-calibration: return to Dashboard and click the centre of the fish marker in the preview. Then click the control bar.");
+    }
+
     private void SelectHuntSignalRegion_Click(object sender, RoutedEventArgs e)
     {
         SetCalibrationAction(CalibrationAction.SelectHuntSignalRegion,
@@ -5954,6 +5965,7 @@ public partial class MainWindow : Window
 
     private void SetCalibrationAction(CalibrationAction action, string instruction)
     {
+        _autoCalibrationFishPoint = null;
         if (_automationEnabled)
             StopAutomation("Calibration changed; Reel assist was disarmed and all inputs released.");
         if (_aquariumStartRequested || _aquariumAutomationCoordinator is not null)
@@ -5983,6 +5995,22 @@ public partial class MainWindow : Window
         var overlayPoint = e.GetPosition(PreviewOverlay);
         if (!TryMapOverlayPoint(overlayPoint, out var pixelPoint) || _lastFrame is null)
         {
+            return;
+        }
+
+        if (_calibrationAction == CalibrationAction.AutoSampleFishMarker)
+        {
+            _autoCalibrationFishPoint = pixelPoint;
+            _calibrationAction = CalibrationAction.AutoSampleControlMarker;
+            CalibrationModeText.Text = "Good. Now click the centre of the control bar in the preview. The two samples must be visually different.";
+            e.Handled = true;
+            return;
+        }
+
+        if (_calibrationAction == CalibrationAction.AutoSampleControlMarker)
+        {
+            await CompleteAutomaticFishingCalibration(pixelPoint);
+            e.Handled = true;
             return;
         }
 
@@ -6427,6 +6455,54 @@ public partial class MainWindow : Window
         SelectionRectangle.Visibility = Visibility.Collapsed;
         SelectionRectangle.Width = 0;
         SelectionRectangle.Height = 0;
+    }
+
+    private async Task CompleteAutomaticFishingCalibration(Point controlPoint)
+    {
+        if (_lastFrame is null || _autoCalibrationFishPoint is null)
+        {
+            _calibrationAction = CalibrationAction.None;
+            _autoCalibrationFishPoint = null;
+            CalibrationModeText.Text = "Auto-calibration lost its frame or first marker. Capture a fresh frame and try again.";
+            return;
+        }
+
+        try
+        {
+            var fishPoint = _autoCalibrationFishPoint.Value;
+            var suggestion = FishingAutoCalibrator.Create(
+                _lastFrame,
+                (int)Math.Round(fishPoint.X),
+                (int)Math.Round(fishPoint.Y),
+                (int)Math.Round(controlPoint.X),
+                (int)Math.Round(controlPoint.Y));
+
+            _profile = _profile with
+            {
+                FishingRegion = suggestion.SearchRegion,
+                FishingRegionCalibrated = true,
+                FishMarkerColor = suggestion.FishMarkerColor,
+                ControlMarkerColor = suggestion.ControlMarkerColor,
+                FishMarkerTemplatePng = null,
+                ControlMarkerTemplatePng = null,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            };
+
+            _calibrationAction = CalibrationAction.None;
+            _autoCalibrationFishPoint = null;
+            await SaveProfileAsync("Automatic fishing calibration saved.");
+            CalibrationModeText.Text =
+                $"Auto-calibration saved. Search area: {suggestion.SearchRegion.Width:P0} × {suggestion.SearchRegion.Height:P0} of the captured frame. Start F7 and confirm that both markers are detected before arming Reel assist.";
+            AddActivityLog("INFO", "CALIBRATION", "Automatic fishing calibration saved from two user-selected marker samples.");
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or ArgumentException)
+        {
+            _calibrationAction = CalibrationAction.None;
+            _autoCalibrationFishPoint = null;
+            CalibrationModeText.Text = $"Auto-calibration could not be completed: {exception.Message} Capture a frame with both markers visible and try again.";
+            AddActivityLog("WARN", "CALIBRATION", $"Automatic fishing calibration rejected: {exception.Message}");
+        }
     }
 
     private async void SampleMarkerColor(Point pixelPoint)

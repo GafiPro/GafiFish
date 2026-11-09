@@ -68,6 +68,15 @@ Na primeira sessão com OCR, o GafiFish descarrega o modelo inglês `eng.trained
 9. Para procurar um peixe específico, ativa **Fish until this exact target is caught**, escreve o nome (por exemplo, **Wrath Scylla**) e inicia o macro. O modo exige Auto-cast, sessão OCR ativa e região de notificação calibrada. Só termina quando o texto da notificação incluir todos os termos do alvo e a confiança OCR for pelo menos 90%; capturas de outros peixes não terminam a procura. Pressiona **End session and show Top 25** para parar a automação, guardar a sessão e ver o resumo.
 10. Usa **Export CSV** ou **Export JSON** para guardar todas as capturas reconhecidas.
 
+### Auto-calibration assistida da pesca
+
+1. Entra no Fisch e deixa o minijogo de pesca visível; captura um fotograma com F6.
+2. Abre **Calibration** e escolhe **Auto-calibrate fishing (2 clicks)**.
+3. Volta a **Dashboard**. Na pré-visualização do fotograma capturado, clica no centro do marcador do peixe e depois no centro da barra de controlo.
+4. O GafiFish amostra as duas cores, estima uma região de procura com margem e guarda o perfil. A calibração é apenas uma proposta baseada nos dois pontos escolhidos; inicia F7 e confirma que os dois marcadores aparecem no overlay antes de armar o Reel assist.
+
+Esta primeira versão automatiza a região e as duas cores do minijogo de pesca normal. Não calibra automaticamente Perfect Cast, Shake, OCR, Aquarium ou os modos especiais. Esses elementos têm estados e indicadores diferentes e continuam a usar as opções de calibração próprias.
+
 ### Tranquility Rhythm
 
 Seleciona **Tranquility Rhythm (four lanes)** no perfil da cana. Em **Calibration**, usa **Select search region** para cobrir as quatro pistas, amostra uma nota em cada pista (D, F, J e K) e clica em **Select rhythm hit line** para indicar a linha fixa dos recetores. Ajusta **Rhythm input lead** apenas depois de rever uma gravação com o replay offline. O macro só envia toques D/F/J/K quando está no estado Reeling, usa duas observações distintas para estimar o movimento e ignora notas que já passaram a janela de timing. Começa por validar com replay e uma sessão de teste; não uses a automação numa sessão importante antes de confirmares a calibração e as teclas no teu cliente.
