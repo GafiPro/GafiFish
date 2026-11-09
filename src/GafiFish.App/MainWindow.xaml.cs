@@ -1068,10 +1068,12 @@ public partial class MainWindow : Window
         }
 
         if (_automationEnabled || _startRequested || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
-            || _connectionRecoveryStartRequested || _connectionRecoveryCoordinator?.IsStarted == true)
+            || _connectionRecoveryStartRequested || _connectionRecoveryCoordinator?.IsStarted == true
+            || _autoAppraiseStartRequested || _autoAppraiseCoordinator?.IsStarted == true
+            || _autoEnchantStartRequested || _autoEnchantCoordinator?.IsStarted == true)
         {
             AnglerQuestAutomationStatusText.Text =
-                "Stop the fishing macro, Auto Aquarium and reconnect watchdog before arming Angler interactions.";
+                "Stop the fishing macro and other automation modules before arming Angler interactions.";
             return;
         }
 
@@ -1142,6 +1144,12 @@ public partial class MainWindow : Window
 
         try
         {
+            if (_automationEnabled || _aquariumAutomationCoordinator?.IsStarted == true
+                || _connectionRecoveryCoordinator?.IsStarted == true
+                || _autoAppraiseCoordinator?.IsStarted == true
+                || _autoEnchantCoordinator?.IsStarted == true)
+                throw new InvalidOperationException("Another automation module is already armed.");
+
             var foregroundProcessId = _capture.GetForegroundRobloxProcessId();
             if (!foregroundProcessId.HasValue || foregroundProcessId.Value != frame.ProcessId)
                 throw new InvalidOperationException("Roblox lost foreground focus before Angler automation could arm.");
@@ -1310,9 +1318,12 @@ public partial class MainWindow : Window
         }
 
         if (_automationEnabled || _startRequested
-            || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true)
+            || _aquariumStartRequested || _aquariumAutomationCoordinator?.IsStarted == true
+            || _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true
+            || _autoAppraiseStartRequested || _autoAppraiseCoordinator?.IsStarted == true
+            || _autoEnchantStartRequested || _autoEnchantCoordinator?.IsStarted == true)
         {
-            ConnectionRecoveryStatusText.Text = "Stop fishing automation and Auto Aquarium before arming reconnect recovery.";
+            ConnectionRecoveryStatusText.Text = "Stop other automation modules before arming reconnect recovery.";
             return;
         }
 
@@ -1340,7 +1351,10 @@ public partial class MainWindow : Window
         {
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
                 throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
-            if (_automationEnabled || _aquariumAutomationCoordinator?.IsStarted == true)
+            if (_automationEnabled || _aquariumAutomationCoordinator?.IsStarted == true
+                || _anglerQuestAutomationCoordinator?.IsStarted == true
+                || _autoAppraiseCoordinator?.IsStarted == true
+                || _autoEnchantCoordinator?.IsStarted == true)
                 throw new InvalidOperationException("Another game automation module is already armed.");
             input = new RobloxInputService(_capture);
             _connectionRecoveryInput = input;
@@ -1424,9 +1438,12 @@ public partial class MainWindow : Window
     {
         if (_automationEnabled || _startRequested
             || _connectionRecoveryStartRequested
-            || _connectionRecoveryCoordinator?.IsStarted == true)
+            || _connectionRecoveryCoordinator?.IsStarted == true
+            || _anglerQuestStartRequested || _anglerQuestAutomationCoordinator?.IsStarted == true
+            || _autoAppraiseStartRequested || _autoAppraiseCoordinator?.IsStarted == true
+            || _autoEnchantStartRequested || _autoEnchantCoordinator?.IsStarted == true)
         {
-            AquariumAutomationStatusText.Text = "Stop the fishing macro and connection watchdog before arming Auto Aquarium.";
+            AquariumAutomationStatusText.Text = "Stop other automation modules before arming Auto Aquarium.";
             return;
         }
         if (_aquariumAutomationCoordinator?.IsStarted == true || _aquariumStartRequested)
@@ -1481,8 +1498,11 @@ public partial class MainWindow : Window
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
                 throw new InvalidOperationException("Start cancelled by emergency stop. Press Start again to re-arm.");
             if (_automationEnabled || _connectionRecoveryStartRequested
-                || _connectionRecoveryCoordinator?.IsStarted == true)
-                throw new InvalidOperationException("Stop the fishing macro and connection watchdog first.");
+                || _connectionRecoveryCoordinator?.IsStarted == true
+                || _anglerQuestAutomationCoordinator?.IsStarted == true
+                || _autoAppraiseCoordinator?.IsStarted == true
+                || _autoEnchantCoordinator?.IsStarted == true)
+                throw new InvalidOperationException("Stop the other automation modules first.");
             input = new RobloxInputService(_capture);
             _aquariumAutomationInput = input;
             if (Volatile.Read(ref _emergencyStopLatch) != 0)
