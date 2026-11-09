@@ -18,7 +18,8 @@ public sealed class FishingAutoCalibratorTests
         var suggestion = FishingAutoCalibrator.Create(frame, 81, 91, 220, 92);
         var pixels = suggestion.SearchRegion.ToPixelRect(width, height);
 
-        Assert.True(suggestion.FishMarkerColor.HueMinimum <= suggestion.FishMarkerColor.HueMaximum);
+        suggestion.FishMarkerColor.Validate(); // Wrapped hue intervals are valid too (for reds near 0/179).
+        suggestion.ControlMarkerColor.Validate();
         Assert.NotEqual(suggestion.FishMarkerColor, suggestion.ControlMarkerColor);
         Assert.True(pixels.Contains(81, 91));
         Assert.True(pixels.Contains(220, 92));
