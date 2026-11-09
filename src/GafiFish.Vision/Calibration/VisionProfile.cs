@@ -18,6 +18,8 @@ public sealed record VisionProfile
     public NormalizedRegion InventoryItemsRegion { get; init; } = NormalizedRegion.FullFrame;
     public NormalizedRegion AppraiseButtonRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool AppraiseButtonRegionCalibrated { get; init; }
+    public NormalizedRegion AppraiseConfirmRegion { get; init; } = NormalizedRegion.FullFrame;
+    public bool AppraiseConfirmRegionCalibrated { get; init; }
     public NormalizedRegion AppraiseCostRegion { get; init; } = NormalizedRegion.FullFrame;
     public bool AppraiseCostRegionCalibrated { get; init; }
     public NormalizedRegion AppraiseResultRegion { get; init; } = NormalizedRegion.FullFrame;
@@ -102,7 +104,8 @@ public sealed record VisionProfile
     public bool IsSellButtonCalibrated => SellButtonColor.HasValue && SellButtonRegionCalibrated;
     public bool IsInventoryVerificationCalibrated => InventoryItemsRegionCalibrated;
     public bool IsAppraiseCalibrated =>
-        AppraiseButtonRegionCalibrated && AppraiseCostRegionCalibrated && AppraiseResultRegionCalibrated;
+        AppraiseButtonRegionCalibrated && AppraiseConfirmRegionCalibrated
+        && AppraiseCostRegionCalibrated && AppraiseResultRegionCalibrated;
     public bool IsEnchantCalibrated =>
         EnchantInteractionRegionCalibrated && EnchantResultRegionCalibrated;
     public bool IsCatchNotificationCalibrated => CatchNotificationRegionCalibrated;
@@ -137,6 +140,7 @@ public sealed record VisionProfile
         SellButtonRegion.Validate();
         InventoryItemsRegion.Validate();
         AppraiseButtonRegion.Validate();
+        AppraiseConfirmRegion.Validate();
         AppraiseCostRegion.Validate();
         AppraiseResultRegion.Validate();
         EnchantInteractionRegion.Validate();

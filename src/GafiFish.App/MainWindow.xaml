@@ -1517,13 +1517,21 @@
                             <TextBox x:Name="AppraiseBudgetTextBox" Grid.Column="1" Text="100000"
                                      Height="32" Padding="7,4" Background="#263543" Foreground="#EAF0F5" />
                         </Grid>
-                        <TextBlock Text="Stop when the result contains this text (for example, Shiny or a mutation name). The price is read before every click; unclear prices block the attempt."
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Fish hotbar slot (1-9 or 0)" Foreground="#DCE6ED" VerticalAlignment="Center" />
+                            <TextBox x:Name="AppraiseFishSlotTextBox" Grid.Column="1" Text="1"
+                                     Height="32" Padding="7,4" Background="#263543" Foreground="#EAF0F5" />
+                        </Grid>
+                        <TextBlock Text="Stand beside the Appraiser with the dialogue closed. Start selects the fish slot, opens the NPC dialogue, chooses the appraisal option, reads the displayed price, and only clicks Yes when the charge fits your remaining budget."
                                    Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,5" />
                         <TextBox x:Name="AppraiseTargetTextBox" Text="" Height="32" Padding="7,4"
                                  Margin="0,0,0,8" Background="#263543" Foreground="#EAF0F5"
                                  ToolTip="Text to recognise in the changed Appraise result" />
                         <WrapPanel Margin="0,0,0,8">
-                            <Button Content="Select Appraise button" Click="SelectAppraiseButtonRegion_Click"
+                            <Button Content="Select appraisal option" Click="SelectAppraiseButtonRegion_Click"
+                                    Height="31" Margin="0,0,6,6" Background="#294153" />
+                            <Button Content="Select Yes button" Click="SelectAppraiseConfirmRegion_Click"
                                     Height="31" Margin="0,0,6,6" Background="#294153" />
                             <Button Content="Select C$ price" Click="SelectAppraiseCostRegion_Click"
                                     Height="31" Margin="0,0,6,6" Background="#294153" />
@@ -1551,13 +1559,25 @@
                             <TextBox x:Name="EnchantRelicLimitTextBox" Grid.Column="1" Text="10"
                                      Height="32" Padding="7,4" Background="#263543" Foreground="#EAF0F5" />
                         </Grid>
-                        <TextBlock Text="Stop when this enchantment name appears in the result. Equip the intended rod and select the intended relic yourself before starting. Each confirmed result permits at most one next click."
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Relic hotbar slot (1-9 or 0)" Foreground="#DCE6ED" VerticalAlignment="Center" />
+                            <TextBox x:Name="EnchantRelicSlotTextBox" Grid.Column="1" Text="2"
+                                     Height="32" Padding="7,4" Background="#263543" Foreground="#EAF0F5" />
+                        </Grid>
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Interaction key" Foreground="#DCE6ED" VerticalAlignment="Center" />
+                            <TextBox x:Name="InteractionKeyTextBox" Grid.Column="1" Text="E" MaxLength="1"
+                                     Height="32" Padding="7,4" Background="#263543" Foreground="#EAF0F5" />
+                        </Grid>
+                        <TextBlock Text="Equip the intended rod and keep the required relics in the selected hotbar slot. The module selects the relic, waits for the visible Enchant prompt (night-time altar), then presses the configured key. Stop when the target enchantment appears."
                                    Foreground="#9BAAB8" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,5" />
                         <TextBox x:Name="EnchantTargetTextBox" Text="" Height="32" Padding="7,4"
                                  Margin="0,0,0,8" Background="#263543" Foreground="#EAF0F5"
                                  ToolTip="Enchant name to recognise, for example Hasty" />
                         <WrapPanel Margin="0,0,0,8">
-                            <Button Content="Select altar click area" Click="SelectEnchantInteractionRegion_Click"
+                            <Button Content="Select altar Enchant prompt" Click="SelectEnchantInteractionRegion_Click"
                                     Height="31" Margin="0,0,6,6" Background="#294153" />
                             <Button Content="Select enchant result" Click="SelectEnchantResultRegion_Click"
                                     Height="31" Margin="0,0,6,6" Background="#294153" />

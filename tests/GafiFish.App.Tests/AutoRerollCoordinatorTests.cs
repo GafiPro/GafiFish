@@ -36,7 +36,10 @@ public sealed class AutoRerollCoordinatorTests
         var settings = new RerollAutomationSettings();
 
         Assert.Equal(100_000m, settings.AppraiseBudget);
+        Assert.Equal(1, settings.AppraiseFishSlot);
         Assert.Equal(10, settings.EnchantRelicLimit);
+        Assert.Equal(2, settings.EnchantRelicSlot);
+        Assert.Equal("E", settings.InteractionKey);
     }
 
     [Fact]
@@ -46,5 +49,11 @@ public sealed class AutoRerollCoordinatorTests
             new RerollAutomationSettings { AppraiseBudget = 0 }.Validate());
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RerollAutomationSettings { EnchantRelicLimit = 101 }.Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RerollAutomationSettings { AppraiseFishSlot = 11 }.Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RerollAutomationSettings { EnchantRelicSlot = 0 }.Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RerollAutomationSettings { InteractionKey = "EE" }.Validate());
     }
 }

@@ -16,16 +16,17 @@ public enum AutoRerollKind
 }
 
 /// <summary>
-/// Runs one explicitly armed Appraise or Enchant loop. Each click is a normal
-/// Windows input, bounded by the configured C$ budget or relic count. A new
-/// attempt is never sent until the preceding result is OCR-confirmed.
+/// Runs one explicitly armed Appraise or Enchant loop. Every paid action is
+/// preceded by a stable, visible prompt and bounded by the user's run limit.
+/// A new attempt is never sent until the preceding result is OCR-confirmed.
 /// </summary>
 public sealed class AutoRerollCoordinator
 {
     private enum RunPhase
     {
         EstablishingBaseline,
-        Ready,
+        ReadyForPrompt,
+        AwaitingConfirmation,
         AwaitingResult
     }
 
@@ -33,30 +34,39 @@ public sealed class AutoRerollCoordinator
         @"(?:(?:C\s*\$|\$)\s*(?<prefix>\d[\d,]*(?:\.\d{1,2})?)|(?<suffix>\d[\d,]*(?:\.\d{1,2})?)\s*C\s*\$)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+    private static readonly Regex YesRegex = new(
+        @"\byes\b",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     private readonly object _sync = new();
     private readonly IRobloxInput _input;
     private readonly Func<ScreenCaptureFrame> _captureFreshFrame;
     private readonly Func<ScreenCaptureFrame, NormalizedRegion, LocalOcrResult> _recognize;
     private readonly AutoRerollKind _kind;
-    private readonly NormalizedRegion _clickRegion;
+    private readonly NormalizedRegion _promptRegion;
     private readonly NormalizedRegion? _priceRegion;
+    private readonly NormalizedRegion? _confirmRegion;
     private readonly NormalizedRegion _resultRegion;
     private readonly string _targetText;
     private readonly decimal _appraiseBudget;
     private readonly int _enchantRelicLimit;
-    private readonly TimeSpan _resultTimeout = TimeSpan.FromSeconds(12);
-    private readonly TimeSpan _enchantRepeatDelay = TimeSpan.FromMilliseconds(900);
+    private readonly ushort _appraiseFishSlotKey;
+    private readonly ushort _enchantRelicSlotKey;
+    private readonly ushort _interactionKey;
+    private readonly TimeSpan _phaseTimeout = TimeSpan.FromSeconds(15);
 
     private RunPhase _phase = RunPhase.EstablishingBaseline;
     private DateTimeOffset? _lastProcessedFrameAt;
     private DateTimeOffset? _pendingSince;
-    private DateTimeOffset _nextAttemptAt;
+    private DateTimeOffset? _waitingForPromptSince;
     private string? _baselineText;
     private string? _candidateText;
-    private int _candidateFrames;
-    private string? _lastButtonText;
+    private string? _lastPromptText;
+    private string? _lastConfirmText;
     private decimal? _lastObservedCost;
-    private int _stableButtonFrames;
+    private int _candidateFrames;
+    private int _stablePromptFrames;
+    private int _stableConfirmFrames;
     private bool _started;
     private string _lastStatus = "Auto reroll is stopped.";
     private int _attempts;
@@ -67,12 +77,16 @@ public sealed class AutoRerollCoordinator
         Func<ScreenCaptureFrame> captureFreshFrame,
         Func<ScreenCaptureFrame, NormalizedRegion, LocalOcrResult> recognize,
         AutoRerollKind kind,
-        NormalizedRegion clickRegion,
+        NormalizedRegion promptRegion,
         NormalizedRegion resultRegion,
         string targetText,
         NormalizedRegion? priceRegion = null,
+        NormalizedRegion? confirmRegion = null,
         decimal appraiseBudget = 100_000m,
-        int enchantRelicLimit = 10)
+        int enchantRelicLimit = 10,
+        ushort appraiseFishSlotKey = 0x31,
+        ushort enchantRelicSlotKey = 0x32,
+        ushort interactionKey = 0x45)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input));
         _captureFreshFrame = captureFreshFrame ?? throw new ArgumentNullException(nameof(captureFreshFrame));
@@ -80,32 +94,44 @@ public sealed class AutoRerollCoordinator
         if (!Enum.IsDefined(kind))
             throw new ArgumentOutOfRangeException(nameof(kind));
 
-        clickRegion.Validate();
+        promptRegion.Validate();
         resultRegion.Validate();
         priceRegion?.Validate();
+        confirmRegion?.Validate();
         ArgumentException.ThrowIfNullOrWhiteSpace(targetText);
         if (targetText.Trim().Length > 80)
             throw new ArgumentOutOfRangeException(nameof(targetText));
+        if (interactionKey == 0)
+            throw new ArgumentOutOfRangeException(nameof(interactionKey));
 
         if (kind == AutoRerollKind.Appraise)
         {
-            if (!priceRegion.HasValue)
-                throw new ArgumentException("Appraise requires a calibrated price region.", nameof(priceRegion));
+            if (!priceRegion.HasValue || !confirmRegion.HasValue)
+                throw new ArgumentException("Appraise requires separate price and Yes-confirmation regions.");
             if (appraiseBudget is < 1 or > 1_000_000_000m)
                 throw new ArgumentOutOfRangeException(nameof(appraiseBudget));
+            if (appraiseFishSlotKey == 0)
+                throw new ArgumentOutOfRangeException(nameof(appraiseFishSlotKey));
         }
-        else if (enchantRelicLimit is < 1 or > 100)
+        else
         {
-            throw new ArgumentOutOfRangeException(nameof(enchantRelicLimit));
+            if (enchantRelicLimit is < 1 or > 100)
+                throw new ArgumentOutOfRangeException(nameof(enchantRelicLimit));
+            if (enchantRelicSlotKey == 0)
+                throw new ArgumentOutOfRangeException(nameof(enchantRelicSlotKey));
         }
 
         _kind = kind;
-        _clickRegion = clickRegion;
+        _promptRegion = promptRegion;
         _priceRegion = priceRegion;
+        _confirmRegion = confirmRegion;
         _resultRegion = resultRegion;
         _targetText = targetText.Trim();
         _appraiseBudget = appraiseBudget;
         _enchantRelicLimit = enchantRelicLimit;
+        _appraiseFishSlotKey = appraiseFishSlotKey;
+        _enchantRelicSlotKey = enchantRelicSlotKey;
+        _interactionKey = interactionKey;
     }
 
     public bool IsStarted
@@ -142,18 +168,31 @@ public sealed class AutoRerollCoordinator
             _phase = RunPhase.EstablishingBaseline;
             _lastProcessedFrameAt = null;
             _pendingSince = null;
+            _waitingForPromptSince = null;
             _baselineText = null;
             _candidateText = null;
-            _candidateFrames = 0;
-            _lastButtonText = null;
+            _lastPromptText = null;
+            _lastConfirmText = null;
             _lastObservedCost = null;
-            _stableButtonFrames = 0;
+            _candidateFrames = 0;
+            _stablePromptFrames = 0;
+            _stableConfirmFrames = 0;
             _attempts = 0;
             _currencySpent = 0;
+
+            // Equip the chosen item first. Appraise opens its dialogue with E;
+            // Enchant waits for the altar's visible E/Enchant prompt.
+            PulseKey(_kind == AutoRerollKind.Appraise
+                ? _appraiseFishSlotKey
+                : _enchantRelicSlotKey);
+
+            if (_kind == AutoRerollKind.Appraise)
+                PulseKey(_interactionKey);
+
             _lastStatus = _kind == AutoRerollKind.Appraise
                 ? "Auto Appraise armed · C$ 0 / " + _appraiseBudget.ToString("N0", CultureInfo.InvariantCulture)
-                    + " spent · target: " + _targetText + "."
-                : "Auto Enchant armed · 0 / " + _enchantRelicLimit + " relics used · target: " + _targetText + ".";
+                    + " · opening the Appraiser dialogue for the selected fish."
+                : "Auto Enchant armed · 0 / " + _enchantRelicLimit + " relics used · waiting for the altar prompt.";
         }
     }
 
@@ -164,8 +203,8 @@ public sealed class AutoRerollCoordinator
     }
 
     /// <summary>
-    /// Processes fresh live frames only. Replayed frames do not count as new
-    /// evidence. OCR uncertainty never causes another click.
+    /// Processes fresh live frames only. Duplicate/out-of-order captures do not
+    /// count as evidence. OCR uncertainty never causes another paid action.
     /// </summary>
     public void ProcessFrame(ScreenCaptureFrame frame)
     {
@@ -234,12 +273,14 @@ public sealed class AutoRerollCoordinator
     private void ProcessAppraiseFrame(ScreenCaptureFrame frame)
     {
         var result = _recognize(frame, _resultRegion);
+
         if (_phase == RunPhase.EstablishingBaseline)
         {
             if (ObserveBaseline(result))
             {
-                _phase = RunPhase.Ready;
-                _lastStatus = "Appraise result baseline captured. Waiting for the Appraise button and exact C$ cost.";
+                _phase = RunPhase.ReadyForPrompt;
+                _waitingForPromptSince = frame.CapturedAt;
+                _lastStatus = "Result baseline captured. Waiting for 'Can you appraise this fish?' or 'Can you appraise it again?'.";
             }
             return;
         }
@@ -250,90 +291,130 @@ public sealed class AutoRerollCoordinator
             return;
         }
 
-        if (_attempts == 0 && IsTargetMatch(result.Text))
+        if (_phase == RunPhase.AwaitingConfirmation)
         {
-            Finish("Target already visible before the first attempt (" + _targetText + "); no C$ spent.");
+            ProcessAppraiseConfirmation(frame);
             return;
         }
 
-        var button = _recognize(frame, _clickRegion);
-        if (button.Confidence < 0.58
-            || !button.HasText
-            || !button.Text.Contains("appraise", StringComparison.OrdinalIgnoreCase))
+        if (PromptWaitTimedOut(frame))
         {
-            _stableButtonFrames = 0;
-            _lastButtonText = null;
-            _lastObservedCost = null;
-            _lastStatus = "Waiting for a clearly recognised Appraise button.";
+            Finish("Appraise dialogue prompt did not appear within 15 seconds. Check the fish slot, NPC distance and dialogue warm-up.");
+            return;
+        }
+
+        var prompt = _recognize(frame, _promptRegion);
+        if (!prompt.HasText || prompt.Confidence < 0.60
+            || !prompt.Text.Contains("appraise", StringComparison.OrdinalIgnoreCase))
+        {
+            _lastPromptText = null;
+            _stablePromptFrames = 0;
+            _lastStatus = "Waiting for the visible Appraise dialogue option.";
+            return;
+        }
+
+        var normalizedPrompt = Normalize(prompt.Text);
+        if (string.Equals(_lastPromptText, normalizedPrompt, StringComparison.Ordinal))
+            _stablePromptFrames++;
+        else
+        {
+            _lastPromptText = normalizedPrompt;
+            _stablePromptFrames = 1;
+        }
+
+        if (_stablePromptFrames < 2)
+        {
+            _lastStatus = "Appraise dialogue option stabilising · " + _stablePromptFrames + "/2 frames.";
+            return;
+        }
+
+        ClickRegionWithFreshCapture(_promptRegion, "appraise");
+        _waitingForPromptSince = null;
+        _phase = RunPhase.AwaitingConfirmation;
+        _pendingSince = frame.CapturedAt;
+        _lastConfirmText = null;
+        _lastObservedCost = null;
+        _stableConfirmFrames = 0;
+        _lastStatus = "Appraise option selected. Waiting for the displayed C$ cost and Yes confirmation.";
+    }
+
+    private void ProcessAppraiseConfirmation(ScreenCaptureFrame frame)
+    {
+        if (HasTimedOut(frame))
+        {
+            Finish("Appraise confirmation did not become readable in time. No paid confirmation click was sent.");
             return;
         }
 
         var price = _recognize(frame, _priceRegion!.Value);
-        if (price.Confidence < 0.58
-            || !price.HasText
-            || !TryParseAppraiseCost(price.Text, out var currentCost))
+        var confirm = _recognize(frame, _confirmRegion!.Value);
+
+        if (price.Confidence < 0.60 || !price.HasText
+            || !TryParseAppraiseCost(price.Text, out var currentCost)
+            || confirm.Confidence < 0.60 || !confirm.HasText
+            || !YesRegex.IsMatch(confirm.Text))
         {
-            _stableButtonFrames = 0;
-            _lastButtonText = null;
+            _lastConfirmText = null;
             _lastObservedCost = null;
-            _lastStatus = "Appraise button found, but its exact C$ price is unclear. No click sent.";
+            _stableConfirmFrames = 0;
+            _lastStatus = "Waiting for a clearly readable C$ price and Yes button. No paid click sent.";
             return;
         }
 
-        var normalizedButton = Normalize(button.Text);
-        if (string.Equals(_lastButtonText, normalizedButton, StringComparison.Ordinal)
+        var normalizedConfirm = Normalize(confirm.Text);
+        if (string.Equals(_lastConfirmText, normalizedConfirm, StringComparison.Ordinal)
             && _lastObservedCost == currentCost)
         {
-            _stableButtonFrames++;
+            _stableConfirmFrames++;
         }
         else
         {
-            _lastButtonText = normalizedButton;
+            _lastConfirmText = normalizedConfirm;
             _lastObservedCost = currentCost;
-            _stableButtonFrames = 1;
+            _stableConfirmFrames = 1;
         }
 
-        if (_stableButtonFrames < 2)
+        if (_stableConfirmFrames < 2)
         {
-            _lastStatus = "Appraise button and price stabilising · " + _stableButtonFrames + "/2 frames.";
+            _lastStatus = "Appraise price and Yes button stabilising · " + _stableConfirmFrames + "/2 frames.";
             return;
         }
 
         if (_currencySpent + currentCost > _appraiseBudget)
         {
-            Finish("Budget protected: next appraisal costs C$ " + currentCost.ToString("N0", CultureInfo.InvariantCulture)
+            Finish("Budget protected: next appraisal costs C$ "
+                + currentCost.ToString("N0", CultureInfo.InvariantCulture)
                 + ", but only C$ " + (_appraiseBudget - _currencySpent).ToString("N0", CultureInfo.InvariantCulture)
-                + " remains. Total spent: C$ " + _currencySpent.ToString("N0", CultureInfo.InvariantCulture) + ".");
+                + " remains. No Yes click was sent; total spent C$ "
+                + _currencySpent.ToString("N0", CultureInfo.InvariantCulture) + ".");
             return;
         }
 
-        ClickCentreWithFreshCapture();
-        // Count the full displayed price as soon as the click is sent. An
-        // ambiguous response never refunds budget or permits a blind retry.
+        ClickAppraiseYesWithFreshCapture(currentCost);
         _currencySpent += currentCost;
         _attempts++;
-        _pendingSince = frame.CapturedAt;
         _phase = RunPhase.AwaitingResult;
+        _pendingSince = frame.CapturedAt;
         _candidateText = null;
         _candidateFrames = 0;
-        _stableButtonFrames = 0;
-        _lastStatus = "Appraise click sent once · attempt " + _attempts
+        _lastStatus = "Appraise confirmed once · attempt " + _attempts
             + " · C$ " + currentCost.ToString("N0", CultureInfo.InvariantCulture)
             + " · total C$ " + _currencySpent.ToString("N0", CultureInfo.InvariantCulture)
             + "/" + _appraiseBudget.ToString("N0", CultureInfo.InvariantCulture)
-            + ". Waiting for a changed result.";
+            + ". Waiting for changed fish details.";
     }
 
     private void ProcessEnchantFrame(ScreenCaptureFrame frame)
     {
         var result = _recognize(frame, _resultRegion);
+
         if (_phase == RunPhase.EstablishingBaseline)
         {
             if (ObserveBaseline(result))
             {
-                _phase = RunPhase.Ready;
-                _nextAttemptAt = frame.CapturedAt;
-                _lastStatus = "Enchant result baseline captured. Waiting for the visible Enchant action.";
+                _phase = RunPhase.ReadyForPrompt;
+                _waitingForPromptSince = frame.CapturedAt;
+                _lastStatus = "Enchant result baseline captured. Waiting for the altar's visible Enchant prompt.";
             }
             return;
         }
@@ -346,51 +427,53 @@ public sealed class AutoRerollCoordinator
 
         if (_attempts >= _enchantRelicLimit)
         {
-            Finish("Relic limit reached · " + _attempts + "/" + _enchantRelicLimit + " uses. No further click sent.");
+            Finish("Relic limit reached · " + _attempts + "/" + _enchantRelicLimit + " uses. No further key press sent.");
             return;
         }
 
-        if (frame.CapturedAt < _nextAttemptAt)
+        if (PromptWaitTimedOut(frame))
         {
-            _lastStatus = "Waiting before the next relic use · " + _attempts + "/" + _enchantRelicLimit + " used.";
+            Finish("Enchant prompt did not appear within 15 seconds. Check that it is night, the relic slot is correct and the character is at the altar.");
             return;
         }
 
-        var action = _recognize(frame, _clickRegion);
-        if (action.Confidence < 0.58
-            || !action.HasText
+        var action = _recognize(frame, _promptRegion);
+        if (!action.HasText || action.Confidence < 0.60
             || !action.Text.Contains("enchant", StringComparison.OrdinalIgnoreCase))
         {
-            _stableButtonFrames = 0;
-            _lastButtonText = null;
-            _lastStatus = "Waiting for a clearly recognised Enchant action at the calibrated altar.";
+            _lastPromptText = null;
+            _stablePromptFrames = 0;
+            _lastStatus = "Waiting for the visible Enchant prompt at the Keeper's Altar.";
             return;
         }
 
         var normalizedAction = Normalize(action.Text);
-        if (string.Equals(_lastButtonText, normalizedAction, StringComparison.Ordinal))
-            _stableButtonFrames++;
+        if (string.Equals(_lastPromptText, normalizedAction, StringComparison.Ordinal))
+            _stablePromptFrames++;
         else
         {
-            _lastButtonText = normalizedAction;
-            _stableButtonFrames = 1;
+            _lastPromptText = normalizedAction;
+            _stablePromptFrames = 1;
         }
 
-        if (_stableButtonFrames < 2)
+        if (_stablePromptFrames < 2)
         {
-            _lastStatus = "Enchant action stabilising · " + _stableButtonFrames + "/2 frames.";
+            _lastStatus = "Enchant prompt stabilising · " + _stablePromptFrames + "/2 frames.";
             return;
         }
 
-        ClickCentreWithFreshCapture();
+        // The Keeper's Altar uses the configured interaction key (E by default),
+        // not a mouse click. The visible prompt must be stable before pressing it.
+        PressInteractionWithFreshPrompt();
+        _waitingForPromptSince = null;
         _attempts++;
-        _pendingSince = frame.CapturedAt;
         _phase = RunPhase.AwaitingResult;
+        _pendingSince = frame.CapturedAt;
         _candidateText = null;
         _candidateFrames = 0;
-        _stableButtonFrames = 0;
-        _lastStatus = "Relic use sent once · " + _attempts + "/" + _enchantRelicLimit
-            + ". Waiting for a new enchant result before any further click.";
+        _stablePromptFrames = 0;
+        _lastStatus = "Enchant interaction sent once · " + _attempts + "/" + _enchantRelicLimit
+            + " relic uses. Waiting for a new enchantment result.";
     }
 
     private bool ObserveBaseline(LocalOcrResult result)
@@ -426,9 +509,9 @@ public sealed class AutoRerollCoordinator
 
     private void ProcessChangedResult(LocalOcrResult result, ScreenCaptureFrame frame)
     {
-        if (_pendingSince.HasValue && frame.CapturedAt - _pendingSince.Value > _resultTimeout)
+        if (HasTimedOut(frame))
         {
-            Finish("No new result was OCR-confirmed after the last click. Stopped without retrying.");
+            Finish("No new result was OCR-confirmed after the last action. Stopped without retrying or spending more resources.");
             return;
         }
 
@@ -436,7 +519,7 @@ public sealed class AutoRerollCoordinator
         {
             _candidateText = null;
             _candidateFrames = 0;
-            _lastStatus = "Waiting for a clear, new result. No repeated click will be sent.";
+            _lastStatus = "Waiting for a clear, new result. No repeated action will be sent.";
             return;
         }
 
@@ -493,37 +576,123 @@ public sealed class AutoRerollCoordinator
             return;
         }
 
-        _phase = RunPhase.Ready;
-        _nextAttemptAt = frame.CapturedAt + _enchantRepeatDelay;
-        _lastButtonText = null;
-        _lastObservedCost = null;
-        _stableButtonFrames = 0;
-        _lastStatus = _kind == AutoRerollKind.Appraise
-            ? "Result confirmed · attempt " + _attempts + " · C$ "
+        _lastPromptText = null;
+        _stablePromptFrames = 0;
+        if (_kind == AutoRerollKind.Appraise)
+        {
+            // A successful appraisal returns the catch to the player's slot.
+            // Re-equip it and open the next NPC dialogue; no paid action occurs
+            // until the prompt and its new price/Yes confirmation are visible.
+            _waitingForPromptSince = frame.CapturedAt;
+            PulseKey(_appraiseFishSlotKey);
+            PulseKey(_interactionKey);
+            _phase = RunPhase.ReadyForPrompt;
+            _lastStatus = "Appraise result confirmed · attempt " + _attempts + " · C$ "
                 + _currencySpent.ToString("N0", CultureInfo.InvariantCulture) + "/"
                 + _appraiseBudget.ToString("N0", CultureInfo.InvariantCulture)
-                + ". Target not found; checking the next displayed price."
-            : "Result confirmed · " + _attempts + "/" + _enchantRelicLimit
-                + " relics used. Target not found; waiting before the next use.";
+                + ". Reopening the Appraiser dialogue for the next price.";
+        }
+        else
+        {
+            if (_attempts >= _enchantRelicLimit)
+            {
+                Finish("Relic limit reached · " + _attempts + "/" + _enchantRelicLimit + ".");
+                return;
+            }
+
+            // Select the configured relic stack again. The next E is only sent
+            // after a fresh, stable Enchant prompt appears at the altar.
+            _waitingForPromptSince = frame.CapturedAt;
+            PulseKey(_enchantRelicSlotKey);
+            _phase = RunPhase.ReadyForPrompt;
+            _lastStatus = "Enchant result confirmed · " + _attempts + "/" + _enchantRelicLimit
+                + ". Relic slot reselected; waiting for the next altar prompt.";
+        }
     }
+
+    private bool HasTimedOut(ScreenCaptureFrame frame) =>
+        _pendingSince.HasValue && frame.CapturedAt - _pendingSince.Value > _phaseTimeout;
+
+    private bool PromptWaitTimedOut(ScreenCaptureFrame frame) =>
+        _waitingForPromptSince.HasValue
+        && frame.CapturedAt - _waitingForPromptSince.Value > _phaseTimeout;
 
     private bool IsTargetMatch(string text) =>
         !string.IsNullOrWhiteSpace(text)
         && text.Contains(_targetText, StringComparison.OrdinalIgnoreCase);
 
-    private void ClickCentreWithFreshCapture()
+    private void ClickRegionWithFreshCapture(NormalizedRegion region, string requiredText)
     {
-        // OCR can take longer than the input freshness window. Capture a new
-        // frame immediately before sending input; the input service still
-        // verifies the armed PID and current foreground process.
-        var freshFrame = _captureFreshFrame();
-        if (!IsFresh(freshFrame))
-            throw new InvalidOperationException("Fresh capture became stale before the click.");
+        // Recheck the target on a fresh screenshot before coordinate input.
+        var verificationFrame = _captureFreshFrame();
+        if (!IsFresh(verificationFrame))
+            throw new InvalidOperationException("Fresh verification capture became stale before the click.");
 
-        var bounds = _clickRegion.ToPixelRect(freshFrame.Width, freshFrame.Height);
+        var observation = _recognize(verificationFrame, region);
+        if (!observation.HasText || observation.Confidence < 0.60
+            || !observation.Text.Contains(requiredText, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The visible Appraise dialogue target changed before the click.");
+
+        var clickFrame = _captureFreshFrame();
+        if (!IsFresh(clickFrame))
+            throw new InvalidOperationException("Fresh click capture became stale before the click.");
+
+        var bounds = region.ToPixelRect(clickFrame.Width, clickFrame.Height);
         var x = bounds.X + (bounds.Width / 2);
         var y = bounds.Y + (bounds.Height / 2);
-        _input.ClickClient(x, y, freshFrame);
+        _input.ClickClient(x, y, clickFrame);
+    }
+
+    private void ClickAppraiseYesWithFreshCapture(decimal expectedCost)
+    {
+        var verificationFrame = _captureFreshFrame();
+        if (!IsFresh(verificationFrame))
+            throw new InvalidOperationException("Fresh Appraise confirmation capture became stale.");
+
+        var price = _recognize(verificationFrame, _priceRegion!.Value);
+        var confirm = _recognize(verificationFrame, _confirmRegion!.Value);
+        if (price.Confidence < 0.60 || !price.HasText
+            || !TryParseAppraiseCost(price.Text, out var verifiedCost)
+            || verifiedCost != expectedCost
+            || confirm.Confidence < 0.60 || !confirm.HasText
+            || !YesRegex.IsMatch(confirm.Text)
+            || _currencySpent + verifiedCost > _appraiseBudget)
+            throw new InvalidOperationException(
+                "The Yes confirmation or exact C$ price changed before payment; no paid click was sent.");
+
+        var clickFrame = _captureFreshFrame();
+        if (!IsFresh(clickFrame))
+            throw new InvalidOperationException("Fresh Appraise click capture became stale.");
+
+        var bounds = _confirmRegion.Value.ToPixelRect(clickFrame.Width, clickFrame.Height);
+        _input.ClickClient(bounds.X + (bounds.Width / 2), bounds.Y + (bounds.Height / 2), clickFrame);
+    }
+
+    private void PressInteractionWithFreshPrompt()
+    {
+        var verificationFrame = _captureFreshFrame();
+        if (!IsFresh(verificationFrame))
+            throw new InvalidOperationException("Fresh altar prompt capture became stale.");
+
+        var prompt = _recognize(verificationFrame, _promptRegion);
+        if (!prompt.HasText || prompt.Confidence < 0.60
+            || !prompt.Text.Contains("enchant", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The Enchant prompt changed before interaction; no relic use was sent.");
+
+        var clickWindowFrame = _captureFreshFrame();
+        if (!IsFresh(clickWindowFrame))
+            throw new InvalidOperationException("Fresh altar interaction capture became stale.");
+
+        PulseKey(_interactionKey);
+    }
+
+    private void PulseKey(ushort virtualKey)
+    {
+        if (virtualKey == 0)
+            throw new ArgumentOutOfRangeException(nameof(virtualKey));
+
+        _input.SetKey(virtualKey, isDown: true);
+        _input.SetKey(virtualKey, isDown: false);
     }
 
     private static bool IsFresh(ScreenCaptureFrame frame)

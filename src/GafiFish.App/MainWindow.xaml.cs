@@ -281,6 +281,7 @@ public partial class MainWindow : Window
         SampleRhythmLaneJColor,
         SampleRhythmLaneKColor,
         SelectAppraiseButtonRegion,
+        SelectAppraiseConfirmRegion,
         SelectAppraiseCostRegion,
         SelectAppraiseResultRegion,
         SelectEnchantInteractionRegion,
@@ -6070,6 +6071,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
             or CalibrationAction.SelectAppraiseButtonRegion
+            or CalibrationAction.SelectAppraiseConfirmRegion
             or CalibrationAction.SelectAppraiseCostRegion
             or CalibrationAction.SelectAppraiseResultRegion
             or CalibrationAction.SelectEnchantInteractionRegion
@@ -6108,6 +6110,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
             or CalibrationAction.SelectAppraiseButtonRegion
+            or CalibrationAction.SelectAppraiseConfirmRegion
             or CalibrationAction.SelectAppraiseCostRegion
             or CalibrationAction.SelectAppraiseResultRegion
             or CalibrationAction.SelectEnchantInteractionRegion
@@ -6147,6 +6150,7 @@ public partial class MainWindow : Window
             or CalibrationAction.SelectAnglerAcceptButtonRegion
             or CalibrationAction.SelectAnglerSubmitButtonRegion
             or CalibrationAction.SelectAppraiseButtonRegion
+            or CalibrationAction.SelectAppraiseConfirmRegion
             or CalibrationAction.SelectAppraiseCostRegion
             or CalibrationAction.SelectAppraiseResultRegion
             or CalibrationAction.SelectEnchantInteractionRegion
@@ -6231,6 +6235,13 @@ public partial class MainWindow : Window
             {
                 AppraiseButtonRegion = selectedRegion,
                 AppraiseButtonRegionCalibrated = true,
+                ReferenceWidth = _lastFrame.Width,
+                ReferenceHeight = _lastFrame.Height
+            },
+            CalibrationAction.SelectAppraiseConfirmRegion => _profile with
+            {
+                AppraiseConfirmRegion = selectedRegion,
+                AppraiseConfirmRegionCalibrated = true,
                 ReferenceWidth = _lastFrame.Width,
                 ReferenceHeight = _lastFrame.Height
             },

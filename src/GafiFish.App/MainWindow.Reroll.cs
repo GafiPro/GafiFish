@@ -26,8 +26,11 @@ public partial class MainWindow
     {
         _rerollAutomationSettings = await _rerollAutomationSettingsStore.LoadAsync();
         AppraiseBudgetTextBox.Text = _rerollAutomationSettings.AppraiseBudget.ToString("0", CultureInfo.InvariantCulture);
+        AppraiseFishSlotTextBox.Text = _rerollAutomationSettings.AppraiseFishSlot.ToString(CultureInfo.InvariantCulture);
         AppraiseTargetTextBox.Text = _rerollAutomationSettings.AppraiseTargetText;
         EnchantRelicLimitTextBox.Text = _rerollAutomationSettings.EnchantRelicLimit.ToString(CultureInfo.InvariantCulture);
+        EnchantRelicSlotTextBox.Text = _rerollAutomationSettings.EnchantRelicSlot.ToString(CultureInfo.InvariantCulture);
+        InteractionKeyTextBox.Text = _rerollAutomationSettings.InteractionKey;
         EnchantTargetTextBox.Text = _rerollAutomationSettings.EnchantTargetText;
 
         // Limits persist, but both automation switches deliberately reset to off.
@@ -50,15 +53,26 @@ public partial class MainWindow
         if (!decimal.TryParse(budgetText, NumberStyles.Number, CultureInfo.CurrentCulture, out var budget))
             throw new InvalidOperationException("Enter a valid Appraise budget in C$.");
 
+        if (!int.TryParse(AppraiseFishSlotTextBox.Text, NumberStyles.Integer,
+                CultureInfo.CurrentCulture, out var fishSlot))
+            throw new InvalidOperationException("Enter the Appraise fish hotbar slot (1-9 or 0).");
+
         if (!int.TryParse(EnchantRelicLimitTextBox.Text, NumberStyles.Integer,
                 CultureInfo.CurrentCulture, out var relicLimit))
             throw new InvalidOperationException("Enter a whole-number Enchant relic limit.");
 
+        if (!int.TryParse(EnchantRelicSlotTextBox.Text, NumberStyles.Integer,
+                CultureInfo.CurrentCulture, out var relicSlot))
+            throw new InvalidOperationException("Enter the Enchant relic hotbar slot (1-9 or 0).");
+
         var settings = new RerollAutomationSettings
         {
             AppraiseBudget = budget,
+            AppraiseFishSlot = fishSlot,
             AppraiseTargetText = AppraiseTargetTextBox.Text.Trim(),
             EnchantRelicLimit = relicLimit,
+            EnchantRelicSlot = relicSlot,
+            InteractionKey = InteractionKeyTextBox.Text.Trim(),
             EnchantTargetText = EnchantTargetTextBox.Text.Trim()
         };
         settings.Validate();
@@ -105,13 +119,17 @@ public partial class MainWindow
         SetCalibrationAction(CalibrationAction.SelectAppraiseCostRegion,
             "Drag a tight rectangle around the current C$ price shown for one Appraise attempt.");
 
+    private void SelectAppraiseConfirmRegion_Click(object sender, RoutedEventArgs e) =>
+        SetCalibrationAction(CalibrationAction.SelectAppraiseConfirmRegion,
+            "Drag a tight rectangle around the Yes button in the Appraiser's price confirmation prompt.");
+
     private void SelectAppraiseResultRegion_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(CalibrationAction.SelectAppraiseResultRegion,
-            "Drag a tight rectangle around the fish details that visibly change after Appraise.");
+            "Drag a tight rectangle around the success notification or fish details (weight/mutation) that change after Appraise.");
 
     private void SelectEnchantInteractionRegion_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(CalibrationAction.SelectEnchantInteractionRegion,
-            "Drag a small rectangle centred on the altar interaction point. Auto Enchant clicks its centre once per confirmed result.");
+            "Drag a tight rectangle around the visible Enchant interaction prompt (for example, E Enchant). The module presses the configured key when this prompt is stable.");
 
     private void SelectEnchantResultRegion_Click(object sender, RoutedEventArgs e) =>
         SetCalibrationAction(CalibrationAction.SelectEnchantResultRegion,
@@ -262,8 +280,11 @@ public partial class MainWindow
                 _profile.AppraiseButtonRegion,
                 _profile.AppraiseResultRegion,
                 _rerollAutomationSettings.AppraiseTargetText,
-                _profile.AppraiseCostRegion,
-                _rerollAutomationSettings.AppraiseBudget);
+                priceRegion: _profile.AppraiseCostRegion,
+                confirmRegion: _profile.AppraiseConfirmRegion,
+                appraiseBudget: _rerollAutomationSettings.AppraiseBudget,
+                appraiseFishSlotKey: GetHotbarVirtualKey(_rerollAutomationSettings.AppraiseFishSlot),
+                interactionKey: GetInteractionVirtualKey(_rerollAutomationSettings.InteractionKey));
 
             coordinator.Start();
             _autoAppraiseInput = input;
@@ -310,7 +331,9 @@ public partial class MainWindow
                 _profile.EnchantInteractionRegion,
                 _profile.EnchantResultRegion,
                 _rerollAutomationSettings.EnchantTargetText,
-                enchantRelicLimit: _rerollAutomationSettings.EnchantRelicLimit);
+                enchantRelicLimit: _rerollAutomationSettings.EnchantRelicLimit,
+                enchantRelicSlotKey: GetHotbarVirtualKey(_rerollAutomationSettings.EnchantRelicSlot),
+                interactionKey: GetInteractionVirtualKey(_rerollAutomationSettings.InteractionKey));
 
             coordinator.Start();
             _autoEnchantInput = input;
@@ -331,6 +354,17 @@ public partial class MainWindow
             AutoEnchantStatusText.Text = "Auto Enchant could not arm: " + exception.Message;
             AddActivityLog("WARN", "ENCHANT", AutoEnchantStatusText.Text);
         }
+    }
+
+    private static ushort GetHotbarVirtualKey(int slot) =>
+        (ushort)(slot == 10 ? '0' : '0' + slot);
+
+    private static ushort GetInteractionVirtualKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key) || key.Trim().Length != 1)
+            throw new InvalidOperationException("Interaction key must be one letter or number.");
+
+        return (ushort)char.ToUpperInvariant(key.Trim()[0]);
     }
 
     private void ProcessAutoRerollFrame(ScreenCaptureFrame frame)
